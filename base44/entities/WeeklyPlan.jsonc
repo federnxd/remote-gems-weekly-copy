@@ -1,0 +1,53 @@
+{
+  "name": "WeeklyPlan",
+  "type": "object",
+  "properties": {
+    "week_label": {
+      "type": "string",
+      "description": "e.g. Week 1 - May 5-11"
+    },
+    "budget_allocated": {
+      "type": "number",
+      "default": 50
+    },
+    "budget_spent": {
+      "type": "number",
+      "default": 0
+    },
+    "posts_planned": {
+      "type": "number",
+      "default": 0
+    },
+    "posts_published": {
+      "type": "number",
+      "default": 0
+    },
+    "total_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "total_referrals": {
+      "type": "number",
+      "default": 0
+    },
+    "total_hired": {
+      "type": "number",
+      "default": 0
+    },
+    "strategy_notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planning",
+        "active",
+        "completed"
+      ],
+      "default": "planning"
+    }
+  },
+  "required": [
+    "week_label"
+  ]
+}

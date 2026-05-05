@@ -1,0 +1,48 @@
+{
+  "name": "OpenRole",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "engineering",
+        "design",
+        "content",
+        "finance_legal",
+        "science",
+        "management",
+        "other"
+      ],
+      "description": "Role category"
+    },
+    "target_audience": {
+      "type": "string",
+      "description": "Who to target on LinkedIn for this role"
+    },
+    "hashtags": {
+      "type": "string",
+      "description": "Relevant hashtags for this role"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "medium"
+    }
+  },
+  "required": [
+    "title",
+    "category"
+  ]
+}

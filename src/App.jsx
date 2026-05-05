@@ -5,7 +5,14 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import AppLayout from './components/layout/AppLayout';
+import Dashboard from './pages/Dashboard';
+import PostGenerator from './pages/PostGenerator';
+import Roles from './pages/Roles';
+import Posts from './pages/Posts';
+import Strategy from './pages/Strategy';
+import WeeklyPlanner from './pages/WeeklyPlanner';
+import Playbook from './pages/Playbook';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +40,15 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/generator" element={<PostGenerator />} />
+        <Route path="/roles" element={<Roles />} />
+        <Route path="/posts" element={<Posts />} />
+        <Route path="/strategy" element={<Strategy />} />
+        <Route path="/weekly" element={<WeeklyPlanner />} />
+        <Route path="/playbook" element={<Playbook />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

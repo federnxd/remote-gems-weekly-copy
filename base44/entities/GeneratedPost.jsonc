@@ -1,0 +1,71 @@
+{
+  "name": "GeneratedPost",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Post title/label"
+    },
+    "content": {
+      "type": "string",
+      "description": "The LinkedIn post content"
+    },
+    "strategy": {
+      "type": "string",
+      "enum": [
+        "targeted_role",
+        "storytelling",
+        "urgency",
+        "social_proof",
+        "niche_community",
+        "carousel_text"
+      ],
+      "description": "Post strategy type"
+    },
+    "target_roles": {
+      "type": "string",
+      "description": "Which roles this post targets"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "scheduled"
+      ],
+      "default": "draft"
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "referrals": {
+      "type": "number",
+      "default": 0
+    },
+    "interviews": {
+      "type": "number",
+      "default": 0
+    },
+    "certified": {
+      "type": "number",
+      "default": 0
+    },
+    "hired": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "content",
+    "strategy"
+  ]
+}
