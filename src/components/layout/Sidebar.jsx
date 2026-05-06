@@ -12,6 +12,7 @@ const navItems = [
   { path: '/generator', icon: PenTool, label: 'Post Generator' },
   { path: '/roles', icon: Briefcase, label: 'Open Roles' },
   { path: '/posts', icon: BarChart3, label: 'My Posts' },
+  { path: '/calendar', icon: CalendarDays, label: 'Content Calendar' },
   { path: '/strategy', icon: Target, label: 'Strategy Plan' },
   { path: '/weekly', icon: CalendarDays, label: 'Weekly Planner' },
   { path: '/playbook', icon: Lightbulb, label: 'Referral Playbook' },

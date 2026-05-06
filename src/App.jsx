@@ -13,6 +13,7 @@ import Posts from './pages/Posts';
 import Strategy from './pages/Strategy';
 import WeeklyPlanner from './pages/WeeklyPlanner';
 import Playbook from './pages/Playbook';
+import Calendar from './pages/Calendar';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -48,6 +49,7 @@ const AuthenticatedApp = () => {
         <Route path="/strategy" element={<Strategy />} />
         <Route path="/weekly" element={<WeeklyPlanner />} />
         <Route path="/playbook" element={<Playbook />} />
+        <Route path="/calendar" element={<Calendar />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

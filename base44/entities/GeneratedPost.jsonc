@@ -30,10 +30,19 @@
       "type": "string",
       "enum": [
         "draft",
-        "published",
-        "scheduled"
+        "scheduled",
+        "published"
       ],
       "default": "draft"
+    },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the post is scheduled to be published"
+    },
+    "scheduled_time": {
+      "type": "string",
+      "description": "Time the post is scheduled (HH:MM format)"
     },
     "impressions": {
       "type": "number",

@@ -9,8 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 export default function PostGenerator() {
   const [strategy, setStrategy] = useState('');
@@ -20,6 +23,8 @@ export default function PostGenerator() {
   const [personalNote, setPersonalNote] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(null);
+  const [scheduledTime, setScheduledTime] = useState('09:00');
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -113,13 +118,15 @@ Generate ONLY the post content, no explanations.`;
     setIsGenerating(false);
   };
 
-  const handleSave = () => {
+  const handleSave = (asScheduled = false) => {
     saveMutation.mutate({
       title: `${strategy.replace(/_/g, ' ')} - ${selectedRoles.slice(0, 3).join(', ') || 'All roles'}`,
       content: generatedContent,
       strategy,
       target_roles: selectedRoles.join(', '),
-      status: 'draft',
+      status: asScheduled && scheduledDate ? 'scheduled' : 'draft',
+      scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : undefined,
+      scheduled_time: scheduledDate ? scheduledTime : undefined,
     });
   };
 
@@ -180,6 +187,35 @@ Generate ONLY the post content, no explanations.`;
             />
           </div>
 
+          {/* Schedule Picker */}
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <Label className="text-sm font-semibold flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              5. Schedule (optional)
+            </Label>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex-1 justify-start text-left font-normal">
+                    {scheduledDate ? format(scheduledDate, 'MMM d, yyyy') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus />
+                </PopoverContent>
+              </Popover>
+              <input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="border border-input rounded-md px-2 py-1 text-sm bg-background w-28"
+              />
+              {scheduledDate && (
+                <Button variant="ghost" size="sm" onClick={() => setScheduledDate(null)}>✕</Button>
+              )}
+            </div>
+          </div>
+
           <Button 
             onClick={handleGenerate} 
             disabled={isGenerating}
@@ -203,7 +239,10 @@ Generate ONLY the post content, no explanations.`;
         <div className="lg:col-span-3">
           <PostPreview 
             content={generatedContent}
-            onSave={handleSave}
+            onSave={() => handleSave(false)}
+            onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
+            scheduledDate={scheduledDate}
+            scheduledTime={scheduledTime}
             onRegenerate={handleGenerate}
             isSaving={saveMutation.isPending}
           />

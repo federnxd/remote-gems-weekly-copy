@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Save, RotateCcw } from 'lucide-react';
+import { Copy, Save, RotateCcw, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
-export default function PostPreview({ content, onSave, onRegenerate, isSaving }) {
+export default function PostPreview({ content, onSave, onSaveScheduled, scheduledDate, scheduledTime, onRegenerate, isSaving }) {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
     toast.success('Post copied to clipboard!');
@@ -35,10 +36,16 @@ export default function PostPreview({ content, onSave, onRegenerate, isSaving })
             <Copy className="w-3.5 h-3.5" />
             Copy
           </Button>
-          <Button size="sm" onClick={onSave} disabled={isSaving} className="gap-1.5 text-xs">
+          <Button size="sm" onClick={onSave} disabled={isSaving} variant="outline" className="gap-1.5 text-xs">
             <Save className="w-3.5 h-3.5" />
-            Save
+            Save Draft
           </Button>
+          {onSaveScheduled && (
+            <Button size="sm" onClick={onSaveScheduled} disabled={isSaving} className="gap-1.5 text-xs">
+              <CalendarClock className="w-3.5 h-3.5" />
+              Schedule {scheduledDate ? format(scheduledDate, 'MMM d') : ''}
+            </Button>
+          )}
         </div>
       </div>
       
