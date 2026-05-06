@@ -22,11 +22,13 @@ const playbook = [
     color: "text-chart-4",
     content: `LinkedIn shows only 2 lines before "...see more". Your current hook "May - Remote Opportunities at Leading AI Company" is informational, not compelling.
 
-**HIGH-CONVERTING HOOKS:**
-• "I just got paid $X for reviewing AI outputs from my couch. Here's how →"
-• "3 reasons I quit my office job for AI remote work (and why you should too)"
-• "They said remote AI jobs were a scam. 6 months later, here's my bank statement."
-• "If you're a [role] still commuting to an office, read this."`,
+**HIGH-CONVERTING PROFESSIONAL HOOKS:**
+• "The AI industry is reshaping how top professionals work — and remote is now the standard."
+• "micro1 is quietly becoming one of the most respected AI companies to work with remotely. Here's why."
+• "If you're a [role] looking to apply your expertise to cutting-edge AI projects — fully remote — this is worth reading."
+• "What does it look like to work with a leading AI company from anywhere in the world? I've been doing it since October 2025."
+• "Remote + AI + flexible hours + expert-level work. This combination exists — and it's at micro1."
+• "Are you a [role] who values autonomy, flexible hours, and working on AI that matters? Read this."`,
     priority: "critical"
   },
   {

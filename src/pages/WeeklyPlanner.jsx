@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, DollarSign, Calendar } from 'lucide-react';
+import { Plus, DollarSign, Calendar, Target } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function WeeklyPlanner() {
@@ -125,8 +125,29 @@ export default function WeeklyPlanner() {
             </div>
 
             {plan.strategy_notes && (
-              <div className="p-3 rounded-lg bg-muted/30 text-sm text-muted-foreground">
-                {plan.strategy_notes}
+              <div className="space-y-2">
+                {plan.strategy_notes.split('\n').map((line, idx) => {
+                  if (!line.trim()) return null;
+                  if (line.startsWith('FOCUS:')) return (
+                    <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                      <Target className="w-3.5 h-3.5" /> {line.replace('FOCUS:', '').trim()}
+                    </div>
+                  );
+                  if (line.startsWith('📅')) return (
+                    <div key={idx} className="mt-3 mb-1 text-xs font-bold text-foreground tracking-wide">
+                      {line}
+                    </div>
+                  );
+                  if (line.startsWith('→')) return (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground pl-3">
+                      <span className="text-primary shrink-0 mt-0.5">→</span>
+                      <span>{line.replace('→', '').trim()}</span>
+                    </div>
+                  );
+                  return (
+                    <p key={idx} className="text-xs text-muted-foreground">{line}</p>
+                  );
+                })}
               </div>
             )}
           </Card>

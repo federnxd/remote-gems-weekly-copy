@@ -31,9 +31,10 @@ const funnelFixes = [
     current: '390K → ~2K (0.5%)',
     target: '500K → 15K (3%)',
     fixes: [
-      'Use hooks that create curiosity gaps ("I made $X in 3 months working remotely")',
+      'Lead with a professional insight: "The AI industry is reshaping how top [role]s contribute remotely."',
+      'Speak to career identity: "If you\'re a [role] who values autonomy and expert-level work, this is for you."',
       'Post at peak times: Tue-Thu 8-10 AM EST',
-      'Target posts to 1-3 specific roles instead of listing all 30',
+      'Target posts to 1-3 specific roles — speak their professional language',
       'Use carousel/image posts (2x more engagement vs text)',
     ]
   },
