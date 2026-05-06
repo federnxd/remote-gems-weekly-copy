@@ -8,8 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+
+const categoryGuess = (title) => {
+  const t = title.toLowerCase();
+  if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|ml|ai|data|software/.test(t)) return 'engineering';
+  if (/design|ux|ui|motion|adobe|video/.test(t)) return 'design';
+  if (/writer|journalist|content|linguistic|philosophy|academic|author|transcription/.test(t)) return 'content';
+  if (/attorney|legal|cpa|tax|financial|counsel/.test(t)) return 'finance_legal';
+  if (/biolog|health|stem|scientist|research/.test(t)) return 'science';
+  if (/hr|product manager|management/.test(t)) return 'management';
+  return 'other';
+};
 
 const categories = ['engineering', 'design', 'content', 'finance_legal', 'science', 'management', 'other'];
 const categoryColors = {
@@ -25,6 +36,9 @@ const categoryColors = {
 export default function Roles() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncText, setSyncText] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [newRole, setNewRole] = useState({ title: '', category: 'engineering', priority: 'medium' });
   const queryClient = useQueryClient();
 
@@ -51,6 +65,46 @@ export default function Roles() {
     },
   });
 
+  const handleSync = async () => {
+    if (!syncText.trim()) return;
+    setIsSyncing(true);
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Extract all job role titles from the following text. Return ONLY a JSON array of strings with the exact job titles, nothing else. No explanations.
+
+Text:
+${syncText}`,
+      response_json_schema: {
+        type: 'object',
+        properties: { roles: { type: 'array', items: { type: 'string' } } },
+      },
+    });
+
+    const extracted = result?.roles || [];
+    const existingTitles = roles.map(r => r.title.toLowerCase());
+    const newOnes = extracted.filter(t => !existingTitles.includes(t.toLowerCase()));
+    const removed = roles.filter(r => !extracted.map(t => t.toLowerCase()).includes(r.title.toLowerCase()));
+
+    // Add new roles
+    for (const title of newOnes) {
+      await base44.entities.OpenRole.create({
+        title,
+        category: categoryGuess(title),
+        priority: 'medium',
+        is_active: true,
+      });
+    }
+    // Deactivate removed roles (mark inactive rather than delete)
+    for (const role of removed) {
+      await base44.entities.OpenRole.update(role.id, { is_active: false });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['open-roles'] });
+    setIsSyncing(false);
+    setSyncOpen(false);
+    setSyncText('');
+    toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive`);
+  };
+
   const filtered = roles.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -60,6 +114,33 @@ export default function Roles() {
           <h1 className="text-2xl font-bold tracking-tight">Open Roles</h1>
           <p className="text-sm text-muted-foreground">{roles.length} active positions</p>
         </div>
+        <div className="flex gap-2">
+        {/* Sync Dialog */}
+        <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="gap-2"><RefreshCw className="w-4 h-4" /> Sync Roles</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>AI Role Sync</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-muted-foreground">
+                Paste the current job list from micro1 (copy it directly from the website or your referral page). The AI will extract all roles, add new ones, and mark removed ones as inactive.
+              </p>
+              <textarea
+                value={syncText}
+                onChange={(e) => setSyncText(e.target.value)}
+                placeholder="Paste the full job list text here..."
+                className="w-full h-48 rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <Button onClick={handleSync} disabled={!syncText.trim() || isSyncing} className="w-full gap-2">
+                {isSyncing ? <><RefreshCw className="w-4 h-4 animate-spin" /> Syncing...</> : <><Sparkles className="w-4 h-4" /> Sync with AI</>}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" /> Add Role</Button>
@@ -101,6 +182,7 @@ export default function Roles() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
