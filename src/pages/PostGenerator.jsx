@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import StrategySelector from '@/components/generator/StrategySelector';
 import RoleSelector from '@/components/generator/RoleSelector';
+import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelector';
 import PostPreview from '@/components/generator/PostPreview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 export default function PostGenerator() {
   const [strategy, setStrategy] = useState('');
   const [selectedRoles, setSelectedRoles] = useState([]);
+  const [activeSegments, setActiveSegments] = useState([]);
   const [referralLink, setReferralLink] = useState('https://lnkd.in/gZXXSdt4');
   const [personalNote, setPersonalNote] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
@@ -37,6 +39,28 @@ export default function PostGenerator() {
     setSelectedRoles(prev => 
       prev.includes(title) ? prev.filter(r => r !== title) : [...prev, title]
     );
+  };
+
+  const toggleSegment = (segId, segRoles) => {
+    if (segId === 'all') {
+      // Toggle all roles
+      const allTitles = roles.map(r => r.title);
+      const allSelected = allTitles.every(t => selectedRoles.includes(t));
+      setSelectedRoles(allSelected ? [] : allTitles);
+      setActiveSegments(allSelected ? [] : ['all']);
+      return;
+    }
+    const isActive = activeSegments.includes(segId);
+    setActiveSegments(prev => isActive ? prev.filter(s => s !== segId) : [...prev.filter(s => s !== 'all'), segId]);
+    if (isActive) {
+      // Deselect only roles exclusive to this segment (not shared with other active segments)
+      const otherActiveRoles = SEGMENTS
+        .filter(s => activeSegments.includes(s.id) && s.id !== segId)
+        .flatMap(s => s.roles);
+      setSelectedRoles(prev => prev.filter(r => !segRoles.includes(r) || otherActiveRoles.includes(r)));
+    } else {
+      setSelectedRoles(prev => [...new Set([...prev, ...segRoles])]);
+    }
   };
 
   const handleGenerate = async () => {
@@ -116,10 +140,22 @@ Generate ONLY the post content, no explanations.`;
 
           <div>
             <Label className="text-sm font-semibold mb-3 block">
-              2. Target Roles 
+              2. Target Audience
               <span className="font-normal text-muted-foreground ml-1">(optional — targets all if empty)</span>
             </Label>
-            <RoleSelector roles={roles} selectedRoles={selectedRoles} onToggle={toggleRole} />
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">By Segment</p>
+                <SegmentSelector activeSegments={activeSegments} onToggleSegment={toggleSegment} />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                  Individual Roles
+                  {selectedRoles.length > 0 && <span className="ml-1 text-primary">({selectedRoles.length} selected)</span>}
+                </p>
+                <RoleSelector roles={roles} selectedRoles={selectedRoles} onToggle={toggleRole} />
+              </div>
+            </div>
           </div>
 
           <div>
