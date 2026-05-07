@@ -28,8 +28,7 @@ export const SEGMENTS = [
     bg: 'bg-chart-4/10 hover:bg-chart-4/20 border-chart-4/20',
     activeBg: 'bg-chart-4 text-white border-chart-4',
     roles: [
-      'Financial Advisor', 'CPA / US Tax Accountant', 'HR Expert',
-      'Product Manager',
+      'Financial Advisor', 'CPA / US Tax Accountant', 'HR Expert', 'Product Manager',
     ],
   },
   {
@@ -51,8 +50,7 @@ export const SEGMENTS = [
     bg: 'bg-chart-5/10 hover:bg-chart-5/20 border-chart-5/20',
     activeBg: 'bg-chart-5 text-white border-chart-5',
     roles: [
-      'Audio Transcription Expert', 'Video Editor', 'Motion Graphics Designer',
-      'Adobe Specialist',
+      'Audio Transcription Expert', 'Video Editor', 'Motion Graphics Designer', 'Adobe Specialist',
     ],
   },
   {
@@ -63,7 +61,7 @@ export const SEGMENTS = [
     bg: 'bg-chart-2/10 hover:bg-chart-2/20 border-chart-2/20',
     activeBg: 'bg-chart-2 text-white border-chart-2',
     roles: [
-      'UX/UI Expert', 'Motion Graphics Designer', 'Adobe Specialist', 'Video Editor',
+      'UX/UI Expert', 'Graphic Designer', 'Brand Designer',
     ],
   },
   {
@@ -75,7 +73,6 @@ export const SEGMENTS = [
     activeBg: 'bg-accent text-accent-foreground border-accent',
     roles: [
       'Writer & Author', 'Journalist', 'Linguistic Expert', 'Philosophy Expert',
-      'Academic Researcher',
     ],
   },
   {
@@ -86,8 +83,7 @@ export const SEGMENTS = [
     bg: 'bg-chart-2/10 hover:bg-chart-2/20 border-chart-2/20',
     activeBg: 'bg-chart-2 text-white border-chart-2',
     roles: [
-      'Biologist (Cell / Molecular)', 'Healthcare Professional', 'STEM Expert',
-      'Academic Researcher',
+      'Biologist (Cell / Molecular)', 'Healthcare Professional', 'STEM Expert', 'Academic Researcher',
     ],
   },
   {
