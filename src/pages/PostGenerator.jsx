@@ -46,9 +46,19 @@ export default function PostGenerator() {
     );
   };
 
+  // Map segment IDs to OpenRole categories for dynamic DB-driven role selection
+  const SEGMENT_CATEGORY_MAP = {
+    it: 'engineering',
+    business: 'management',
+    legal: 'finance_legal',
+    media: 'media',
+    creative: 'design',
+    content: 'content',
+    science: 'science',
+  };
+
   const toggleSegment = (segId, segRoles) => {
     if (segId === 'all') {
-      // Toggle all roles
       const allTitles = roles.map(r => r.title);
       const allSelected = allTitles.every(t => selectedRoles.includes(t));
       setSelectedRoles(allSelected ? [] : allTitles);
@@ -57,14 +67,25 @@ export default function PostGenerator() {
     }
     const isActive = activeSegments.includes(segId);
     setActiveSegments(prev => isActive ? prev.filter(s => s !== segId) : [...prev.filter(s => s !== 'all'), segId]);
+
+    // Get roles from DB matching this segment's category, plus hardcoded segment roles
+    const categoryKey = SEGMENT_CATEGORY_MAP[segId];
+    const dbRolesForSegment = categoryKey
+      ? roles.filter(r => r.category === categoryKey).map(r => r.title)
+      : [];
+    const allSegmentRoles = [...new Set([...segRoles, ...dbRolesForSegment])];
+
     if (isActive) {
-      // Deselect only roles exclusive to this segment (not shared with other active segments)
       const otherActiveRoles = SEGMENTS
         .filter(s => activeSegments.includes(s.id) && s.id !== segId)
-        .flatMap(s => s.roles);
-      setSelectedRoles(prev => prev.filter(r => !segRoles.includes(r) || otherActiveRoles.includes(r)));
+        .flatMap(s => {
+          const catKey = SEGMENT_CATEGORY_MAP[s.id];
+          const dbRoles = catKey ? roles.filter(r => r.category === catKey).map(r => r.title) : [];
+          return [...new Set([...s.roles, ...dbRoles])];
+        });
+      setSelectedRoles(prev => prev.filter(r => !allSegmentRoles.includes(r) || otherActiveRoles.includes(r)));
     } else {
-      setSelectedRoles(prev => [...new Set([...prev, ...segRoles])]);
+      setSelectedRoles(prev => [...new Set([...prev, ...allSegmentRoles])]);
     }
   };
 

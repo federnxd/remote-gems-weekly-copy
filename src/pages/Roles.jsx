@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 const categoryGuess = (title) => {
   const t = title.toLowerCase();
   if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev/.test(t)) return 'engineering';
-  if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|video edit|video produc|3d artist|photo/.test(t)) return 'design';
+  if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo/.test(t)) return 'design';
+  if (/audio|voice actor|voice over|voiceover|crowd worker|field record|recording expert|sound|music|speech|accent|dialect|bilingual|film editor|video edit|video produc|motion graphic|runops|platform.*infra/.test(t)) return 'media';
   if (/writer|author|journalist|content|copywriter|linguistic|translat|philosophy|transcription|caption|subtitl|editor|proofreader/.test(t)) return 'content';
   if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal/.test(t)) return 'finance_legal';
   if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic/.test(t)) return 'science';
@@ -22,10 +23,11 @@ const categoryGuess = (title) => {
   return 'other';
 };
 
-const categories = ['engineering', 'design', 'content', 'finance_legal', 'science', 'management', 'other'];
+const categories = ['engineering', 'design', 'media', 'content', 'finance_legal', 'science', 'management', 'other'];
 const categoryColors = {
   engineering: 'bg-primary/10 text-primary',
   design: 'bg-chart-3/10 text-chart-3',
+  media: 'bg-chart-5/10 text-chart-5',
   content: 'bg-chart-4/10 text-chart-4',
   finance_legal: 'bg-chart-2/10 text-chart-2',
   science: 'bg-accent/10 text-accent',
@@ -69,47 +71,26 @@ export default function Roles() {
     if (!syncText.trim()) return;
     setIsSyncing(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Extract all job role titles from the following text and categorize each one.
-
-Categories available:
-- engineering: software engineers, developers, devops, data engineers, ML/AI engineers, QA, cloud, infra, platform, support/technical ops
-- design: UX/UI designers, graphic designers, illustrators, animators, video editors, film editors, photographers, 3D artists
-- content: writers, journalists, translators, linguists, audio recorders, voice actors, transcriptionists, bilingual workers, crowd workers, captioners
-- finance_legal: accountants, financial advisors, attorneys, legal counsel, auditors, tax experts, compliance
-- science: biologists, chemists, physicists, medical professionals, researchers, scientists, health experts, humanities, library science, history
-- management: managers, directors, VPs, HR, recruiters, product managers, project managers, operations specialists, customer success
-
-Return a JSON object with a "roles" array. Each item must have "title" (exact title from text) and "category" (one of the above).
+      prompt: `Extract all job role titles from the following text. Return ONLY a JSON array of strings with the exact job titles, nothing else. No explanations.
 
 Text:
 ${syncText}`,
       response_json_schema: {
         type: 'object',
-        properties: {
-          roles: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                category: { type: 'string' },
-              },
-            },
-          },
-        },
+        properties: { roles: { type: 'array', items: { type: 'string' } } },
       },
     });
 
     const extracted = result?.roles || [];
     const existingTitles = roles.map(r => r.title.toLowerCase());
-    const newOnes = extracted.filter(r => !existingTitles.includes(r.title.toLowerCase()));
-    const removed = roles.filter(r => !extracted.map(e => e.title.toLowerCase()).includes(r.title.toLowerCase()));
+    const newOnes = extracted.filter(t => !existingTitles.includes(t.toLowerCase()));
+    const removed = roles.filter(r => !extracted.map(t => t.toLowerCase()).includes(r.title.toLowerCase()));
 
     // Add new roles
-    for (const role of newOnes) {
+    for (const title of newOnes) {
       await base44.entities.OpenRole.create({
-        title: role.title,
-        category: role.category || 'other',
+        title,
+        category: categoryGuess(title),
         priority: 'medium',
         is_active: true,
       });

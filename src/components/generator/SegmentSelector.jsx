@@ -51,6 +51,10 @@ export const SEGMENTS = [
     activeBg: 'bg-chart-5 text-white border-chart-5',
     roles: [
       'Audio Transcription Expert', 'Video Editor', 'Motion Graphics Designer', 'Adobe Specialist',
+      'Voice Actors', 'Field Recorders', 'Film Editor',
+      'Swiss German Audio Recording Expert', 'Kannada Audio Recording Expert',
+      'Malayalam Audio Recording Expert', 'Odia Audio Recording Expert',
+      'Crowd Workers — Accents/Dialects', 'Crowd Workers — Bilingual',
     ],
   },
   {
