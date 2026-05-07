@@ -13,12 +13,12 @@ import { toast } from 'sonner';
 
 const categoryGuess = (title) => {
   const t = title.toLowerCase();
-  if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|ml|ai|data|software/.test(t)) return 'engineering';
-  if (/design|ux|ui|motion|adobe|video/.test(t)) return 'design';
-  if (/writer|journalist|content|linguistic|philosophy|academic|author|transcription/.test(t)) return 'content';
-  if (/attorney|legal|cpa|tax|financial|counsel/.test(t)) return 'finance_legal';
-  if (/biolog|health|stem|scientist|research/.test(t)) return 'science';
-  if (/hr|product manager|management/.test(t)) return 'management';
+  if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev/.test(t)) return 'engineering';
+  if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|video edit|video produc|3d artist|photo/.test(t)) return 'design';
+  if (/writer|author|journalist|content|copywriter|linguistic|translat|philosophy|transcription|caption|subtitl|editor|proofreader/.test(t)) return 'content';
+  if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal/.test(t)) return 'finance_legal';
+  if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic/.test(t)) return 'science';
+  if (/hr |human resource|recruiter|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager/.test(t)) return 'management';
   return 'other';
 };
 
