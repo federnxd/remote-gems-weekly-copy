@@ -69,26 +69,47 @@ export default function Roles() {
     if (!syncText.trim()) return;
     setIsSyncing(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Extract all job role titles from the following text. Return ONLY a JSON array of strings with the exact job titles, nothing else. No explanations.
+      prompt: `Extract all job role titles from the following text and categorize each one.
+
+Categories available:
+- engineering: software engineers, developers, devops, data engineers, ML/AI engineers, QA, cloud, infra, platform, support/technical ops
+- design: UX/UI designers, graphic designers, illustrators, animators, video editors, film editors, photographers, 3D artists
+- content: writers, journalists, translators, linguists, audio recorders, voice actors, transcriptionists, bilingual workers, crowd workers, captioners
+- finance_legal: accountants, financial advisors, attorneys, legal counsel, auditors, tax experts, compliance
+- science: biologists, chemists, physicists, medical professionals, researchers, scientists, health experts, humanities, library science, history
+- management: managers, directors, VPs, HR, recruiters, product managers, project managers, operations specialists, customer success
+
+Return a JSON object with a "roles" array. Each item must have "title" (exact title from text) and "category" (one of the above).
 
 Text:
 ${syncText}`,
       response_json_schema: {
         type: 'object',
-        properties: { roles: { type: 'array', items: { type: 'string' } } },
+        properties: {
+          roles: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                category: { type: 'string' },
+              },
+            },
+          },
+        },
       },
     });
 
     const extracted = result?.roles || [];
     const existingTitles = roles.map(r => r.title.toLowerCase());
-    const newOnes = extracted.filter(t => !existingTitles.includes(t.toLowerCase()));
-    const removed = roles.filter(r => !extracted.map(t => t.toLowerCase()).includes(r.title.toLowerCase()));
+    const newOnes = extracted.filter(r => !existingTitles.includes(r.title.toLowerCase()));
+    const removed = roles.filter(r => !extracted.map(e => e.title.toLowerCase()).includes(r.title.toLowerCase()));
 
     // Add new roles
-    for (const title of newOnes) {
+    for (const role of newOnes) {
       await base44.entities.OpenRole.create({
-        title,
-        category: categoryGuess(title),
+        title: role.title,
+        category: role.category || 'other',
         priority: 'medium',
         is_active: true,
       });
