@@ -35,6 +35,7 @@ export default function PostGenerator() {
   const [campaignId, setCampaignId] = useState('');
   const [savedPostId, setSavedPostId] = useState(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin']);
+  const [rolesOpen, setRolesOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -215,11 +216,17 @@ Generate ONLY the post content, no explanations.`;
                 <SegmentSelector activeSegments={activeSegments} onToggleSegment={toggleSegment} />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
-                  Individual Roles
-                  {selectedRoles.length > 0 && <span className="ml-1 text-primary">({selectedRoles.length} selected)</span>}
-                </p>
-                <RoleSelector roles={roles} selectedRoles={selectedRoles} onToggle={toggleRole} />
+                <button
+                  onClick={() => setRolesOpen(prev => !prev)}
+                  className="flex items-center justify-between w-full text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide hover:text-foreground transition-colors"
+                >
+                  <span>
+                    Individual Roles
+                    {selectedRoles.length > 0 && <span className="ml-1 text-primary normal-case">({selectedRoles.length} selected)</span>}
+                  </span>
+                  <span className="text-base leading-none">{rolesOpen ? '▲' : '▼'}</span>
+                </button>
+                {rolesOpen && <RoleSelector roles={roles} selectedRoles={selectedRoles} onToggle={toggleRole} />}
               </div>
             </div>
           </div>
