@@ -5,9 +5,9 @@ import { Copy, Save, RotateCcw, CalendarClock, ThumbsUp, MessageSquare, Repeat2,
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import PublishToLinkedInButton from './PublishToLinkedInButton';
+import MultiPublishButton from './MultiPublishButton';
 
-const PLATFORMS = [
+const PREVIEW_TABS = [
   { id: 'linkedin', label: 'LinkedIn' },
   { id: 'twitter', label: 'X / Twitter' },
 ];
@@ -141,7 +141,7 @@ function TwitterMockup({ content }) {
   );
 }
 
-export default function PostPreview({ content, postId, onSave, onSaveScheduled, scheduledDate, scheduledTime, onRegenerate, isSaving, onPublished }) {
+export default function PostPreview({ content, postId, selectedPlatforms = ['linkedin'], onSave, onSaveScheduled, scheduledDate, scheduledTime, onRegenerate, isSaving, onPublished }) {
   const [platform, setPlatform] = useState('linkedin');
 
   const handleCopy = async () => {
@@ -167,7 +167,7 @@ export default function PostPreview({ content, postId, onSave, onSaveScheduled, 
       <div className="p-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
         {/* Platform switcher */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          {PLATFORMS.map((p) => (
+          {PREVIEW_TABS.map((p) => (
             <button
               key={p.id}
               onClick={() => setPlatform(p.id)}
@@ -202,14 +202,13 @@ export default function PostPreview({ content, postId, onSave, onSaveScheduled, 
               Schedule {scheduledDate ? format(scheduledDate, 'MMM d') : ''}
             </Button>
           )}
-          {platform === 'linkedin' && (
-            <PublishToLinkedInButton
-              content={content}
-              postId={postId}
-              onPublished={onPublished}
-              disabled={isSaving}
-            />
-          )}
+          <MultiPublishButton
+            content={content}
+            postId={postId}
+            selectedPlatforms={selectedPlatforms}
+            onPublished={onPublished}
+            disabled={isSaving}
+          />
         </div>
       </div>
 

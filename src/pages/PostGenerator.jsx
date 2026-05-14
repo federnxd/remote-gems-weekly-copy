@@ -6,6 +6,7 @@ import HashtagSuggester from '@/components/generator/HashtagSuggester';
 import RoleSelector from '@/components/generator/RoleSelector';
 import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelector';
 import PostPreview from '@/components/generator/PostPreview';
+import PlatformSelector from '@/components/generator/PlatformSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,7 @@ export default function PostGenerator() {
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [campaignId, setCampaignId] = useState('');
   const [savedPostId, setSavedPostId] = useState(null);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin']);
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -244,11 +246,17 @@ Generate ONLY the post content, no explanations.`;
             </div>
           )}
 
+          {/* Platform Selector */}
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <Label className="text-sm font-semibold block">5. Publish To</Label>
+            <PlatformSelector selectedPlatforms={selectedPlatforms} onChange={setSelectedPlatforms} />
+          </div>
+
           {/* Schedule Picker */}
           <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
             <Label className="text-sm font-semibold flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-primary" />
-              5. Schedule <span className="font-normal text-muted-foreground">(optional)</span>
+              6. Schedule <span className="font-normal text-muted-foreground">(optional)</span>
             </Label>
             <div className="flex gap-2">
               <Popover>
@@ -302,6 +310,7 @@ Generate ONLY the post content, no explanations.`;
           <PostPreview
             content={generatedContent}
             postId={savedPostId}
+            selectedPlatforms={selectedPlatforms}
             onSave={() => handleSave(false)}
             onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
             scheduledDate={scheduledDate}
