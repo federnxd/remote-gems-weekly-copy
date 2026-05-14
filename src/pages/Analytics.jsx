@@ -6,6 +6,7 @@ import PlatformPerformanceTable from '@/components/analytics/PlatformPerformance
 import EngagementByStrategy from '@/components/analytics/EngagementByStrategy';
 import TopPostsTable from '@/components/analytics/TopPostsTable';
 import CTRFunnel from '@/components/analytics/CTRFunnel';
+import StrategyCompareCard from '@/components/analytics/StrategyCompareCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, Eye, MousePointerClick, Users, UserCheck } from 'lucide-react';
 
@@ -79,6 +80,9 @@ export default function Analytics() {
         <EngagementByStrategy posts={posts} />
         <TopPostsTable posts={posts} />
       </div>
+
+      {/* A/B Strategy Comparison */}
+      <StrategyCompareCard posts={posts} />
     </div>
   );
 }

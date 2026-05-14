@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Sparkles, CalendarClock } from 'lucide-react';
+import ABComparePreview from '@/components/generator/ABComparePreview';
+import { Loader2, Sparkles, CalendarClock, GitCompare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -36,6 +37,10 @@ export default function PostGenerator() {
   const [savedPostId, setSavedPostId] = useState(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin']);
   const [rolesOpen, setRolesOpen] = useState(false);
+  const [abMode, setAbMode] = useState(false);
+  const [strategyB, setStrategyB] = useState('');
+  const [contentB, setContentB] = useState('');
+  const [savedPostIdB, setSavedPostIdB] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -54,6 +59,15 @@ export default function PostGenerator() {
       setSavedPostId(post.id);
       queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
       toast.success('Post saved!');
+    },
+  });
+
+  const saveMutationB = useMutation({
+    mutationFn: (data) => base44.entities.GeneratedPost.create(data),
+    onSuccess: (post) => {
+      setSavedPostIdB(post.id);
+      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+      toast.success('Variant B saved!');
     },
   });
 
@@ -106,29 +120,9 @@ export default function PostGenerator() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!strategy) {
-      toast.error('Please select a post strategy');
-      return;
-    }
+  const buildPrompt = (strat, rolesList, platformInstruction) => `You are an expert content strategist specializing in referral recruitment. Generate a high-converting post for micro1 (an AI training and development company) that maximizes referral sign-ups.
 
-    setIsGenerating(true);
-    const rolesList = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
-
-    // Build platform tone instructions
-    const platformTones = selectedPlatforms
-      .map(id => PLATFORMS.find(p => p.id === id))
-      .filter(Boolean)
-      .map(p => `- ${p.label}: ${p.tone}`)
-      .join('\n');
-
-    const platformInstruction = selectedPlatforms.length > 0
-      ? `\nPLATFORM TARGETING:\nThis post will be published on: ${selectedPlatforms.map(id => PLATFORMS.find(p => p.id === id)?.label).filter(Boolean).join(', ')}.\nAdapt the tone and format accordingly:\n${platformTones}\nIf multiple platforms are selected, optimize for the PRIMARY platform (first listed) but keep it adaptable.`
-      : '';
-    
-    const prompt = `You are an expert content strategist specializing in referral recruitment. Generate a high-converting post for micro1 (an AI training and development company) that maximizes referral sign-ups.
-
-STRATEGY: ${strategy.replace(/_/g, ' ')}
+STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
 ${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
@@ -162,8 +156,33 @@ TONE: Professional but approachable. Authentic, not salesy. Like a friend sharin
 
 Generate ONLY the post content, no explanations.`;
 
-    const result = await base44.integrations.Core.InvokeLLM({ prompt });
-    setGeneratedContent(result);
+  const handleGenerate = async () => {
+    if (!strategy) { toast.error('Please select a post strategy'); return; }
+    if (abMode && !strategyB) { toast.error('Please select a Strategy B for comparison'); return; }
+
+    setIsGenerating(true);
+    const rolesList = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
+
+    const platformTones = selectedPlatforms
+      .map(id => PLATFORMS.find(p => p.id === id))
+      .filter(Boolean)
+      .map(p => `- ${p.label}: ${p.tone}`)
+      .join('\n');
+    const platformInstruction = selectedPlatforms.length > 0
+      ? `\nPLATFORM TARGETING:\nThis post will be published on: ${selectedPlatforms.map(id => PLATFORMS.find(p => p.id === id)?.label).filter(Boolean).join(', ')}.\nAdapt the tone and format accordingly:\n${platformTones}\nIf multiple platforms are selected, optimize for the PRIMARY platform (first listed) but keep it adaptable.`
+      : '';
+
+    if (abMode) {
+      const [resultA, resultB] = await Promise.all([
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction) }),
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, platformInstruction) }),
+      ]);
+      setGeneratedContent(resultA);
+      setContentB(resultB);
+    } else {
+      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction) });
+      setGeneratedContent(result);
+    }
     setIsGenerating(false);
   };
 
@@ -180,6 +199,17 @@ Generate ONLY the post content, no explanations.`;
     });
   };
 
+  const handleSaveB = () => {
+    saveMutationB.mutate({
+      title: `${strategyB.replace(/_/g, ' ')} - ${selectedRoles.slice(0, 3).join(', ') || 'All roles'}`,
+      content: contentB,
+      strategy: strategyB,
+      campaign_id: campaignId || undefined,
+      target_roles: selectedRoles.join(', '),
+      status: 'draft',
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -191,8 +221,30 @@ Generate ONLY the post content, no explanations.`;
         {/* Controls */}
         <div className="lg:col-span-2 space-y-5">
           <div>
-            <Label className="text-sm font-semibold mb-3 block">1. Choose Strategy</Label>
-            <StrategySelector selected={strategy} onSelect={setStrategy} />
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-semibold">1. Choose Strategy</Label>
+              <button
+                onClick={() => { setAbMode(m => !m); setContentB(''); }}
+                className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                  abMode ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground border-border hover:border-primary hover:text-primary'
+                }`}
+              >
+                <GitCompare className="w-3 h-3" />
+                A/B Test {abMode ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div className={abMode ? 'grid grid-cols-2 gap-3' : ''}>
+              <div>
+                {abMode && <p className="text-[10px] font-semibold text-muted-foreground mb-1">Strategy A</p>}
+                <StrategySelector selected={strategy} onSelect={setStrategy} />
+              </div>
+              {abMode && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Strategy B</p>
+                  <StrategySelector selected={strategyB} onSelect={setStrategyB} />
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -325,12 +377,12 @@ Generate ONLY the post content, no explanations.`;
             {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Generating...
+                {abMode ? 'Generating both variants…' : 'Generating...'}
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Generate Post
+                {abMode ? 'Generate A/B Variants' : 'Generate Post'}
               </>
             )}
           </Button>
@@ -339,23 +391,38 @@ Generate ONLY the post content, no explanations.`;
         {/* Preview */}
         <div className="lg:col-span-3 space-y-4">
           <WhereToPostChecklist selectedPlatforms={selectedPlatforms} />
-          <HashtagSuggester
-            content={generatedContent}
-            selectedRoles={selectedRoles}
-            onInsertHashtag={(tag) => setGeneratedContent(prev => prev ? prev.trimEnd() + '\n' + tag : tag)}
-          />
-          <PostPreview
-            content={generatedContent}
-            postId={savedPostId}
-            selectedPlatforms={selectedPlatforms}
-            onSave={() => handleSave(false)}
-            onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
-            scheduledDate={scheduledDate}
-            scheduledTime={scheduledTime}
-            onRegenerate={handleGenerate}
-            isSaving={saveMutation.isPending}
-            onPublished={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
-          />
+          {!abMode && (
+            <HashtagSuggester
+              content={generatedContent}
+              selectedRoles={selectedRoles}
+              onInsertHashtag={(tag) => setGeneratedContent(prev => prev ? prev.trimEnd() + '\n' + tag : tag)}
+            />
+          )}
+          {abMode ? (
+            <ABComparePreview
+              strategyA={strategy}
+              strategyB={strategyB}
+              contentA={generatedContent}
+              contentB={contentB}
+              isGenerating={isGenerating}
+              onSaveA={() => handleSave(false)}
+              onSaveB={handleSaveB}
+              isSaving={saveMutation.isPending || saveMutationB.isPending}
+            />
+          ) : (
+            <PostPreview
+              content={generatedContent}
+              postId={savedPostId}
+              selectedPlatforms={selectedPlatforms}
+              onSave={() => handleSave(false)}
+              onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
+              scheduledDate={scheduledDate}
+              scheduledTime={scheduledTime}
+              onRegenerate={handleGenerate}
+              isSaving={saveMutation.isPending}
+              onPublished={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+            />
+          )}
         </div>
       </div>
     </div>
