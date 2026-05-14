@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import StrategySelector from '@/components/generator/StrategySelector';
+import HashtagSuggester from '@/components/generator/HashtagSuggester';
 import RoleSelector from '@/components/generator/RoleSelector';
 import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelector';
 import PostPreview from '@/components/generator/PostPreview';
@@ -292,8 +293,13 @@ Generate ONLY the post content, no explanations.`;
         </div>
 
         {/* Preview */}
-        <div className="lg:col-span-3">
-          <PostPreview 
+        <div className="lg:col-span-3 space-y-4">
+          <HashtagSuggester
+            content={generatedContent}
+            selectedRoles={selectedRoles}
+            onInsertHashtag={(tag) => setGeneratedContent(prev => prev ? prev.trimEnd() + '\n' + tag : tag)}
+          />
+          <PostPreview
             content={generatedContent}
             postId={savedPostId}
             onSave={() => handleSave(false)}
