@@ -10,6 +10,7 @@ import ScheduleDistributionChart from '@/components/dashboard/ScheduleDistributi
 import ConversionMetrics from '@/components/dashboard/ConversionMetrics';
 import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
 import ReferralFunnelCard from '@/components/dashboard/ReferralFunnelCard';
+import ReferralStatsGrid from '@/components/dashboard/ReferralStatsGrid';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -71,6 +72,8 @@ export default function Dashboard() {
       />
 
       <StatsGrid posts={posts} />
+
+      <ReferralStatsGrid />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <FunnelCard data={posts} />
