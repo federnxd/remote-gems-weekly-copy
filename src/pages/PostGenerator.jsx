@@ -120,41 +120,39 @@ export default function PostGenerator() {
     }
   };
 
-  const buildPrompt = (strat, rolesList, platformInstruction) => `You are an expert content strategist specializing in referral recruitment. Generate a high-converting post for micro1 (an AI training and development company) that maximizes referral sign-ups.
+  const buildPrompt = (strat, rolesList, platformInstruction) => `You are a senior talent acquisition specialist writing on behalf of micro1, a company at the forefront of AI model training and development. Your goal is to attract highly skilled, experienced professionals — not general audiences — by writing a post that feels credible, substantive, and worth their attention.
 
 STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
 ${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
 
-CRITICAL OPTIMIZATION RULES (based on data analysis):
-- The post reached 390,000 impressions but only 100 referrals, 20 interviews, 10 met criteria, 9 certified, 1 hired.
-- We need to 10x the referral-to-hired conversion. The benchmark is 367 hired/month by top performers.
-- KEY PROBLEMS TO SOLVE:
-  1. Most people scroll past → Need a POWERFUL hook in the first 2 lines
-  2. Too general → Each post should target 1-3 specific roles maximum for targeted engagement
-  3. No clear CTA → Need ONE clear, specific call-to-action
-  4. No urgency → Add scarcity/urgency elements
-  5. No social proof specifics → Include concrete numbers/results
-  6. The post is too long → Keep it concise and scannable
+AUDIENCE: Experienced professionals and domain experts (engineers, scientists, designers, specialists). These are people with strong careers who are selective about opportunities. They will immediately dismiss anything that sounds like spam, a scam, or clickbait.
 
-FORMAT RULES:
-- Start with an ATTENTION-GRABBING hook (question, bold claim, or surprising stat)
-- Use emojis strategically (not excessively)
-- Break text into short, scannable paragraphs
-- Include the referral link naturally
-- End with 5-8 highly relevant hashtags
-- Keep under 1,500 characters for better engagement
-- For "targeted_role" strategy: Focus on ONLY the selected roles, speak their language
-- For "storytelling": Share a genuine personal experience that resonates
-- For "urgency": Create FOMO with specific deadlines or limited spots
-- For "social_proof": Highlight specific achievements, pay, flexibility
-- For "niche_community": Use industry-specific language and references
-- For "carousel_text": Create a structured, shareable list format
+CORE MESSAGE TO CONVEY:
+- micro1 works at the cutting edge of AI — contributing to this field is genuinely meaningful for career development
+- This is an opportunity to apply deep expertise to shape next-generation AI systems
+- The work is flexible, remote, and project-based — ideal for professionals who value autonomy
+- Compensation is competitive and fair — mention it once, factually, without exaggeration
+- The bar is high — micro1 is selective, which makes passing the evaluation genuinely prestigious
 
-TONE: Professional but approachable. Authentic, not salesy. Like a friend sharing a great opportunity.
+STRICT TONE RULES — MUST FOLLOW:
+- NO phrases like "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast", or any variation
+- NO exaggerated claims, NO exclamation marks used for hype, NO fake urgency ("act now!", "limited spots!!!")
+- NO generic motivational language ("unlock your potential", "take the leap", "don't miss out")
+- Write as a credible professional, not an advertiser
+- Compensation should be mentioned once, professionally (e.g. "competitive compensation" or a realistic figure if relevant)
+- The hook should open with a genuine insight, observation, or question relevant to the target discipline — not a sales pitch
 
-Generate ONLY the post content, no explanations.`;
+FORMAT:
+- Open with a thoughtful, discipline-specific hook (1-2 sentences)
+- 2-3 short paragraphs covering: what micro1 does, what the role involves, why it matters for a career in AI
+- One clear, low-pressure call-to-action with the referral link
+- 4-6 relevant professional hashtags
+- Keep under 1,300 characters
+- Use at most 2-3 emojis, only if they add clarity
+
+Generate ONLY the post content, no explanations or preamble.`;
 
   const handleGenerate = async () => {
     if (!strategy) { toast.error('Please select a post strategy'); return; }
