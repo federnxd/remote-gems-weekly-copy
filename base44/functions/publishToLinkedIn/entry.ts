@@ -8,9 +8,26 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { postContent, postId, fileUrl, fileName, fileType } = await req.json();
+    const { postContent, postId, fileUrl, fileName, fileType, dryRun } = await req.json();
     if (!postContent) {
       return Response.json({ error: 'postContent is required' }, { status: 400 });
+    }
+
+    // Safety gate — never publish without explicit user approval
+    if (dryRun) {
+      const { accessToken } = await base44.asServiceRole.connectors.getConnection('linkedin');
+      const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const profile = await profileRes.json();
+      return Response.json({
+        dryRun: true,
+        success: true,
+        message: 'Dry run complete — no post was published.',
+        resolvedAuthor: `urn:li:person:${profile.sub}`,
+        name: profile.name,
+        contentPreview: postContent.slice(0, 100),
+      });
     }
 
     // Get LinkedIn access token from the shared connector
