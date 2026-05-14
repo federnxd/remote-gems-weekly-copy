@@ -5,6 +5,7 @@ import { Copy, Save, RotateCcw, CalendarClock, ThumbsUp, MessageSquare, Repeat2,
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import PublishToLinkedInButton from './PublishToLinkedInButton';
 
 const PLATFORMS = [
   { id: 'linkedin', label: 'LinkedIn' },
@@ -140,7 +141,7 @@ function TwitterMockup({ content }) {
   );
 }
 
-export default function PostPreview({ content, onSave, onSaveScheduled, scheduledDate, scheduledTime, onRegenerate, isSaving }) {
+export default function PostPreview({ content, postId, onSave, onSaveScheduled, scheduledDate, scheduledTime, onRegenerate, isSaving, onPublished }) {
   const [platform, setPlatform] = useState('linkedin');
 
   const handleCopy = async () => {
@@ -200,6 +201,14 @@ export default function PostPreview({ content, onSave, onSaveScheduled, schedule
               <CalendarClock className="w-3.5 h-3.5" />
               Schedule {scheduledDate ? format(scheduledDate, 'MMM d') : ''}
             </Button>
+          )}
+          {platform === 'linkedin' && (
+            <PublishToLinkedInButton
+              content={content}
+              postId={postId}
+              onPublished={onPublished}
+              disabled={isSaving}
+            />
           )}
         </div>
       </div>

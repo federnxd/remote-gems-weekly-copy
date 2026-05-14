@@ -27,6 +27,7 @@ export default function PostGenerator() {
   const [scheduledDate, setScheduledDate] = useState(null);
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [campaignId, setCampaignId] = useState('');
+  const [savedPostId, setSavedPostId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -41,7 +42,8 @@ export default function PostGenerator() {
 
   const saveMutation = useMutation({
     mutationFn: (data) => base44.entities.GeneratedPost.create(data),
-    onSuccess: () => {
+    onSuccess: (post) => {
+      setSavedPostId(post.id);
       queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
       toast.success('Post saved!');
     },
@@ -293,12 +295,14 @@ Generate ONLY the post content, no explanations.`;
         <div className="lg:col-span-3">
           <PostPreview 
             content={generatedContent}
+            postId={savedPostId}
             onSave={() => handleSave(false)}
             onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
             scheduledDate={scheduledDate}
             scheduledTime={scheduledTime}
             onRegenerate={handleGenerate}
             isSaving={saveMutation.isPending}
+            onPublished={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
           />
         </div>
       </div>
