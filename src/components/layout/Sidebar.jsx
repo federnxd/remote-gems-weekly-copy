@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, PenTool, Briefcase, CalendarDays, 
-  Target, BarChart3, Lightbulb, Menu, X 
+  Target, BarChart3, Lightbulb, Menu, X, Megaphone 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/generator', icon: PenTool, label: 'Post Generator' },
   { path: '/roles', icon: Briefcase, label: 'Open Roles' },
   { path: '/posts', icon: BarChart3, label: 'My Posts' },
+  { path: '/campaigns', icon: Megaphone, label: 'Campaigns' },
   { path: '/calendar', icon: CalendarDays, label: 'Content Calendar' },
   { path: '/strategy', icon: Target, label: 'Strategy Plan' },
   { path: '/weekly', icon: CalendarDays, label: 'Weekly Planner' },

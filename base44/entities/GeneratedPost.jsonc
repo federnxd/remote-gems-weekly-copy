@@ -22,6 +22,10 @@
       ],
       "description": "Post strategy type"
     },
+    "campaign_id": {
+      "type": "string",
+      "description": "Reference to Campaign entity id"
+    },
     "target_roles": {
       "type": "string",
       "description": "Which roles this post targets"

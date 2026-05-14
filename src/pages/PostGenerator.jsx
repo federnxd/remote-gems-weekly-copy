@@ -13,6 +13,7 @@ import { Loader2, Sparkles, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 
 export default function PostGenerator() {
@@ -25,11 +26,17 @@ export default function PostGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(null);
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [campaignId, setCampaignId] = useState('');
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
     queryKey: ['open-roles'],
     queryFn: () => base44.entities.OpenRole.filter({ is_active: true }),
+  });
+
+  const { data: campaigns = [] } = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: () => base44.entities.Campaign.filter({ status: 'active' }),
   });
 
   const saveMutation = useMutation({
@@ -144,6 +151,7 @@ Generate ONLY the post content, no explanations.`;
       title: `${strategy.replace(/_/g, ' ')} - ${selectedRoles.slice(0, 3).join(', ') || 'All roles'}`,
       content: generatedContent,
       strategy,
+      campaign_id: campaignId || undefined,
       target_roles: selectedRoles.join(', '),
       status: asScheduled && scheduledDate ? 'scheduled' : 'draft',
       scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : undefined,
@@ -208,11 +216,36 @@ Generate ONLY the post content, no explanations.`;
             />
           </div>
 
+          {campaigns.length > 0 && (
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">
+                4. Campaign
+                <span className="font-normal text-muted-foreground ml-1">(optional)</span>
+              </Label>
+              <Select value={campaignId} onValueChange={setCampaignId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Assign to a campaign…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>No campaign</SelectItem>
+                  {campaigns.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: c.color || '#3b82f6' }} />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Schedule Picker */}
           <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
             <Label className="text-sm font-semibold flex items-center gap-2">
               <CalendarClock className="w-4 h-4 text-primary" />
-              5. Schedule (optional)
+              5. Schedule <span className="font-normal text-muted-foreground">(optional)</span>
             </Label>
             <div className="flex gap-2">
               <Popover>

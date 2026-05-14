@@ -14,6 +14,7 @@ import Strategy from './pages/Strategy';
 import WeeklyPlanner from './pages/WeeklyPlanner';
 import Playbook from './pages/Playbook';
 import Calendar from './pages/Calendar';
+import Campaigns from './pages/Campaigns';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +51,7 @@ const AuthenticatedApp = () => {
         <Route path="/weekly" element={<WeeklyPlanner />} />
         <Route path="/playbook" element={<Playbook />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/campaigns" element={<Campaigns />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

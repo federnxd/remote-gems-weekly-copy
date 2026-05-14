@@ -1,0 +1,44 @@
+{
+  "name": "Campaign",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Campaign name, e.g. 'Q2 Engineering Hiring Drive'"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this hiring initiative is about"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "completed"
+      ],
+      "default": "active"
+    },
+    "target_hires": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of hires targeted for this campaign"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for visual identification",
+      "default": "#3b82f6"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
