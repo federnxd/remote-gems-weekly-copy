@@ -9,6 +9,7 @@ import StrategyBreakdownChart from '@/components/dashboard/StrategyBreakdownChar
 import ScheduleDistributionChart from '@/components/dashboard/ScheduleDistributionChart';
 import ConversionMetrics from '@/components/dashboard/ConversionMetrics';
 import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
+import ReferralFunnelCard from '@/components/dashboard/ReferralFunnelCard';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -75,6 +76,8 @@ export default function Dashboard() {
         <FunnelCard data={posts} />
         <GoalProgress posts={posts} />
       </div>
+
+      <ReferralFunnelCard />
 
       {/* Charts Row 1 */}
       <PostsOverTimeChart posts={posts} />
