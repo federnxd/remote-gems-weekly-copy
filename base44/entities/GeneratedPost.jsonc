@@ -48,6 +48,10 @@
       "type": "string",
       "description": "Time the post is scheduled (HH:MM format)"
     },
+    "linkedin_post_id": {
+      "type": "string",
+      "description": "The LinkedIn UGC post URN (urn:li:share:...) returned after publishing"
+    },
     "impressions": {
       "type": "number",
       "default": 0

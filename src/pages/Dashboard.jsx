@@ -8,6 +8,7 @@ import PostsOverTimeChart from '@/components/dashboard/PostsOverTimeChart';
 import StrategyBreakdownChart from '@/components/dashboard/StrategyBreakdownChart';
 import ScheduleDistributionChart from '@/components/dashboard/ScheduleDistributionChart';
 import ConversionMetrics from '@/components/dashboard/ConversionMetrics';
+import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -65,6 +66,9 @@ export default function Dashboard() {
         <StrategyBreakdownChart posts={posts} />
         <ScheduleDistributionChart posts={posts} />
       </div>
+
+      {/* LinkedIn Engagement */}
+      <LinkedInEngagement posts={posts} />
 
       {/* Conversion per post */}
       <ConversionMetrics posts={posts} />

@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
     if (postId) {
       await base44.asServiceRole.entities.GeneratedPost.update(postId, {
         status: 'published',
+        linkedin_post_id: linkedInPostId,
       });
     }
 
