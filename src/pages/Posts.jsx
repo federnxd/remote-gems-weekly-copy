@@ -117,7 +117,17 @@ export default function Posts() {
           <DialogHeader>
             <DialogTitle>{selectedPost?.title}</DialogTitle>
           </DialogHeader>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed mt-4 p-4 bg-muted rounded-lg">
+          {selectedPost?.linkedin_post_id && (
+            <a
+              href={`https://www.linkedin.com/feed/update/${selectedPost.linkedin_post_id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-primary underline"
+            >
+              View on LinkedIn ↗
+            </a>
+          )}
+          <div className="whitespace-pre-wrap text-sm leading-relaxed mt-2 p-4 bg-muted rounded-lg">
             {selectedPost?.content}
           </div>
           <Button onClick={() => handleCopy(selectedPost?.content)} className="gap-2">
