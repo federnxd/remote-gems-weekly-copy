@@ -7,6 +7,7 @@ import RoleSelector from '@/components/generator/RoleSelector';
 import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelector';
 import PostPreview from '@/components/generator/PostPreview';
 import PlatformSelector from '@/components/generator/PlatformSelector';
+import PersonaManager from '@/components/generator/PersonaManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -180,10 +181,20 @@ Generate ONLY the post content, no explanations.`;
           </div>
 
           <div>
-            <Label className="text-sm font-semibold mb-3 block">
-              2. Target Audience
-              <span className="font-normal text-muted-foreground ml-1">(optional — targets all if empty)</span>
-            </Label>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-semibold">
+                2. Target Audience
+                <span className="font-normal text-muted-foreground ml-1">(optional — targets all if empty)</span>
+              </Label>
+              <PersonaManager
+                selectedRoles={selectedRoles}
+                activeSegments={activeSegments}
+                onApplyPersona={(roles, segments) => {
+                  setSelectedRoles(roles);
+                  setActiveSegments(segments);
+                }}
+              />
+            </div>
             <div className="space-y-3">
               <div>
                 <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">By Segment</p>

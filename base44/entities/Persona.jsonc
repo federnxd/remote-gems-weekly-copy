@@ -1,0 +1,32 @@
+{
+  "name": "Persona",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Persona name, e.g. 'Senior Engineers'"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of this audience"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of role titles included in this persona"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of segment IDs included in this persona"
+    }
+  },
+  "required": [
+    "name",
+    "roles"
+  ]
+}
