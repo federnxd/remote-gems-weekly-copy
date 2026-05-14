@@ -1,26 +1,26 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// Called by the scheduled automation to keep all published post stats up to date
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
-    const { linkedInPostIds } = await req.json();
-    if (!linkedInPostIds || linkedInPostIds.length === 0) {
-      return Response.json({ stats: {} });
+    // Fetch all published posts that have a linkedin_post_id
+    const posts = await base44.asServiceRole.entities.GeneratedPost.filter({ status: 'published' });
+    const publishedWithId = posts.filter(p => p.linkedin_post_id);
+
+    if (publishedWithId.length === 0) {
+      return Response.json({ message: 'No published posts to sync', updated: 0 });
     }
 
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('linkedin');
-    const stats = {};
 
-    await Promise.all(linkedInPostIds.map(async (urn) => {
-      if (!urn) return;
+    let updated = 0;
+
+    await Promise.all(publishedWithId.map(async (post) => {
+      const urn = post.linkedin_post_id;
       const encodedUrn = encodeURIComponent(urn);
 
-      // Fetch social actions (likes + comments)
       const [socialRes, statsRes] = await Promise.all([
         fetch(`https://api.linkedin.com/v2/socialActions/${encodedUrn}`, {
           headers: {
@@ -40,16 +40,21 @@ Deno.serve(async (req) => {
       const statsData = statsRes.ok ? await statsRes.json() : {};
       const stat = statsData.elements?.[0]?.totalShareStatistics || {};
 
-      stats[urn] = {
-        likes: socialData.likesSummary?.totalLikes ?? 0,
-        comments: socialData.commentsSummary?.totalFirstLevelComments ?? 0,
-        impressions: stat.impressionCount ?? 0,
-        clicks: stat.clickCount ?? 0,
-        shares: stat.shareCount ?? 0,
-      };
+      const impressions = stat.impressionCount ?? post.impressions ?? 0;
+      const clicks = stat.clickCount ?? post.clicks ?? 0;
+      const likes = socialData.likesSummary?.totalLikes ?? 0;
+      const comments = socialData.commentsSummary?.totalFirstLevelComments ?? 0;
+
+      await base44.asServiceRole.entities.GeneratedPost.update(post.id, {
+        impressions,
+        clicks,
+        notes: `LinkedIn: ${likes} likes, ${comments} comments, ${stat.shareCount ?? 0} shares. Last synced: ${new Date().toISOString()}`,
+      });
+
+      updated++;
     }));
 
-    return Response.json({ stats });
+    return Response.json({ message: 'Sync complete', updated });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import PlatformPerformanceTable from '@/components/analytics/PlatformPerformanceTable';
 import EngagementByStrategy from '@/components/analytics/EngagementByStrategy';
 import TopPostsTable from '@/components/analytics/TopPostsTable';
 import CTRFunnel from '@/components/analytics/CTRFunnel';
 import StrategyCompareCard from '@/components/analytics/StrategyCompareCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, Eye, MousePointerClick, Users, UserCheck } from 'lucide-react';
+import { TrendingUp, Eye, MousePointerClick, Users, UserCheck, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, sub, color = 'text-primary' }) {
   return (
@@ -28,10 +30,27 @@ function StatCard({ icon: Icon, label, value, sub, color = 'text-primary' }) {
 }
 
 export default function Analytics() {
+  const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['generated-posts'],
     queryFn: () => base44.entities.GeneratedPost.list('-created_date'),
+    refetchInterval: 5 * 60 * 1000, // auto-refresh every 5 min
   });
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await base44.functions.invoke('syncLinkedInStats', {});
+      toast.success(`Synced ${res.data?.updated ?? 0} posts from LinkedIn`);
+      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+    } catch (e) {
+      toast.error('Sync failed: ' + e.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -56,9 +75,15 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Platform performance & content insights across {posts.length} posts</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-sm text-muted-foreground">Platform performance & content insights across {posts.length} posts</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Syncing…' : 'Sync from LinkedIn'}
+        </Button>
       </div>
 
       {/* KPI row */}
