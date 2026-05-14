@@ -1,0 +1,66 @@
+{
+  "name": "CompanyDashboardSnapshot",
+  "type": "object",
+  "properties": {
+    "snapshot_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this snapshot was taken"
+    },
+    "raw_paste": {
+      "type": "string",
+      "description": "Raw text pasted from LinkedIn company dashboard"
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0
+    },
+    "profile_views": {
+      "type": "number",
+      "default": 0
+    },
+    "followers_gained": {
+      "type": "number",
+      "default": 0
+    },
+    "reactions": {
+      "type": "number",
+      "default": 0
+    },
+    "comments": {
+      "type": "number",
+      "default": 0
+    },
+    "reposts": {
+      "type": "number",
+      "default": 0
+    },
+    "saves": {
+      "type": "number",
+      "default": 0
+    },
+    "sends": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "referrals": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string",
+      "description": "Any extra context"
+    }
+  },
+  "required": [
+    "snapshot_date"
+  ]
+}
