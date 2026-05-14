@@ -8,6 +8,9 @@ import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelecto
 import PostPreview from '@/components/generator/PostPreview';
 import PlatformSelector from '@/components/generator/PlatformSelector';
 import PersonaManager from '@/components/generator/PersonaManager';
+import PlatformRecommender from '@/components/generator/PlatformRecommender';
+import WhereToPostChecklist from '@/components/generator/WhereToPostChecklist';
+import { PLATFORMS } from '@/components/generator/PlatformSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,13 +113,24 @@ export default function PostGenerator() {
 
     setIsGenerating(true);
     const rolesList = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
+
+    // Build platform tone instructions
+    const platformTones = selectedPlatforms
+      .map(id => PLATFORMS.find(p => p.id === id))
+      .filter(Boolean)
+      .map(p => `- ${p.label}: ${p.tone}`)
+      .join('\n');
+
+    const platformInstruction = selectedPlatforms.length > 0
+      ? `\nPLATFORM TARGETING:\nThis post will be published on: ${selectedPlatforms.map(id => PLATFORMS.find(p => p.id === id)?.label).filter(Boolean).join(', ')}.\nAdapt the tone and format accordingly:\n${platformTones}\nIf multiple platforms are selected, optimize for the PRIMARY platform (first listed) but keep it adaptable.`
+      : '';
     
-    const prompt = `You are an expert LinkedIn content strategist specializing in referral recruitment. Generate a high-converting LinkedIn post for micro1 (an AI training and development company) that maximizes referral sign-ups.
+    const prompt = `You are an expert content strategist specializing in referral recruitment. Generate a high-converting post for micro1 (an AI training and development company) that maximizes referral sign-ups.
 
 STRATEGY: ${strategy.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
-${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}
+${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
 
 CRITICAL OPTIMIZATION RULES (based on data analysis):
 - The post reached 390,000 impressions but only 100 referrals, 20 interviews, 10 met criteria, 9 certified, 1 hired.
@@ -257,9 +271,13 @@ Generate ONLY the post content, no explanations.`;
             </div>
           )}
 
+          {/* Platform Recommender */}
+          <PlatformRecommender selectedRoles={selectedRoles} activeSegments={activeSegments} />
+
           {/* Platform Selector */}
           <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-            <Label className="text-sm font-semibold block">5. Publish To</Label>
+            <Label className="text-sm font-semibold block">5. Publish / Post To</Label>
+            <p className="text-[11px] text-muted-foreground -mt-1">Select all platforms — the AI will tailor the tone. Hover a platform for style tips.</p>
             <PlatformSelector selectedPlatforms={selectedPlatforms} onChange={setSelectedPlatforms} />
           </div>
 
@@ -313,6 +331,7 @@ Generate ONLY the post content, no explanations.`;
 
         {/* Preview */}
         <div className="lg:col-span-3 space-y-4">
+          <WhereToPostChecklist selectedPlatforms={selectedPlatforms} />
           <HashtagSuggester
             content={generatedContent}
             selectedRoles={selectedRoles}
