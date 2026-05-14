@@ -27,7 +27,7 @@ export default function PostGenerator() {
   const [strategy, setStrategy] = useState('');
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [activeSegments, setActiveSegments] = useState([]);
-  const [referralLink, setReferralLink] = useState('https://lnkd.in/gZXXSdt4');
+  const [referralLink, setReferralLink] = useState('https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral');
   const [personalNote, setPersonalNote] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -120,37 +120,51 @@ export default function PostGenerator() {
     }
   };
 
-  const buildPrompt = (strat, rolesList, platformInstruction) => `You are a senior talent acquisition specialist writing on behalf of micro1, a company at the forefront of AI model training and development. Your goal is to attract highly skilled, experienced professionals — not general audiences — by writing a post that feels credible, substantive, and worth their attention.
+  const buildPrompt = (strat, rolesList, platformInstruction) => `You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
 
 STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
 ${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
 
-AUDIENCE: Experienced professionals and domain experts (engineers, scientists, designers, specialists). These are people with strong careers who are selective about opportunities. They will immediately dismiss anything that sounds like spam, a scam, or clickbait.
+SIGNATURE STRUCTURE — FOLLOW THIS FORMAT EXACTLY:
 
-CORE MESSAGE TO CONVEY:
-- micro1 works at the cutting edge of AI — contributing to this field is genuinely meaningful for career development
-- This is an opportunity to apply deep expertise to shape next-generation AI systems
-- The work is flexible, remote, and project-based — ideal for professionals who value autonomy
-- Compensation is competitive and fair — mention it once, factually, without exaggeration
-- The bar is high — micro1 is selective, which makes passing the evaluation genuinely prestigious
+1. HEADLINE (first 2 lines — CRITICAL: must be fully visible without "See more"):
+   Use this format as the opening:
+   📍 [Month] - Remote Opportunities at Leading AI Company micro1 🤖
+   ➡️ [REFERRAL LINK]
 
-STRICT TONE RULES — MUST FOLLOW:
-- NO phrases like "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast", or any variation
-- NO exaggerated claims, NO exclamation marks used for hype, NO fake urgency ("act now!", "limited spots!!!")
-- NO generic motivational language ("unlock your potential", "take the leap", "don't miss out")
-- Write as a credible professional, not an advertiser
-- Compensation should be mentioned once, professionally (e.g. "competitive compensation" or a realistic figure if relevant)
-- The hook should open with a genuine insight, observation, or question relevant to the target discipline — not a sales pitch
+2. PERSONAL INTRO (1 short paragraph):
+   - Written in first person
+   - Mention working at micro1 since October 2025 as Audio Expert, and as Reviewer since March 2026
+   - Genuine, warm, and credible — mention reliable pay, flexible remote hours, supportive team
+   - Keep it authentic, not salesy
 
-FORMAT:
-- Open with a thoughtful, discipline-specific hook (1-2 sentences)
-- 2-3 short paragraphs covering: what micro1 does, what the role involves, why it matters for a career in AI
-- One clear, low-pressure call-to-action with the referral link
-- 4-6 relevant professional hashtags
-- Keep under 1,300 characters
-- Use at most 2-3 emojis, only if they add clarity
+3. WHO SHOULD APPLY (1 short paragraph with 👉):
+   - Professionals with solid expertise and good English
+   - Mention the interview process briefly: ~30 min interview → certification → possibility of being hired
+   - Include the spam folder reminder: ( 🛑 Always check your spam folder just in case!!! 🛑 )
+
+4. ROLES LIST:
+   - Introduce with: "micro1 is hiring experts across many fields — here's a sample relevant to this post:"
+   - List the TARGET ROLES provided, using a clean bullet format with dashes
+   - End with: "...and many more!"
+
+5. REFERRAL PERK (1 line):
+   - Mention that once certified, you get your own referral link to earn bonuses
+
+6. CLOSING (1-2 lines):
+   - Invite sharing and DMs for questions
+   - Keep it friendly and open
+
+7. HASHTAGS: 6-8 relevant professional hashtags
+
+STRICT TONE RULES:
+- NO "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast"
+- NO fake urgency or hype
+- Write as a real, trustworthy professional — not an advertiser
+- Compensation: mention "reliable pay" or "competitive compensation" naturally, once
+- Emojis: use purposefully for structure and warmth (👉 📍 ➡️ 🙌 👍 🛑), not for hype
 
 Generate ONLY the post content, no explanations or preamble.`;
 
