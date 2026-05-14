@@ -9,9 +9,8 @@ import TopPostsTable from '@/components/analytics/TopPostsTable';
 import CTRFunnel from '@/components/analytics/CTRFunnel';
 import StrategyCompareCard from '@/components/analytics/StrategyCompareCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, MousePointerClick, Users, UserCheck, RefreshCw, ClipboardPaste } from 'lucide-react';
+import { Eye, MousePointerClick, Users, UserCheck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
 
 function StatCard({ icon: Icon, label, value, sub, color = 'text-primary' }) {
   return (
@@ -33,7 +32,6 @@ function StatCard({ icon: Icon, label, value, sub, color = 'text-primary' }) {
 export default function Analytics() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['generated-posts'],
@@ -82,23 +80,11 @@ export default function Analytics() {
           <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-sm text-muted-foreground">Platform performance & content insights across {posts.length} posts</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowSnapshotModal(true)} className="gap-2">
-            <ClipboardPaste className="w-4 h-4" />
-            Paste Dashboard Data
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Syncing…' : 'Sync from LinkedIn'}
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Syncing…' : 'Sync from LinkedIn'}
+        </Button>
       </div>
-
-      <DashboardSnapshotModal
-        open={showSnapshotModal}
-        onClose={() => setShowSnapshotModal(false)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
-      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

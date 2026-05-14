@@ -12,10 +12,16 @@ import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { PenTool, ArrowRight, Zap } from 'lucide-react';
+import { PenTool, ArrowRight, Zap, ClipboardPaste } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['generated-posts'],
     queryFn: () => base44.entities.GeneratedPost.list('-created_date'),
@@ -43,13 +49,25 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Track your referral performance</p>
         </div>
-        <Link to="/generator">
-          <Button className="gap-2">
-            <PenTool className="w-4 h-4" />
-            Generate Post
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setShowSnapshotModal(true)}>
+            <ClipboardPaste className="w-4 h-4" />
+            Paste Dashboard Data
           </Button>
-        </Link>
+          <Link to="/generator">
+            <Button className="gap-2">
+              <PenTool className="w-4 h-4" />
+              Generate Post
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      <DashboardSnapshotModal
+        open={showSnapshotModal}
+        onClose={() => setShowSnapshotModal(false)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+      />
 
       <StatsGrid posts={posts} />
 
