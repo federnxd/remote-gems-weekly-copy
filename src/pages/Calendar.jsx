@@ -9,6 +9,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, i
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import CalendarInsightsPanel from '@/components/calendar/CalendarInsightsPanel';
 
 const strategyColors = {
   targeted_role: 'bg-primary text-primary-foreground',
@@ -34,6 +35,11 @@ export default function Calendar() {
   const { data: posts = [] } = useQuery({
     queryKey: ['generated-posts'],
     queryFn: () => base44.entities.GeneratedPost.list('-created_date'),
+  });
+
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['dashboard-snapshots-all'],
+    queryFn: () => base44.entities.CompanyDashboardSnapshot.list('snapshot_date'),
   });
 
   const updateMutation = useMutation({
@@ -125,6 +131,8 @@ export default function Calendar() {
           </Button>
         </div>
       </div>
+
+      <CalendarInsightsPanel posts={posts} snapshots={snapshots} />
 
       <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex flex-1 overflow-hidden">
