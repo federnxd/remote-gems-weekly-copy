@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Copy, Trash2, Eye, BarChart3, ClipboardPaste } from 'lucide-react';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
+import PostsSummaryBar from '@/components/posts/PostsSummaryBar';
 
 export default function Posts() {
   const [selectedPost, setSelectedPost] = useState(null);
@@ -81,6 +82,36 @@ export default function Posts() {
     updateMutation.mutate({ id: metricsPost.id, data: metrics });
   };
 
+  const exportCSV = () => {
+    const headers = ['Title', 'Strategy', 'Status', 'Impressions', 'Clicks', 'Referrals', 'Interviews', 'Certified', 'Hired', 'CTR (%)', 'Hire Rate (%)'];
+    const rows = posts.map((p) => {
+      const ctr = p.impressions ? ((p.clicks || 0) / p.impressions * 100).toFixed(2) : '0.00';
+      const hireRate = p.referrals ? ((p.hired || 0) / p.referrals * 100).toFixed(1) : '0.0';
+      return [
+        `"${(p.title || '').replace(/"/g, '""')}"`,
+        p.strategy?.replace(/_/g, ' ') || '',
+        p.status || '',
+        p.impressions || 0,
+        p.clicks || 0,
+        p.referrals || 0,
+        p.interviews || 0,
+        p.certified || 0,
+        p.hired || 0,
+        ctr,
+        hireRate,
+      ].join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `posts-metrics-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported!');
+  };
+
   const strategyColors = {
     targeted_role: 'bg-primary/10 text-primary',
     storytelling: 'bg-chart-4/10 text-chart-4',
@@ -96,6 +127,8 @@ export default function Posts() {
         <h1 className="text-2xl font-bold tracking-tight">My Posts</h1>
         <p className="text-sm text-muted-foreground">{posts.length} posts generated</p>
       </div>
+
+      {posts.length > 0 && <PostsSummaryBar posts={posts} onExport={exportCSV} />}
 
       <div className="space-y-3">
         {posts.map((post) => (
