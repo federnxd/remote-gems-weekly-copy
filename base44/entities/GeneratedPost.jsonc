@@ -60,6 +60,21 @@
       "type": "number",
       "default": 0
     },
+    "likes": {
+      "type": "number",
+      "default": 0,
+      "description": "LinkedIn reactions/likes"
+    },
+    "comments": {
+      "type": "number",
+      "default": 0,
+      "description": "LinkedIn comments"
+    },
+    "shares": {
+      "type": "number",
+      "default": 0,
+      "description": "LinkedIn reposts/shares"
+    },
     "referrals": {
       "type": "number",
       "default": 0
@@ -75,6 +90,10 @@
     "hired": {
       "type": "number",
       "default": 0
+    },
+    "last_synced_at": {
+      "type": "string",
+      "description": "ISO timestamp of last LinkedIn sync"
     },
     "notes": {
       "type": "string"

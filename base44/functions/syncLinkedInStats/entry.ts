@@ -42,13 +42,17 @@ Deno.serve(async (req) => {
 
       const impressions = stat.impressionCount ?? post.impressions ?? 0;
       const clicks = stat.clickCount ?? post.clicks ?? 0;
-      const likes = socialData.likesSummary?.totalLikes ?? 0;
-      const comments = socialData.commentsSummary?.totalFirstLevelComments ?? 0;
+      const likes = socialData.likesSummary?.totalLikes ?? post.likes ?? 0;
+      const comments = socialData.commentsSummary?.totalFirstLevelComments ?? post.comments ?? 0;
+      const shares = stat.shareCount ?? post.shares ?? 0;
 
       await base44.asServiceRole.entities.GeneratedPost.update(post.id, {
         impressions,
         clicks,
-        notes: `LinkedIn: ${likes} likes, ${comments} comments, ${stat.shareCount ?? 0} shares. Last synced: ${new Date().toISOString()}`,
+        likes,
+        comments,
+        shares,
+        last_synced_at: new Date().toISOString(),
       });
 
       updated++;

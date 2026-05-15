@@ -13,6 +13,9 @@ const STRATEGY_COLORS = {
 
 const METRICS = [
   { key: 'impressions', label: 'Impressions' },
+  { key: 'likes', label: 'Likes' },
+  { key: 'comments', label: 'Comments' },
+  { key: 'shares', label: 'Shares' },
   { key: 'clicks', label: 'Clicks' },
   { key: 'referrals', label: 'Referrals' },
   { key: 'hired', label: 'Hired' },

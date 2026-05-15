@@ -3,6 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const SORT_OPTIONS = [
   { key: 'impressions', label: 'Reach' },
+  { key: 'likes', label: 'Likes' },
+  { key: 'comments', label: 'Comments' },
+  { key: 'shares', label: 'Shares' },
   { key: 'clicks', label: 'Clicks' },
   { key: 'referrals', label: 'Referrals' },
   { key: 'hired', label: 'Hired' },
@@ -57,7 +60,7 @@ export default function TopPostsTable({ posts }) {
                   <div className="flex gap-3 text-xs shrink-0">
                     <span className="text-muted-foreground">{(post.impressions || 0).toLocaleString()} views</span>
                     <span className="text-chart-4">{ctr} CTR</span>
-                    <span className="font-bold text-chart-3">{post[sortBy] || 0} {sortBy === 'impressions' ? '👁' : sortBy === 'clicks' ? '🔗' : sortBy === 'referrals' ? '🙋' : '✅'}</span>
+                    <span className="font-bold text-chart-3">{post[sortBy] || 0} {sortBy === 'impressions' ? '👁' : sortBy === 'clicks' ? '🔗' : sortBy === 'referrals' ? '🙋' : sortBy === 'likes' ? '❤' : sortBy === 'comments' ? '💬' : sortBy === 'shares' ? '🔁' : '✅'}</span>
                   </div>
                 </div>
               );

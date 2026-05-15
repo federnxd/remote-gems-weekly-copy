@@ -8,8 +8,10 @@ import EngagementByStrategy from '@/components/analytics/EngagementByStrategy';
 import TopPostsTable from '@/components/analytics/TopPostsTable';
 import CTRFunnel from '@/components/analytics/CTRFunnel';
 import StrategyCompareCard from '@/components/analytics/StrategyCompareCard';
+import EngagementTrendsChart from '@/components/analytics/EngagementTrendsChart';
+import ReferralDriversChart from '@/components/analytics/ReferralDriversChart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, MousePointerClick, Users, UserCheck, RefreshCw } from 'lucide-react';
+import { Eye, MousePointerClick, Users, UserCheck, RefreshCw, Heart, MessageCircle, Repeat2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, sub, color = 'text-primary' }) {
@@ -70,6 +72,9 @@ export default function Analytics() {
   const totalClicks = posts.reduce((s, p) => s + (p.clicks || 0), 0);
   const totalReferrals = posts.reduce((s, p) => s + (p.referrals || 0), 0);
   const totalHired = posts.reduce((s, p) => s + (p.hired || 0), 0);
+  const totalLikes = posts.reduce((s, p) => s + (p.likes || 0), 0);
+  const totalComments = posts.reduce((s, p) => s + (p.comments || 0), 0);
+  const totalShares = posts.reduce((s, p) => s + (p.shares || 0), 0);
   const avgCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0.00';
   const referralRate = totalImpressions > 0 ? ((totalReferrals / totalImpressions) * 100).toFixed(2) : '0.00';
 
@@ -94,6 +99,13 @@ export default function Analytics() {
         <StatCard icon={UserCheck} label="Total Hired" value={totalHired} sub="from all posts combined" color="text-chart-3" />
       </div>
 
+      {/* LinkedIn engagement KPIs */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard icon={Heart} label="Total Likes" value={totalLikes.toLocaleString()} sub="across all posts" color="text-pink-500" />
+        <StatCard icon={MessageCircle} label="Total Comments" value={totalComments.toLocaleString()} sub="across all posts" color="text-purple-500" />
+        <StatCard icon={Repeat2} label="Total Shares / Reposts" value={totalShares.toLocaleString()} sub="across all posts" color="text-cyan-500" />
+      </div>
+
       {/* CTR Funnel */}
       <CTRFunnel posts={posts} />
 
@@ -106,8 +118,14 @@ export default function Analytics() {
         <TopPostsTable posts={posts} />
       </div>
 
-      {/* A/B Strategy Comparison */}
-      <StrategyCompareCard posts={posts} />
+      {/* Engagement trends over time */}
+      <EngagementTrendsChart posts={posts} />
+
+      {/* Engagement vs referrals scatter */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <ReferralDriversChart posts={posts} />
+        <StrategyCompareCard posts={posts} />
+      </div>
     </div>
   );
 }
