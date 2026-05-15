@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
@@ -105,8 +106,8 @@ export default function Calendar() {
     toast.success('Marked as published');
   };
 
-  // Unscheduled sidebar posts (drafts with no date)
-  const unscheduled = posts.filter(p => !p.scheduled_date && p.status === 'draft');
+  // Unscheduled sidebar posts (drafts OR unscheduled posts with no date)
+  const unscheduled = posts.filter(p => !p.scheduled_date && (p.status === 'draft' || p.status === 'scheduled'));
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
@@ -140,7 +141,12 @@ export default function Calendar() {
           {/* Unscheduled sidebar */}
           <div className="w-52 flex-shrink-0 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unscheduled Drafts</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unscheduled Drafts</p>
+                <Link to="/generator" title="Create new post">
+                  <Plus className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                </Link>
+              </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">Drag onto calendar to schedule</p>
             </div>
             <Droppable droppableId="unscheduled">
@@ -154,7 +160,12 @@ export default function Calendar() {
                   )}
                 >
                   {unscheduled.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground text-center mt-4">No unscheduled drafts</p>
+                    <div className="text-center mt-4 px-2 space-y-2">
+                      <p className="text-[11px] text-muted-foreground">No unscheduled drafts</p>
+                      <Link to="/generator" className="text-[11px] text-primary hover:underline flex items-center justify-center gap-1">
+                        <Plus className="w-3 h-3" /> Generate a post
+                      </Link>
+                    </div>
                   )}
                   {unscheduled.map((post, index) => (
                     <Draggable key={post.id} draggableId={post.id} index={index}>
