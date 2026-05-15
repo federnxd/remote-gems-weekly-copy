@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookmarkPlus, CheckCircle2, ChevronDown, ChevronUp, Loader2, ListTree } from 'lucide-react';
+import ImageGeneratorButton from '@/components/idealab/ImageGeneratorButton';
 
 const STRATEGY_COLORS = {
   targeted_role:    'bg-blue-50 text-blue-700 border-blue-200',
@@ -58,7 +59,8 @@ export default function IdeaCard({ idea, saved, isSaving, onSave }) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 pb-4">
+      <div className="px-5 pb-4 space-y-2">
+        <ImageGeneratorButton idea={idea} />
         <Button
           size="sm"
           className="w-full gap-2"
