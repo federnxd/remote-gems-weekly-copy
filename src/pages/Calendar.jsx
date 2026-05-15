@@ -90,14 +90,18 @@ export default function Calendar() {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    updateMutation.mutate({
-      id: postId,
-      data: {
-        scheduled_date: destId,
-        status: post.status === 'draft' ? 'scheduled' : post.status,
-      },
-    });
-    toast.success(`Rescheduled to ${format(parseISO(destId), 'MMM d')}`);
+    if (destId === 'unscheduled') {
+      updateMutation.mutate({ id: postId, data: { scheduled_date: null, status: 'draft' } });
+    } else {
+      updateMutation.mutate({
+        id: postId,
+        data: {
+          scheduled_date: destId,
+          status: post.status === 'draft' ? 'scheduled' : post.status,
+        },
+      });
+    }
+    toast.success(destId === 'unscheduled' ? 'Moved back to unscheduled' : `Rescheduled to ${format(parseISO(destId), 'MMM d')}`);
   };
 
   const markPublished = (post) => {
