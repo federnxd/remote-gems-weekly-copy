@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/generator', icon: PenTool, label: 'Post Generator' },
+  { path: '/idealab', icon: Lightbulb, label: 'Idea Lab' },
   { path: '/roles', icon: Briefcase, label: 'Open Roles' },
   { path: '/posts', icon: BarChart3, label: 'My Posts' },
   { path: '/analytics', icon: TrendingUp, label: 'Analytics' },
