@@ -16,6 +16,7 @@ import Playbook from './pages/Playbook';
 import Calendar from './pages/Calendar';
 import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
+import MetricsHistory from './pages/MetricsHistory';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/history" element={<MetricsHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
