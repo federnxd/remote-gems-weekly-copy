@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { CEO_CONTEXT } from '@/lib/ceo-context';
 
 export default function PostGenerator() {
   const [strategy, setStrategy] = useState('');
@@ -120,7 +121,9 @@ export default function PostGenerator() {
     }
   };
 
-  const buildPrompt = (strat, rolesList, platformInstruction) => `You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
+  const buildPrompt = (strat, rolesList, platformInstruction) => `${CEO_CONTEXT}
+
+You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
 
 STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}

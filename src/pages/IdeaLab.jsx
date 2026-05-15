@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, BookmarkPlus, CheckCircle2, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import IdeaCard from '@/components/idealab/IdeaCard';
+import { CEO_CONTEXT } from '@/lib/ceo-context';
 
 const STRATEGY_OPTIONS = [
   { value: 'targeted_role', label: 'Targeted Role' },
@@ -76,7 +77,10 @@ export default function IdeaLab() {
       return { strategy: s.label, posts: stratPosts.length, avgImpressions };
     }).filter(s => s.posts > 0);
 
-    const prompt = `You are an expert LinkedIn content strategist for a professional recruiter at micro1 (an AI recruitment platform). 
+    const prompt = `${CEO_CONTEXT}
+
+You are an expert LinkedIn content strategist for a professional recruiter at micro1 (an AI recruitment platform). 
+Use the CEO philosophy and brand context above to ensure all ideas reflect micro1's "humans first" vision and Ali Ansari's key messages.
 Analyze the performance data from their top LinkedIn posts and generate 5 fresh content ideas that are likely to outperform based on patterns in the data.
 
 TOP PERFORMING POSTS DATA:
