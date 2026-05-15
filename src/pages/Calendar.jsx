@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AutoFillCalendarButton from '@/components/calendar/AutoFillCalendarButton';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
@@ -124,6 +125,10 @@ export default function Calendar() {
           <Badge variant="secondary" className="bg-primary/10 text-primary">{scheduledCount} Scheduled</Badge>
         </div>
         <div className="flex items-center gap-2">
+          <AutoFillCalendarButton
+            currentMonth={currentMonth}
+            onPostsCreated={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+          />
           <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(m => subMonths(m, 1))}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
