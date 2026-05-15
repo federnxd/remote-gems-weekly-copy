@@ -121,6 +121,12 @@ export default function PostGenerator() {
     }
   };
 
+  // Build a roles-with-openings map for urgency context
+  const rolesWithOpenings = roles
+    .filter(r => r.openings > 0)
+    .map(r => `${r.title} (${r.openings} ${r.openings === 1 ? 'opening' : 'openings'})`)
+    .join(', ');
+
   const buildPrompt = (strat, rolesList, platformInstruction) => `${CEO_CONTEXT}
 
 NOTE: The above context is provided as optional background reference. Use it only where it genuinely strengthens the post — do not force it into every piece of content.
@@ -130,6 +136,7 @@ You are writing a LinkedIn referral post on behalf of a professional who works a
 STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
+${(strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings ? `VACANCY DATA (use naturally for urgency/FOMO — mention specific open counts to drive action, e.g. "only 2 spots left for X"): ${rolesWithOpenings}` : ''}
 ${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
 
 SIGNATURE STRUCTURE — FOLLOW THIS FORMAT EXACTLY:

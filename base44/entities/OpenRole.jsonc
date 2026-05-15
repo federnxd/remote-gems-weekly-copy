@@ -40,6 +40,11 @@
         "low"
       ],
       "default": "medium"
+    },
+    "openings": {
+      "type": "number",
+      "description": "Number of open positions available for this role",
+      "default": 0
     }
   },
   "required": [

@@ -71,29 +71,53 @@ export default function Roles() {
     if (!syncText.trim()) return;
     setIsSyncing(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Extract all job role titles from the following text. Return ONLY a JSON array of strings with the exact job titles, nothing else. No explanations.
+      prompt: `Extract all job role titles and their number of openings from the following text.
+For each role, look for a number indicating how many positions/openings are available (e.g. "3 openings", "(5)", "x2", "2 positions", etc.).
+If no opening count is found for a role, use 0.
+Return a JSON object with a "roles" array where each item has "title" (string) and "openings" (number).
 
 Text:
 ${syncText}`,
       response_json_schema: {
         type: 'object',
-        properties: { roles: { type: 'array', items: { type: 'string' } } },
+        properties: {
+          roles: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                openings: { type: 'number' },
+              },
+            },
+          },
+        },
       },
     });
 
     const extracted = result?.roles || [];
+    const extractedTitles = extracted.map(r => r.title.toLowerCase());
     const existingTitles = roles.map(r => r.title.toLowerCase());
-    const newOnes = extracted.filter(t => !existingTitles.includes(t.toLowerCase()));
-    const removed = roles.filter(r => !extracted.map(t => t.toLowerCase()).includes(r.title.toLowerCase()));
+    const newOnes = extracted.filter(r => !existingTitles.includes(r.title.toLowerCase()));
+    const removed = roles.filter(r => !extractedTitles.includes(r.title.toLowerCase()));
+    const existing = roles.filter(r => extractedTitles.includes(r.title.toLowerCase()));
 
     // Add new roles
-    for (const title of newOnes) {
+    for (const r of newOnes) {
       await base44.entities.OpenRole.create({
-        title,
-        category: categoryGuess(title),
+        title: r.title,
+        category: categoryGuess(r.title),
         priority: 'medium',
         is_active: true,
+        openings: r.openings || 0,
       });
+    }
+    // Update existing roles with new openings count
+    for (const role of existing) {
+      const matched = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
+      if (matched && matched.openings !== role.openings) {
+        await base44.entities.OpenRole.update(role.id, { openings: matched.openings, is_active: true });
+      }
     }
     // Deactivate removed roles (mark inactive rather than delete)
     for (const role of removed) {
@@ -202,7 +226,7 @@ ${syncText}`,
           <Card key={role.id} className="p-4 flex items-center justify-between group">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{role.title}</p>
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <Badge variant="secondary" className={categoryColors[role.category]}>
                   {role.category?.replace(/_/g, ' ')}
                 </Badge>
@@ -210,6 +234,11 @@ ${syncText}`,
                   <Badge variant="secondary" className="bg-destructive/10 text-destructive text-[10px]">
                     High Priority
                   </Badge>
+                )}
+                {role.openings > 0 && (
+                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                    {role.openings} {role.openings === 1 ? 'opening' : 'openings'}
+                  </span>
                 )}
               </div>
             </div>
