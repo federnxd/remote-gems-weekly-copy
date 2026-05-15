@@ -123,6 +123,8 @@ export default function PostGenerator() {
 
   const buildPrompt = (strat, rolesList, platformInstruction) => `${CEO_CONTEXT}
 
+NOTE: The above context is provided as optional background reference. Use it only where it genuinely strengthens the post — do not force it into every piece of content.
+
 You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
 
 STRATEGY: ${strat.replace(/_/g, ' ')}
