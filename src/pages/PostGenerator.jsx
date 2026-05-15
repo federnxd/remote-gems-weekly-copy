@@ -121,11 +121,21 @@ export default function PostGenerator() {
     }
   };
 
-  // Build a roles-with-openings map for urgency context
+  // Build enriched role data for prompt context
   const rolesWithOpenings = roles
     .filter(r => r.openings > 0)
     .map(r => `${r.title} (${r.openings} ${r.openings === 1 ? 'opening' : 'openings'})`)
     .join(', ');
+
+  const rolesEnrichedContext = roles
+    .filter(r => r.required_skills || r.pay_rate)
+    .map(r => {
+      const parts = [r.title];
+      if (r.pay_rate) parts.push(`pay: ${r.pay_rate}`);
+      if (r.required_skills) parts.push(`skills: ${r.required_skills}`);
+      return parts.join(' | ');
+    })
+    .join('\n');
 
   const buildPrompt = (strat, rolesList, platformInstruction) => `${CEO_CONTEXT}
 
@@ -137,6 +147,8 @@ STRATEGY: ${strat.replace(/_/g, ' ')}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
 ${(strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings ? `VACANCY DATA (use naturally for urgency/FOMO — mention specific open counts to drive action, e.g. "only 2 spots left for X"): ${rolesWithOpenings}` : ''}
+${rolesEnrichedContext ? `ROLE DETAILS (use where relevant — mention pay rates to attract applicants, reference required skills to speak directly to the right audience. Only include details that naturally strengthen the post.):
+${rolesEnrichedContext}` : ''}
 ${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
 
 SIGNATURE STRUCTURE — FOLLOW THIS FORMAT EXACTLY:

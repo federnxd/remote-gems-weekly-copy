@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Search, RefreshCw, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Search, RefreshCw, Sparkles, DollarSign, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 
 const categoryGuess = (title) => {
@@ -71,10 +71,13 @@ export default function Roles() {
     if (!syncText.trim()) return;
     setIsSyncing(true);
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Extract all job role titles and their number of openings from the following text.
-For each role, look for a number indicating how many positions/openings are available (e.g. "3 openings", "(5)", "x2", "2 positions", etc.).
-If no opening count is found for a role, use 0.
-Return a JSON object with a "roles" array where each item has "title" (string) and "openings" (number).
+      prompt: `Extract all job roles from the following text. For each role extract:
+- "title": the job title (string)
+- "openings": number of open positions (look for patterns like "3 openings", "(5)", "x2", "2 positions"). Use 0 if not found.
+- "required_skills": key skills or requirements mentioned for this role (short comma-separated string, e.g. "Python, 3+ years exp, ML"). Empty string if not found.
+- "pay_rate": any pay/compensation info for this role (e.g. "$25/hr", "$80k-120k", "up to $50/hr"). Empty string if not found.
+
+Return a JSON object with a "roles" array.
 
 Text:
 ${syncText}`,
@@ -88,6 +91,8 @@ ${syncText}`,
               properties: {
                 title: { type: 'string' },
                 openings: { type: 'number' },
+                required_skills: { type: 'string' },
+                pay_rate: { type: 'string' },
               },
             },
           },
@@ -110,13 +115,20 @@ ${syncText}`,
         priority: 'medium',
         is_active: true,
         openings: r.openings || 0,
+        required_skills: r.required_skills || '',
+        pay_rate: r.pay_rate || '',
       });
     }
-    // Update existing roles with new openings count
+    // Update existing roles with latest extracted data
     for (const role of existing) {
       const matched = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
-      if (matched && matched.openings !== role.openings) {
-        await base44.entities.OpenRole.update(role.id, { openings: matched.openings, is_active: true });
+      if (matched) {
+        await base44.entities.OpenRole.update(role.id, {
+          openings: matched.openings ?? role.openings,
+          required_skills: matched.required_skills || role.required_skills || '',
+          pay_rate: matched.pay_rate || role.pay_rate || '',
+          is_active: true,
+        });
       }
     }
     // Deactivate removed roles (mark inactive rather than delete)
@@ -223,10 +235,10 @@ ${syncText}`,
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map((role) => (
-          <Card key={role.id} className="p-4 flex items-center justify-between group">
-            <div className="flex-1 min-w-0">
+          <Card key={role.id} className="p-4 flex items-start justify-between group">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <p className="text-sm font-medium truncate">{role.title}</p>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className={categoryColors[role.category]}>
                   {role.category?.replace(/_/g, ' ')}
                 </Badge>
@@ -241,12 +253,24 @@ ${syncText}`,
                   </span>
                 )}
               </div>
+              {role.pay_rate && (
+                <div className="flex items-center gap-1 text-[11px] text-green-700">
+                  <DollarSign className="w-3 h-3 flex-shrink-0" />
+                  <span className="font-medium">{role.pay_rate}</span>
+                </div>
+              )}
+              {role.required_skills && (
+                <div className="flex items-start gap-1 text-[11px] text-muted-foreground">
+                  <Wrench className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                  <span className="leading-relaxed line-clamp-2">{role.required_skills}</span>
+                </div>
+              )}
             </div>
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => deleteMutation.mutate(role.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive flex-shrink-0 ml-2"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
