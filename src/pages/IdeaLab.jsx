@@ -3,10 +3,11 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, TrendingUp, Lightbulb, RefreshCw, Repeat2 } from 'lucide-react';
+import { Loader2, Sparkles, TrendingUp, Lightbulb, RefreshCw, Repeat2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import IdeaCard from '@/components/idealab/IdeaCard';
 import RepurposePanel from '@/components/idealab/RepurposePanel';
+import StrategyAdvisor from '@/components/idealab/StrategyAdvisor';
 import { CEO_CONTEXT } from '@/lib/ceo-context';
 
 const STRATEGY_OPTIONS = [
@@ -188,9 +189,19 @@ Referral link to always use: https://refer.micro1.ai/referral/jobs?referralCode=
         >
           <Repeat2 className="w-3.5 h-3.5" /> Repurpose Post
         </button>
+        <button
+          onClick={() => setTab('advisor')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            tab === 'advisor' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5" /> Improve My Strategy
+        </button>
       </div>
 
-      {tab === 'repurpose' ? (
+      {tab === 'advisor' ? (
+        <StrategyAdvisor posts={posts} />
+      ) : tab === 'repurpose' ? (
         <RepurposePanel topPosts={topPosts} />
       ) : (
         <>
