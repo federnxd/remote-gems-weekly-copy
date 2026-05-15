@@ -3,9 +3,10 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, BookmarkPlus, CheckCircle2, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, TrendingUp, Lightbulb, RefreshCw, Repeat2 } from 'lucide-react';
 import { toast } from 'sonner';
 import IdeaCard from '@/components/idealab/IdeaCard';
+import RepurposePanel from '@/components/idealab/RepurposePanel';
 import { CEO_CONTEXT } from '@/lib/ceo-context';
 
 const STRATEGY_OPTIONS = [
@@ -142,6 +143,7 @@ Referral link to always use: https://refer.micro1.ai/referral/jobs?referralCode=
   };
 
   const [insights, setInsights] = useState('');
+  const [tab, setTab] = useState('ideas');
 
   return (
     <div className="space-y-6">
@@ -155,77 +157,105 @@ Referral link to always use: https://refer.micro1.ai/referral/jobs?referralCode=
             AI-generated content ideas based on your top-performing posts
           </p>
         </div>
-        <Button onClick={handleGenerate} disabled={isGenerating} className="gap-2 h-10">
-          {isGenerating ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</>
-          ) : ideas.length > 0 ? (
-            <><RefreshCw className="w-4 h-4" /> Regenerate Ideas</>
-          ) : (
-            <><Sparkles className="w-4 h-4" /> Generate Ideas</>
-          )}
-        </Button>
+        {tab === 'ideas' && (
+          <Button onClick={handleGenerate} disabled={isGenerating} className="gap-2 h-10">
+            {isGenerating ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</>
+            ) : ideas.length > 0 ? (
+              <><RefreshCw className="w-4 h-4" /> Regenerate Ideas</>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> Generate Ideas</>
+            )}
+          </Button>
+        )}
       </div>
 
-      {/* Data source summary */}
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border text-sm">
-        <TrendingUp className="w-4 h-4 text-primary flex-shrink-0" />
-        <span className="text-muted-foreground">
-          Analyzing <span className="font-semibold text-foreground">{topPosts.length}</span> published posts with engagement data
-          {topPosts.length === 0 && <span className="text-amber-600 ml-2">— publish posts and log metrics to unlock ideas</span>}
-        </span>
+      {/* Tab switcher */}
+      <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+        <button
+          onClick={() => setTab('ideas')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            tab === 'ideas' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Idea Generator
+        </button>
+        <button
+          onClick={() => setTab('repurpose')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            tab === 'repurpose' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Repeat2 className="w-3.5 h-3.5" /> Repurpose Post
+        </button>
       </div>
 
-      {/* AI Insights banner */}
-      {insights && (
-        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
-          <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">What the data says</p>
-          <p className="text-sm text-foreground/80">{insights}</p>
-        </div>
-      )}
+      {tab === 'repurpose' ? (
+        <RepurposePanel topPosts={topPosts} />
+      ) : (
+        <>
+          {/* Data source summary */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border text-sm">
+            <TrendingUp className="w-4 h-4 text-primary flex-shrink-0" />
+            <span className="text-muted-foreground">
+              Analyzing <span className="font-semibold text-foreground">{topPosts.length}</span> published posts with engagement data
+              {topPosts.length === 0 && <span className="text-amber-600 ml-2">— publish posts and log metrics to unlock ideas</span>}
+            </span>
+          </div>
 
-      {/* Loading skeleton */}
-      {isGenerating && (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="rounded-xl border bg-card p-5 space-y-3 animate-pulse">
-              <div className="h-4 bg-muted rounded w-3/4" />
-              <div className="h-3 bg-muted rounded w-1/3" />
-              <div className="h-3 bg-muted rounded w-full" />
-              <div className="h-3 bg-muted rounded w-5/6" />
-              <div className="h-20 bg-muted rounded" />
+          {/* AI Insights banner */}
+          {insights && (
+            <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">What the data says</p>
+              <p className="text-sm text-foreground/80">{insights}</p>
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Ideas grid */}
-      {!isGenerating && ideas.length > 0 && (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {ideas.map((idea) => (
-            <IdeaCard
-              key={idea._id}
-              idea={idea}
-              saved={savedIds.has(idea._id)}
-              isSaving={saveMutation.isPending}
-              onSave={() => saveMutation.mutate(idea)}
-            />
-          ))}
-        </div>
-      )}
+          {/* Loading skeleton */}
+          {isGenerating && (
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="rounded-xl border bg-card p-5 space-y-3 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/3" />
+                  <div className="h-3 bg-muted rounded w-full" />
+                  <div className="h-3 bg-muted rounded w-5/6" />
+                  <div className="h-20 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          )}
 
-      {/* Empty state */}
-      {!isGenerating && ideas.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center">
-            <Lightbulb className="w-8 h-8 text-yellow-400" />
-          </div>
-          <div>
-            <p className="font-semibold text-lg">No ideas yet</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Click "Generate Ideas" to let the AI analyze your best posts and suggest what to write next.
-            </p>
-          </div>
-        </div>
+          {/* Ideas grid */}
+          {!isGenerating && ideas.length > 0 && (
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {ideas.map((idea) => (
+                <IdeaCard
+                  key={idea._id}
+                  idea={idea}
+                  saved={savedIds.has(idea._id)}
+                  isSaving={saveMutation.isPending}
+                  onSave={() => saveMutation.mutate(idea)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isGenerating && ideas.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center">
+                <Lightbulb className="w-8 h-8 text-yellow-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">No ideas yet</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  Click "Generate Ideas" to let the AI analyze your best posts and suggest what to write next.
+                </p>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
