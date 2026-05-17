@@ -16,13 +16,13 @@ const budgetPlan = [
 ];
 
 const weeklySchedule = [
-  { day: 'Monday', time: '8-9 AM', action: 'Targeted role post (1-2 specific roles)', type: 'post' },
-  { day: 'Tuesday', time: '12-1 PM', action: 'Engage in 5+ LinkedIn groups, comment on 10+ posts', type: 'engage' },
-  { day: 'Wednesday', time: '8-9 AM', action: 'Personal story / social proof post', type: 'post' },
-  { day: 'Thursday', time: '12-1 PM', action: 'DM outreach to 20 warm leads', type: 'outreach' },
-  { day: 'Friday', time: '8-9 AM', action: 'Carousel / list post + community engagement', type: 'post' },
-  { day: 'Saturday', time: '10-11 AM', action: 'Weekend urgency post (boost this one)', type: 'post' },
-  { day: 'Sunday', time: 'Anytime', action: 'Review metrics, plan next week, optimize', type: 'review' },
+  { day: 'Monday',    time: '8:00 AM',  action: 'All roles job post — LinkedIn + ALL platforms (new roles highlighted)', type: 'post' },
+  { day: 'Tuesday',   time: '11:00 AM', action: 'Thought leadership: AI & remote work trends — non-LinkedIn platforms', type: 'thought' },
+  { day: 'Wednesday', time: '8:00 AM',  action: 'Social proof / personal story job post — non-LinkedIn platforms', type: 'post' },
+  { day: 'Thursday',  time: '11:00 AM', action: 'Thought leadership: AI & remote work trends — non-LinkedIn platforms', type: 'thought' },
+  { day: 'Friday',    time: '8:00 AM',  action: 'Carousel / list job post — non-LinkedIn platforms', type: 'post' },
+  { day: 'Saturday',  time: '10:00 AM', action: 'Weekend urgency job post — non-LinkedIn platforms', type: 'post' },
+  { day: 'Sunday',    time: '11:00 AM', action: 'Thought leadership: AI & remote work trends — non-LinkedIn platforms', type: 'thought' },
 ];
 
 const funnelFixes = [
@@ -155,6 +155,7 @@ export default function Strategy() {
           {weeklySchedule.map((item, i) => {
             const typeColors = {
               post: 'bg-primary/10 text-primary',
+              thought: 'bg-chart-3/10 text-chart-3',
               engage: 'bg-chart-4/10 text-chart-4',
               outreach: 'bg-chart-3/10 text-chart-3',
               review: 'bg-muted text-muted-foreground',
