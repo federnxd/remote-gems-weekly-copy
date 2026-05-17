@@ -24,12 +24,17 @@ export const SEGMENTS = [
     id: 'business',
     label: 'Business & Finance',
     icon: Briefcase,
-    color: 'text-chart-4',
-    bg: 'bg-chart-4/10 hover:bg-chart-4/20 border-chart-4/20',
-    activeBg: 'bg-chart-4 text-white border-chart-4',
+    color: 'text-amber-600',
+    bg: 'bg-amber-50 hover:bg-amber-100 border-amber-200',
+    activeBg: 'bg-amber-500 text-white border-amber-500',
     roles: [
       'Financial Advisor', 'CPA / US Tax Accountant', 'HR Expert', 'Product Manager',
+      'Finance Expert', 'Finance Associate', 'Finance Specialist', 'Finance & Investment Professional',
+      'Strategic Project Lead Finance', 'Personal Finance Advisor', 'Budget Analyst',
+      'Investment Analyst', 'Business Analyst', 'Account Manager', 'Sales Manager',
+      'Operations Manager', 'Marketing Expert', 'Management Specialist',
     ],
+    category: 'business',
   },
   {
     id: 'legal',
@@ -39,8 +44,9 @@ export const SEGMENTS = [
     bg: 'bg-chart-3/10 hover:bg-chart-3/20 border-chart-3/20',
     activeBg: 'bg-chart-3 text-white border-chart-3',
     roles: [
-      'Attorney / General Counsel', 'Legal Expert',
+      'Attorney / General Counsel', 'Legal Expert', 'Compliance Officer', 'Paralegal',
     ],
+    category: 'finance_legal',
   },
   {
     id: 'media',

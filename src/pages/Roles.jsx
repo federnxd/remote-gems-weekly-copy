@@ -24,28 +24,43 @@ const categoryGuess = (title) => {
   if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo|web design|product design|interaction design|figma|sketch/.test(t)) return 'design';
   // Media (audio/video/voice production)
   if (/audio|voice actor|voice over|voiceover|crowd worker|field record|recording expert|sound|music|speech|accent|dialect|film editor|video edit|video produc|runops|podcast|narrator|broadcaster|streamer|voice coach|voice director/.test(t)) return 'media';
-  // Language (must come before content to catch "language expert", specific languages, etc.)
+  // Language
   if (/language expert|language specialist|linguist|translat|interpret|locali[sz]|subtitl|caption|transcri|proofreader|bilingual|multilingual|generalist.*english|english.*generalist|spanish|french|german|portuguese|italian|japanese|korean|chinese|arabic|hindi|bengali|urdu|swahili|polish|dutch|russian|turkish|persian|tagalog|malay|thai|vietnamese|ukrainian|czech|hungarian|romanian|greek|hebrew|danish|swedish|norwegian|finnish|indonesian|catalan|punjabi|tamil|telugu|kannada|gujarati|odia|belarusian|afrikaans|albanian|amharic|azerbaijani|basque|bosnian|bulgarian|burmese|croatian|estonian|georgian|icelandic|khmer|latvian|lithuanian|macedonian|maltese|mongolian|nepali|pashto|serbian|sinhala|slovak|slovenian|somali|yoruba|zulu/.test(t)) return 'language';
   // Content / Marketing
   if (/writer|author|journalist|content|copywriter|linguistic|philosophy|editor|blogger|seo|social media|marketing|communication|public relation|brand strategist/.test(t)) return 'content';
-  // Finance / Legal
-  if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal|bookkeep|treasurer|controller|actuar|underwriter|banker|investment/.test(t)) return 'finance_legal';
+  // Strictly Legal (attorneys, compliance, paralegal)
+  if (/attorney|general counsel|legal expert|legal counsel|paralegal|compliance officer|legal/.test(t)) return 'finance_legal';
+  // Business & Finance (finance roles, investment, accounting — broader business)
+  if (/finance|financial|investment|investor|cpa|accountant|tax|bookkeep|treasurer|controller|actuar|underwriter|banker|budget|audit|revenue|profit|economic|business analyst|business dev|sales|account manager|customer success|hr |human resource|recruiter|talent|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager|executive|coordinator|administrator|consultant|advisor|strategist|analyst|personal finance|wealth|portfolio|asset/.test(t)) return 'business';
   // Science / Health
   if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic|biotech|radiolog|psycholog|therapist|nutritionist|epidemiolog|neurolog|dentist|optometr|veterinar|surgeon/.test(t)) return 'science';
-  // Management / Business / Sales / Operations
-  if (/hr |human resource|recruiter|talent|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager|executive|coordinator|administrator|consultant|advisor|strategist|analyst|business dev|sales|account manager|customer success|supervisor|specialist|clerk|hospitality|hotel|motel|resort|landscap|groundskeep|service worker/.test(t)) return 'management';
+  // Management / Operations
+  if (/supervisor|clerk|hospitality|hotel|motel|resort|landscap|groundskeep|service worker|specialist/.test(t)) return 'management';
   return 'other';
 };
 
-const categories = ['engineering', 'design', 'media', 'content', 'finance_legal', 'science', 'management', 'language', 'other'];
+const categories = ['engineering', 'design', 'media', 'content', 'business', 'finance_legal', 'science', 'management', 'language', 'other'];
+const categoryLabels = {
+  engineering: 'IT & Engineering',
+  design: 'Creative & Design',
+  media: 'Audio, Video & Media',
+  content: 'Content & Writing',
+  business: 'Business & Finance',
+  finance_legal: 'Legal & Compliance',
+  science: 'Science & Healthcare',
+  management: 'Management & Ops',
+  language: 'Language & Translation',
+  other: 'Other',
+};
 const categoryColors = {
   engineering: 'bg-primary/10 text-primary',
   design: 'bg-chart-3/10 text-chart-3',
   media: 'bg-chart-5/10 text-chart-5',
   content: 'bg-chart-4/10 text-chart-4',
+  business: 'bg-amber-100 text-amber-700',
   finance_legal: 'bg-chart-2/10 text-chart-2',
   science: 'bg-accent/10 text-accent',
-  management: 'bg-chart-5/10 text-chart-5',
+  management: 'bg-slate-100 text-slate-600',
   language: 'bg-violet-100 text-violet-700',
   other: 'bg-muted text-muted-foreground',
 };
@@ -319,7 +334,7 @@ ${syncText}`,
               <p className="text-sm font-medium truncate">{role.title}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className={categoryColors[role.category === 'other' ? categoryGuess(role.title) : role.category] || categoryColors.other}>
-                  {(role.category === 'other' ? categoryGuess(role.title) : role.category)?.replace(/_/g, ' ')}
+                  {categoryLabels[role.category === 'other' ? categoryGuess(role.title) : role.category] || 'Other'}
                 </Badge>
                 {role.is_new && (
                   <Badge variant="secondary" className="bg-amber-400/20 text-amber-700 text-[10px] font-bold border border-amber-300">
