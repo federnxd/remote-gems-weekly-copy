@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Target, BookOpen, Clock, Award, Users, Layout } from 'lucide-react';
+import { Target, BookOpen, Clock, Award, Users, Layout, Sparkles } from 'lucide-react';
 
 const strategies = [
   { 
@@ -46,6 +46,14 @@ const strategies = [
     desc: 'Structured format great for sharing multiple roles',
     tip: 'High shareability'
   },
+  { 
+    id: 'new_roles_spotlight', 
+    icon: Sparkles, 
+    label: '🆕 New Roles', 
+    desc: 'Spotlight freshly added roles from your selected audience',
+    tip: 'Timely & relevant',
+    highlight: true,
+  },
 ];
 
 export default function StrategySelector({ selected, onSelect }) {
@@ -58,7 +66,8 @@ export default function StrategySelector({ selected, onSelect }) {
             "p-4 cursor-pointer transition-all hover:shadow-md",
             selected === s.id 
               ? "ring-2 ring-primary bg-primary/5" 
-              : "hover:bg-muted/50"
+              : "hover:bg-muted/50",
+            s.highlight && selected !== s.id && "border-amber-300 bg-amber-50/50"
           )}
           onClick={() => onSelect(s.id)}
         >

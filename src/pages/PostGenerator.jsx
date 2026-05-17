@@ -138,13 +138,13 @@ export default function PostGenerator() {
     })
     .join('\n');
 
-  const buildPrompt = (strat, rolesList, platformInstruction) => `${CEO_CONTEXT}
+  const buildPrompt = (strat, rolesList, platformInstruction, isNewRolesSpotlight = false) => `${CEO_CONTEXT}
 
 NOTE: The above context is provided as optional background reference. Use it only where it genuinely strengthens the post — do not force it into every piece of content.
 
 You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
 
-STRATEGY: ${strat.replace(/_/g, ' ')}
+STRATEGY: ${strat === 'new_roles_spotlight' ? 'targeted_role' : strat.replace(/_/g, ' ')}${isNewRolesSpotlight ? '\nFOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just opened up, encourage urgent action, and highlight that spots may fill fast.' : ''}
 REFERRAL LINK: ${referralLink}
 TARGET ROLES: ${rolesList.join(', ')}
 ${(strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings ? `VACANCY DATA (use naturally for urgency/FOMO — mention specific open counts to drive action, e.g. "only 2 spots left for X"): ${rolesWithOpenings}` : ''}
@@ -247,7 +247,21 @@ Generate ONLY the post content, no explanations or preamble.`;
     if (abMode && !strategyB) { toast.error('Please select a Strategy B for comparison'); return; }
 
     setIsGenerating(true);
-    const rolesList = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
+
+    // For "new_roles_spotlight", only include NEW-labeled roles from the selected audience
+    const newRolesOnly = roles.filter(r => r.is_new && r.is_active).map(r => r.title);
+    const audiencePool = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
+    const newAudienceRoles = newRolesOnly.filter(t => audiencePool.includes(t));
+
+    if (strategy === 'new_roles_spotlight' && newAudienceRoles.length === 0) {
+      toast.error('No NEW-labeled roles found for the selected target audience.');
+      setIsGenerating(false);
+      return;
+    }
+
+    const rolesList = strategy === 'new_roles_spotlight'
+      ? newAudienceRoles
+      : (selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title));
 
     const platformTones = selectedPlatforms
       .map(id => PLATFORMS.find(p => p.id === id))
@@ -260,13 +274,13 @@ Generate ONLY the post content, no explanations or preamble.`;
 
     if (abMode) {
       const [resultA, resultB] = await Promise.all([
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction) }),
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, platformInstruction) }),
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction, strategy === 'new_roles_spotlight') }),
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, platformInstruction, strategyB === 'new_roles_spotlight') }),
       ]);
       setGeneratedContent(resultA);
       setContentB(resultB);
     } else {
-      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction) });
+      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction, strategy === 'new_roles_spotlight') });
       setGeneratedContent(result);
     }
     setIsGenerating(false);
