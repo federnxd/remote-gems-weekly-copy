@@ -18,14 +18,14 @@ const NON_LINKEDIN_PLATFORMS = [
 
 const categoryGuess = (title) => {
   const t = title.toLowerCase();
-  if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev/.test(t)) return 'engineering';
-  if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo/.test(t)) return 'design';
-  if (/audio|voice actor|voice over|voiceover|crowd worker|field record|recording expert|sound|music|speech|accent|dialect|bilingual|film editor|video edit|video produc|motion graphic|runops|platform.*infra/.test(t)) return 'media';
-  if (/language|linguist|translat|interpret|locali[sz]|subtitl|caption|transcri|proofreader|bilingual|multilingual|spanish|french|german|portuguese|italian|japanese|korean|chinese|arabic|hindi|bengali|urdu|swahili|polish|dutch|russian|turkish|persian|tagalog|malay|thai|vietnamese|ukrainian|czech|hungarian|romanian|greek|hebrew|danish|swedish|norwegian|finnish/.test(t)) return 'language';
-  if (/writer|author|journalist|content|copywriter|linguistic|philosophy|editor/.test(t)) return 'content';
-  if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal/.test(t)) return 'finance_legal';
-  if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic/.test(t)) return 'science';
-  if (/hr |human resource|recruiter|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager/.test(t)) return 'management';
+  if (/engineer|developer|devops|python|ios|android|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev|web dev|sre |site reliability|platform engineer|infrastructure|firmware|embedded|architect|data platform|mlops|llm|nlp|computer vision|robotics|database admin|dba|systems/.test(t)) return 'engineering';
+  if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo|web design|product design|interaction design|figma|sketch/.test(t)) return 'design';
+  if (/audio|voice actor|voice over|voiceover|crowd worker|field record|recording expert|sound|music|speech|accent|dialect|film editor|video edit|video produc|runops|podcast|narrator|broadcaster|streamer/.test(t)) return 'media';
+  if (/language|linguist|translat|interpret|locali[sz]|subtitl|caption|transcri|proofreader|bilingual|multilingual|spanish|french|german|portuguese|italian|japanese|korean|chinese|arabic|hindi|bengali|urdu|swahili|polish|dutch|russian|turkish|persian|tagalog|malay|thai|vietnamese|ukrainian|czech|hungarian|romanian|greek|hebrew|danish|swedish|norwegian|finnish|indonesian|catalan|punjabi|tamil|telugu|kannada|gujarati/.test(t)) return 'language';
+  if (/writer|author|journalist|content|copywriter|linguistic|philosophy|editor|blogger|seo|social media manager|marketing|communication|public relation|brand strategist/.test(t)) return 'content';
+  if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal|bookkeep|treasurer|controller|actuar|underwriter|banker|investment/.test(t)) return 'finance_legal';
+  if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic|biotech|radiolog|psycholog|therapist|nutritionist|epidemiolog/.test(t)) return 'science';
+  if (/hr |human resource|recruiter|talent|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager|executive|coordinator|administrator|consultant|advisor|strategist|analyst|business dev|sales|account manager|customer success/.test(t)) return 'management';
   return 'other';
 };
 
@@ -212,7 +212,9 @@ ${syncText}`,
     setIsGeneratingPosts(false);
   };
 
-  const filtered = roles.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
+  const filtered = roles
+    .filter(r => r.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0));
 
   return (
     <div className="space-y-6">
@@ -308,8 +310,8 @@ ${syncText}`,
             <div className="flex-1 min-w-0 space-y-1.5">
               <p className="text-sm font-medium truncate">{role.title}</p>
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className={categoryColors[role.category]}>
-                  {role.category?.replace(/_/g, ' ')}
+                <Badge variant="secondary" className={categoryColors[role.category === 'other' ? categoryGuess(role.title) : role.category] || categoryColors.other}>
+                  {(role.category === 'other' ? categoryGuess(role.title) : role.category)?.replace(/_/g, ' ')}
                 </Badge>
                 {role.is_new && (
                   <Badge variant="secondary" className="bg-amber-400/20 text-amber-700 text-[10px] font-bold border border-amber-300">
