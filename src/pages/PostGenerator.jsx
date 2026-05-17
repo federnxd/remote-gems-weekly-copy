@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import ABComparePreview from '@/components/generator/ABComparePreview';
-import { Loader2, Sparkles, CalendarClock, GitCompare } from 'lucide-react';
+import { Loader2, Sparkles, CalendarClock, GitCompare, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,6 +42,7 @@ export default function PostGenerator() {
   const [strategyB, setStrategyB] = useState('');
   const [contentB, setContentB] = useState('');
   const [savedPostIdB, setSavedPostIdB] = useState(null);
+  const [isGeneratingNewRoles, setIsGeneratingNewRoles] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: roles = [] } = useQuery({
@@ -191,6 +192,55 @@ STRICT TONE RULES:
 - Emojis: use purposefully for structure and warmth (👉 📍 ➡️ 🙌 👍 🛑), not for hype
 
 Generate ONLY the post content, no explanations or preamble.`;
+
+  const handleGenerateNewRoles = async () => {
+    // Filter only NEW-labeled roles that match the current target audience selection
+    const newRoles = roles.filter(r => r.is_new && r.is_active);
+    const audienceFilteredNew = selectedRoles.length > 0
+      ? newRoles.filter(r => selectedRoles.includes(r.title))
+      : newRoles;
+
+    if (!audienceFilteredNew.length) {
+      toast.error('No NEW-labeled roles found for the selected target audience.');
+      return;
+    }
+
+    const platforms = selectedPlatforms.filter(p => p !== 'linkedin');
+    if (!platforms.length) {
+      toast.error('Please select at least one non-LinkedIn platform to generate new role posts for.');
+      return;
+    }
+
+    setIsGeneratingNewRoles(true);
+    const today = new Date();
+    const scheduledDate = today.toISOString().split('T')[0];
+
+    try {
+      const result = await base44.functions.invoke('generateCampaignPosts', {
+        roles: audienceFilteredNew.map(r => ({
+          title: r.title,
+          is_new: true,
+          required_skills: r.required_skills || '',
+          pay_rate: r.pay_rate || '',
+          openings: r.openings || 0,
+        })),
+        platforms,
+        scheduledDates: platforms.map(() => scheduledDate),
+        scheduledTime: scheduledTime || '10:00',
+        referralLink,
+        titlePrefix: `New Roles — ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+        highlightNew: true,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+      toast.success(
+        `Generated ${result.data?.total || platforms.length} posts for ${audienceFilteredNew.length} NEW role(s) — saved as drafts for approval.`
+      );
+    } catch (err) {
+      toast.error('Failed to generate new roles posts: ' + err.message);
+    }
+    setIsGeneratingNewRoles(false);
+  };
 
   const handleGenerate = async () => {
     if (!strategy) { toast.error('Please select a post strategy'); return; }
@@ -422,6 +472,35 @@ Generate ONLY the post content, no explanations or preamble.`;
               </>
             )}
           </Button>
+
+          {/* New Roles Quick-Generate */}
+          {roles.some(r => r.is_new && r.is_active) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-700 font-semibold text-xs uppercase tracking-wide">🆕 New Roles Detected</span>
+                <span className="text-[10px] text-amber-600 bg-amber-100 rounded-full px-2 py-0.5 font-medium">
+                  {roles.filter(r => r.is_new && r.is_active && (selectedRoles.length === 0 || selectedRoles.includes(r.title))).length} role(s) match your audience
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-700">
+                Auto-generate posts for NEW-labeled roles across selected platforms (excluding LinkedIn). Saved as scheduled drafts.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                onClick={handleGenerateNewRoles}
+                disabled={isGeneratingNewRoles}
+              >
+                {isGeneratingNewRoles ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating New Role Posts…</>
+                ) : (
+                  <><Zap className="w-3.5 h-3.5" /> Generate New Roles Posts</>
+                )}
+              </Button>
+            </div>
+          )}
+
         </div>
 
         {/* Preview */}
