@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
   Code2, Briefcase, Mic, Scale, FlaskConical, 
-  Palette, BookOpen, Users, Layers
+  Palette, BookOpen, Users, Layers, Languages
 } from 'lucide-react';
 
 export const SEGMENTS = [
@@ -88,6 +88,18 @@ export const SEGMENTS = [
     activeBg: 'bg-chart-2 text-white border-chart-2',
     roles: [
       'Biologist (Cell / Molecular)', 'Healthcare Professional', 'STEM Expert', 'Academic Researcher',
+    ],
+  },
+  {
+    id: 'language',
+    label: 'Language & Translation',
+    icon: Languages,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 hover:bg-violet-100 border-violet-200',
+    activeBg: 'bg-violet-600 text-white border-violet-600',
+    roles: [
+      'Linguistic Expert', 'Translator', 'Interpreter', 'Localization Expert',
+      'Bilingual Expert', 'Multilingual Expert', 'Subtitler', 'Caption Expert',
     ],
   },
   {

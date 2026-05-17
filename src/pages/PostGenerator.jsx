@@ -88,6 +88,7 @@ export default function PostGenerator() {
     creative: 'design',
     content: 'content',
     science: 'science',
+    language: 'language',
   };
 
   const toggleSegment = (segId, segRoles) => {

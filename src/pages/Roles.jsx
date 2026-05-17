@@ -21,14 +21,15 @@ const categoryGuess = (title) => {
   if (/engineer|developer|devops|python|ios|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev/.test(t)) return 'engineering';
   if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo/.test(t)) return 'design';
   if (/audio|voice actor|voice over|voiceover|crowd worker|field record|recording expert|sound|music|speech|accent|dialect|bilingual|film editor|video edit|video produc|motion graphic|runops|platform.*infra/.test(t)) return 'media';
-  if (/writer|author|journalist|content|copywriter|linguistic|translat|philosophy|transcription|caption|subtitl|editor|proofreader/.test(t)) return 'content';
+  if (/language|linguist|translat|interpret|locali[sz]|subtitl|caption|transcri|proofreader|bilingual|multilingual|spanish|french|german|portuguese|italian|japanese|korean|chinese|arabic|hindi|bengali|urdu|swahili|polish|dutch|russian|turkish|persian|tagalog|malay|thai|vietnamese|ukrainian|czech|hungarian|romanian|greek|hebrew|danish|swedish|norwegian|finnish/.test(t)) return 'language';
+  if (/writer|author|journalist|content|copywriter|linguistic|philosophy|editor/.test(t)) return 'content';
   if (/attorney|legal|counsel|compliance|cpa|accountant|tax|financial advisor|finance|auditor|paralegal/.test(t)) return 'finance_legal';
   if (/biolog|health|medical|clinical|nurse|doctor|pharma|stem|scientist|researcher|lab|chemistry|physic|neuroscien|genomic/.test(t)) return 'science';
   if (/hr |human resource|recruiter|product manager|project manager|program manager|operations|chief|director|vp |ceo|cto|cfo|manager/.test(t)) return 'management';
   return 'other';
 };
 
-const categories = ['engineering', 'design', 'media', 'content', 'finance_legal', 'science', 'management', 'other'];
+const categories = ['engineering', 'design', 'media', 'content', 'finance_legal', 'science', 'management', 'language', 'other'];
 const categoryColors = {
   engineering: 'bg-primary/10 text-primary',
   design: 'bg-chart-3/10 text-chart-3',
@@ -37,6 +38,7 @@ const categoryColors = {
   finance_legal: 'bg-chart-2/10 text-chart-2',
   science: 'bg-accent/10 text-accent',
   management: 'bg-chart-5/10 text-chart-5',
+  language: 'bg-violet-100 text-violet-700',
   other: 'bg-muted text-muted-foreground',
 };
 
