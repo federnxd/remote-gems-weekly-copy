@@ -8,8 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Search, RefreshCw, Sparkles, DollarSign, Wrench } from 'lucide-react';
+import { Plus, Trash2, Search, RefreshCw, Sparkles, DollarSign, Wrench, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+
+const NON_LINKEDIN_PLATFORMS = [
+  'twitter', 'instagram', 'weworkremotely', 'wellfound',
+  'remotive', 'flexjobs', 'remoteok', 'reddit', 'discord',
+];
 
 const categoryGuess = (title) => {
   const t = title.toLowerCase();
@@ -42,6 +47,9 @@ export default function Roles() {
   const [syncText, setSyncText] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [newRole, setNewRole] = useState({ title: '', category: 'engineering', priority: 'medium' });
+  const [newRolesDetected, setNewRolesDetected] = useState([]);
+  const [postGenOpen, setPostGenOpen] = useState(false);
+  const [isGeneratingPosts, setIsGeneratingPosts] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: roles = [], isLoading } = useQuery({
@@ -73,6 +81,7 @@ export default function Roles() {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Extract all job roles from the following text. For each role extract:
 - "title": the job title (string)
+- "is_new": true if the role is labeled or tagged as "NEW" (e.g. "NEW", "🆕", "new role"), false otherwise
 - "openings": number of open positions (look for patterns like "3 openings", "(5)", "x2", "2 positions"). Use 0 if not found.
 - "required_skills": key skills or requirements mentioned for this role (short comma-separated string, e.g. "Python, 3+ years exp, ML"). Empty string if not found.
 - "pay_rate": any pay/compensation info for this role (e.g. "$25/hr", "$80k-120k", "up to $50/hr"). Empty string if not found.
@@ -90,6 +99,7 @@ ${syncText}`,
               type: 'object',
               properties: {
                 title: { type: 'string' },
+                is_new: { type: 'boolean' },
                 openings: { type: 'number' },
                 required_skills: { type: 'string' },
                 pay_rate: { type: 'string' },
@@ -114,6 +124,7 @@ ${syncText}`,
         category: categoryGuess(r.title),
         priority: 'medium',
         is_active: true,
+        is_new: r.is_new || false,
         openings: r.openings || 0,
         required_skills: r.required_skills || '',
         pay_rate: r.pay_rate || '',
@@ -125,6 +136,7 @@ ${syncText}`,
       if (matched) {
         await base44.entities.OpenRole.update(role.id, {
           openings: matched.openings ?? role.openings,
+          is_new: matched.is_new || false,
           required_skills: matched.required_skills || role.required_skills || '',
           pay_rate: matched.pay_rate || role.pay_rate || '',
           is_active: true,
@@ -133,14 +145,69 @@ ${syncText}`,
     }
     // Deactivate removed roles (mark inactive rather than delete)
     for (const role of removed) {
-      await base44.entities.OpenRole.update(role.id, { is_active: false });
+      await base44.entities.OpenRole.update(role.id, { is_active: false, is_new: false });
     }
 
     queryClient.invalidateQueries({ queryKey: ['open-roles'] });
     setIsSyncing(false);
     setSyncOpen(false);
     setSyncText('');
-    toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive`);
+
+    // Detect brand-new roles (didn't exist before) OR newly-labeled ones
+    const brandNew = newOnes.filter(r => r.is_new);
+    const relabeledNew = existing
+      .filter(r => !r.is_new)
+      .filter(r => {
+        const matched = extracted.find(e => e.title.toLowerCase() === r.title.toLowerCase());
+        return matched?.is_new;
+      });
+    const allNewRoles = [...newOnes.map(r => ({ ...r, isNew: true })), ...relabeledNew.map(r => {
+      const matched = extracted.find(e => e.title.toLowerCase() === r.title.toLowerCase());
+      return { ...r, ...matched, isNew: true };
+    })];
+
+    if (allNewRoles.length > 0) {
+      setNewRolesDetected(allNewRoles);
+      setPostGenOpen(true);
+      toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive. ${allNewRoles.length} NEW role(s) detected!`);
+    } else {
+      toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive`);
+    }
+  };
+
+  const handleGenerateNewRolesPosts = async () => {
+    setIsGeneratingPosts(true);
+    try {
+      // Spread across 5 days starting today
+      const today = new Date();
+      const scheduledDates = NON_LINKEDIN_PLATFORMS.map((_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + Math.floor(i * (7 / NON_LINKEDIN_PLATFORMS.length)));
+        return d.toISOString().split('T')[0];
+      });
+
+      const result = await base44.functions.invoke('generateCampaignPosts', {
+        roles: newRolesDetected.map(r => ({
+          title: r.title,
+          is_new: true,
+          required_skills: r.required_skills || '',
+          pay_rate: r.pay_rate || '',
+          openings: r.openings || 0,
+        })),
+        platforms: NON_LINKEDIN_PLATFORMS,
+        scheduledDates,
+        scheduledTime: '10:00',
+        titlePrefix: `New Roles — ${today.toISOString().split('T')[0]}`,
+        highlightNew: true,
+      });
+
+      setPostGenOpen(false);
+      setNewRolesDetected([]);
+      toast.success(`Generated ${result.data?.total || 0} posts for new roles — pending approval before publishing.`);
+    } catch (err) {
+      toast.error('Post generation failed: ' + err.message);
+    }
+    setIsGeneratingPosts(false);
   };
 
   const filtered = roles.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
@@ -242,6 +309,11 @@ ${syncText}`,
                 <Badge variant="secondary" className={categoryColors[role.category]}>
                   {role.category?.replace(/_/g, ' ')}
                 </Badge>
+                {role.is_new && (
+                  <Badge variant="secondary" className="bg-amber-400/20 text-amber-700 text-[10px] font-bold border border-amber-300">
+                    🆕 NEW
+                  </Badge>
+                )}
                 {role.priority === 'high' && (
                   <Badge variant="secondary" className="bg-destructive/10 text-destructive text-[10px]">
                     High Priority
@@ -283,6 +355,50 @@ ${syncText}`,
           <p className="text-sm">No roles found. Add your first role to get started.</p>
         </div>
       )}
+
+      {/* New Roles Detected — Post Generation Confirmation */}
+      <Dialog open={postGenOpen} onOpenChange={setPostGenOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" />
+              {newRolesDetected.length} New Role{newRolesDetected.length > 1 ? 's' : ''} Detected!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              The following roles are marked as <strong>NEW</strong> in this sync. Would you like to auto-generate posts for them across all non-LinkedIn platforms, spread across this week?
+            </p>
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-1 max-h-40 overflow-y-auto">
+              {newRolesDetected.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-[10px]">NEW</Badge>
+                  <span className="font-medium">{r.title}</span>
+                  {r.pay_rate && <span className="text-muted-foreground text-xs">· {r.pay_rate}</span>}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Posts will be saved as <strong>scheduled drafts</strong>. You'll receive an approval email before each one goes live.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => { setPostGenOpen(false); setNewRolesDetected([]); }}>
+                Skip for now
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleGenerateNewRolesPosts}
+                disabled={isGeneratingPosts}
+              >
+                {isGeneratingPosts
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generating…</>
+                  : <><Sparkles className="w-4 h-4" /> Generate Posts</>
+                }
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

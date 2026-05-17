@@ -32,6 +32,11 @@
       "type": "boolean",
       "default": true
     },
+    "is_new": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this role is marked as NEW in the job listing"
+    },
     "priority": {
       "type": "string",
       "enum": [
