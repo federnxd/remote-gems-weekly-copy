@@ -50,17 +50,18 @@ function parseMicro1(text) {
 }
 
 function parseLinkedIn(text) {
+  // Try to find any number near each label, with many format variations
   return {
-    impressions:      extractNumber(text, 'Impressions', 'Impresiones'),
-    reach:            extractNumber(text, 'Members reached', 'Miembros alcanzados', 'Reach'),
-    profile_views:    extractNumber(text, 'Profile views', 'Visualizaciones del perfil'),
-    followers_gained: extractNumber(text, 'Followers gained', 'Seguidores obtenidos', 'New followers'),
-    reactions:        extractNumber(text, 'Reactions', 'Reacciones', 'Likes'),
-    comments:         extractNumber(text, 'Comments', 'Comentarios'),
-    reposts:          extractNumber(text, 'Reposts', 'Veces compartido', 'Shares'),
-    saves:            extractNumber(text, 'Saves', 'Veces guardado'),
-    sends:            extractNumber(text, 'Sends', 'Envíos en LinkedIn'),
-    link_clicks:      extractNumber(text, 'Link clicks', 'Visitas a los enlaces', 'Link interactions'),
+    impressions:      extractNumber(text, 'Impressions', 'Impresiones', 'impression'),
+    reach:            extractNumber(text, 'Members reached', 'Miembros alcanzados', 'Reach', 'Unique impressions', 'Unique viewers'),
+    profile_views:    extractNumber(text, 'Profile views', 'Visualizaciones del perfil', 'Profile view'),
+    followers_gained: extractNumber(text, 'Followers gained', 'Seguidores obtenidos', 'New followers', 'Followers'),
+    reactions:        extractNumber(text, 'Reactions', 'Reacciones', 'Likes', 'Like', 'Reaction'),
+    comments:         extractNumber(text, 'Comments', 'Comentarios', 'Comment'),
+    reposts:          extractNumber(text, 'Reposts', 'Veces compartido', 'Shares', 'Repost', 'Share'),
+    saves:            extractNumber(text, 'Saves', 'Veces guardado', 'Save'),
+    sends:            extractNumber(text, 'Sends', 'Envíos en LinkedIn', 'Send', 'LinkedIn sends'),
+    link_clicks:      extractNumber(text, 'Link clicks', 'Visitas a los enlaces', 'Link interactions', 'Clicks', 'Click', 'External link clicks'),
   };
 }
 
