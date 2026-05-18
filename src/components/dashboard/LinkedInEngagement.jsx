@@ -34,11 +34,11 @@ function parsePostStats(text) {
   };
 
   return {
-    impressions: num('impresiones', 'impression', 'views', 'vistas'),
-    likes:       num('reacciones', 'reaction', 'like', 'me gusta'),
-    comments:    num('comentarios', 'comment'),
-    shares:      num('reposts', 'repost', 'compartidos', 'share'),
-    clicks:      num('clics', 'click'),
+    impressions: num('impresiones', 'impressions', 'impression', 'views', 'vistas'),
+    likes:       num('reacciones', 'reactions', 'reaction', 'likes', 'like', 'me gusta'),
+    comments:    num('comentarios', 'comments', 'comment'),
+    shares:      num('reposts', 'repost', 'compartidos', 'shares', 'share'),
+    clicks:      num('clics en el enlace', 'clics', 'link clicks', 'clicks', 'click'),
   };
 }
 
