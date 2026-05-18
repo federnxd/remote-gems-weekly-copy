@@ -9,6 +9,7 @@ import StrategyBreakdownChart from '@/components/dashboard/StrategyBreakdownChar
 import ScheduleDistributionChart from '@/components/dashboard/ScheduleDistributionChart';
 import ConversionMetrics from '@/components/dashboard/ConversionMetrics';
 import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
+import LinkedInOverallStats from '@/components/dashboard/LinkedInOverallStats';
 import ReferralFunnelCard from '@/components/dashboard/ReferralFunnelCard';
 import ReferralStatsGrid from '@/components/dashboard/ReferralStatsGrid';
 import { Card } from '@/components/ui/card';
@@ -76,7 +77,10 @@ export default function Dashboard() {
       <DashboardSnapshotModal
         open={showSnapshotModal}
         onClose={() => setShowSnapshotModal(false)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-snapshots'] });
+        }}
       />
 
       <StatsGrid posts={posts} />
@@ -99,7 +103,10 @@ export default function Dashboard() {
         <ScheduleDistributionChart posts={posts} />
       </div>
 
-      {/* LinkedIn Engagement */}
+      {/* LinkedIn Overall Stats (from pasted data) */}
+      <LinkedInOverallStats onPasteClick={() => setShowSnapshotModal(true)} />
+
+      {/* LinkedIn Per-Post Engagement (auto-synced) */}
       <LinkedInEngagement posts={posts} />
 
       {/* Conversion per post */}

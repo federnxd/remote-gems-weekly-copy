@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Linkedin, ThumbsUp, MessageSquare, Eye, MousePointer, Share2, Pencil, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Linkedin, ThumbsUp, MessageSquare, Eye, MousePointer, Share2, Pencil, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -80,13 +80,33 @@ function EditStatsModal({ post, open, onClose }) {
 }
 
 export default function LinkedInEngagement({ posts }) {
+  const queryClient = useQueryClient();
   const [editingPost, setEditingPost] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   const publishedPosts = posts.filter(p => p.status === 'published' && p.linkedin_post_id);
 
-  const totalLikes      = publishedPosts.reduce((s, p) => s + (p.likes || 0), 0);
-  const totalComments   = publishedPosts.reduce((s, p) => s + (p.comments || 0), 0);
+  const totalLikes       = publishedPosts.reduce((s, p) => s + (p.likes || 0), 0);
+  const totalComments    = publishedPosts.reduce((s, p) => s + (p.comments || 0), 0);
   const totalImpressions = publishedPosts.reduce((s, p) => s + (p.impressions || 0), 0);
+
+  const syncStats = async (silent = false) => {
+    if (publishedPosts.length === 0) return;
+    setSyncing(true);
+    const res = await base44.functions.invoke('syncLinkedInStats', {});
+    setSyncing(false);
+    if (res.data?.synced >= 0) {
+      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+      if (!silent) toast.success(`Synced stats for ${res.data.synced} posts`);
+    } else if (!silent) {
+      toast.error(res.data?.error || 'Sync failed');
+    }
+  };
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    syncStats(true);
+  }, []);
 
   if (publishedPosts.length === 0) {
     return (
@@ -109,9 +129,15 @@ export default function LinkedInEngagement({ posts }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Linkedin className="w-4 h-4 text-[#0a66c2]" />
-            <h3 className="font-semibold text-sm">LinkedIn Engagement</h3>
+            <h3 className="font-semibold text-sm">LinkedIn Per-Post Engagement</h3>
           </div>
-          <p className="text-xs text-muted-foreground">Click ✏️ to update stats manually</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">✏️ to edit manually</p>
+            <Button size="sm" variant="outline" onClick={() => syncStats(false)} disabled={syncing} className="gap-1.5 text-xs">
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Sync'}
+            </Button>
+          </div>
         </div>
 
         {/* Summary totals */}
