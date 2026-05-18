@@ -14,15 +14,17 @@ import ReferralStatsGrid from '@/components/dashboard/ReferralStatsGrid';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { PenTool, ArrowRight, Zap, ClipboardPaste } from 'lucide-react';
+import { PenTool, ArrowRight, Zap, ClipboardPaste, BarChart2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
+import ReferralInsightsModal from '@/components/dashboard/ReferralInsightsModal';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['generated-posts'],
@@ -52,6 +54,10 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground">Track your referral performance</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setShowInsightsModal(true)}>
+            <BarChart2 className="w-4 h-4" />
+            Referral Insights
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => setShowSnapshotModal(true)}>
             <ClipboardPaste className="w-4 h-4" />
             Paste Dashboard Data
@@ -64,6 +70,8 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      <ReferralInsightsModal open={showInsightsModal} onClose={() => setShowInsightsModal(false)} />
 
       <DashboardSnapshotModal
         open={showSnapshotModal}
