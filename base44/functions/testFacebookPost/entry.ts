@@ -15,14 +15,21 @@ Deno.serve(async (req) => {
 
     const message = `🌍 Remote work is the future — and we're here to help you find your next opportunity!\n\nStay tuned to this page for weekly remote job postings across engineering, design, content, and more. 💼✨\n\n#RemoteWork #RemoteJobs #Hiring #WorkFromAnywhere`;
 
-    const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+    // Use query string approach which is more reliable
+    const url = `https://graph.facebook.com/v19.0/${pageId}/feed?message=${encodeURIComponent(message)}&access_token=${pageToken}`;
+
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, access_token: pageToken }),
     });
 
     const data = await res.json();
-    if (!res.ok) return Response.json({ error: data }, { status: 500 });
+    if (!res.ok) {
+      return Response.json({ 
+        error: 'Facebook API error', 
+        details: data,
+        status: res.status 
+      }, { status: 500 });
+    }
 
     return Response.json({ success: true, postId: data.id });
   } catch (error) {
