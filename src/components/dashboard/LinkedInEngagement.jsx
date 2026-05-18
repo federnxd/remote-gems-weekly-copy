@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Linkedin, ThumbsUp, MessageSquare, Eye, MousePointer, Share2, Pencil, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Linkedin, ThumbsUp, MessageSquare, Eye, MousePointer, Share2, Pencil, AlertCircle, CheckCircle2, RefreshCw, ClipboardPaste } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -17,6 +19,20 @@ const STAT_FIELDS = [
   { key: 'clicks',      label: 'Link Clicks', icon: MousePointer, color: 'text-green-600' },
 ];
 
+function parsePostStats(text) {
+  const num = (label) => {
+    const match = text.match(new RegExp(label + '[^\\d]*(\\d[\\d,]*)', 'i'));
+    return match ? parseInt(match[1].replace(/,/g, '')) : null;
+  };
+  return {
+    impressions: num('impression') ?? num('views') ?? null,
+    likes:       num('reaction') ?? num('like') ?? null,
+    comments:    num('comment') ?? null,
+    shares:      num('repost') ?? num('share') ?? null,
+    clicks:      num('click') ?? null,
+  };
+}
+
 function EditStatsModal({ post, open, onClose }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState({
@@ -27,6 +43,20 @@ function EditStatsModal({ post, open, onClose }) {
     clicks:      post.clicks ?? 0,
   });
   const [saving, setSaving] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+
+  const handleParsePaste = () => {
+    const parsed = parsePostStats(pasteText);
+    setValues(prev => ({
+      impressions: parsed.impressions ?? prev.impressions,
+      likes:       parsed.likes       ?? prev.likes,
+      comments:    parsed.comments    ?? prev.comments,
+      shares:      parsed.shares      ?? prev.shares,
+      clicks:      parsed.clicks      ?? prev.clicks,
+    }));
+    toast.success('Stats parsed — review and save');
+    setPasteText('');
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -50,23 +80,49 @@ function EditStatsModal({ post, open, onClose }) {
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-xs text-muted-foreground truncate -mt-2 mb-1">{post.title}</p>
+        <p className="text-xs text-muted-foreground truncate -mt-2 mb-2">{post.title}</p>
 
-        <div className="space-y-3">
-          {STAT_FIELDS.map(({ key, label, icon: Icon, color }) => (
-            <div key={key} className="flex items-center gap-3">
-              <Icon className={`w-4 h-4 flex-shrink-0 ${color}`} />
-              <Label className="w-28 text-sm flex-shrink-0">{label}</Label>
-              <Input
-                type="number"
-                min={0}
-                value={values[key]}
-                onChange={e => setValues(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
-                className="h-8 text-sm"
-              />
+        <Tabs defaultValue="manual">
+          <TabsList className="w-full mb-3">
+            <TabsTrigger value="manual" className="flex-1 text-xs">Manual Entry</TabsTrigger>
+            <TabsTrigger value="paste" className="flex-1 text-xs gap-1.5">
+              <ClipboardPaste className="w-3.5 h-3.5" /> Paste Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="manual">
+            <div className="space-y-3">
+              {STAT_FIELDS.map(({ key, label, icon: Icon, color }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${color}`} />
+                  <Label className="w-28 text-sm flex-shrink-0">{label}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={values[key]}
+                    onChange={e => setValues(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="paste">
+            <p className="text-xs text-muted-foreground mb-2">
+              Copy the analytics text from your LinkedIn post and paste it below. Numbers will be extracted automatically.
+            </p>
+            <Textarea
+              placeholder="Paste LinkedIn post analytics here…"
+              className="h-36 text-sm resize-none"
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+            />
+            <Button size="sm" className="mt-2 w-full gap-1.5" onClick={handleParsePaste} disabled={!pasteText.trim()}>
+              <ClipboardPaste className="w-3.5 h-3.5" /> Parse & Fill
+            </Button>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter className="mt-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
