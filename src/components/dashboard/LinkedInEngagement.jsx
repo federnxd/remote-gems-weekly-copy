@@ -20,16 +20,25 @@ const STAT_FIELDS = [
 ];
 
 function parsePostStats(text) {
-  const num = (label) => {
-    const match = text.match(new RegExp(label + '[^\\d]*(\\d[\\d,]*)', 'i'));
-    return match ? parseInt(match[1].replace(/,/g, '')) : null;
+  // Normalize: replace European thousand separators (periods before 3 digits) and commas
+  const normalize = (str) => str.replace(/(\d)\.(\d{3})/g, '$1$2').replace(/,/g, '');
+  const normalized = normalize(text);
+
+  const num = (...labels) => {
+    for (const label of labels) {
+      // Match label then the next standalone number on same or next line
+      const match = normalized.match(new RegExp(label + '[^\\d]{0,30}?(\\d+)', 'i'));
+      if (match) return parseInt(match[1]);
+    }
+    return null;
   };
+
   return {
-    impressions: num('impression') ?? num('views') ?? null,
-    likes:       num('reaction') ?? num('like') ?? null,
-    comments:    num('comment') ?? null,
-    shares:      num('repost') ?? num('share') ?? null,
-    clicks:      num('click') ?? null,
+    impressions: num('impresiones', 'impression', 'views', 'vistas'),
+    likes:       num('reacciones', 'reaction', 'like', 'me gusta'),
+    comments:    num('comentarios', 'comment'),
+    shares:      num('reposts', 'repost', 'compartidos', 'share'),
+    clicks:      num('clics', 'click'),
   };
 }
 
