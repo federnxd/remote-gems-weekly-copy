@@ -163,23 +163,7 @@ async function publishThreads(text) {
   return { postId: data.id };
 }
 
-async function publishFacebook(text) {
-  const pageToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
-  const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
 
-  if (!pageToken || !pageId) {
-    throw new Error('Facebook credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID in settings.');
-  }
-
-  const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: text, access_token: pageToken }),
-  });
-  if (!res.ok) throw new Error(`Facebook API: ${await res.text()}`);
-  const data = await res.json();
-  return { postId: data.id };
-}
 
 // ── main handler ──────────────────────────────────────────────────────────────
 
@@ -216,9 +200,6 @@ Deno.serve(async (req) => {
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
-        } else if (platform === 'facebook') {
-          const r = await publishFacebook(postContent);
-          results.facebook = { success: true, postId: r.postId };
         }
       } catch (e) {
         results[platform] = { success: false, error: e.message };
