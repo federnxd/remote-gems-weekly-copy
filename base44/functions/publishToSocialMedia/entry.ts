@@ -71,10 +71,10 @@ async function publishTwitter(text) {
   const apiKey = Deno.env.get('TWITTER_API_KEY');
   const apiSecret = Deno.env.get('TWITTER_API_SECRET');
   const accessToken = Deno.env.get('TWITTER_ACCESS_TOKEN');
-  const accessSecret = Deno.env.get('TWITTER_ACCESS_SECRET');
+  const accessSecret = Deno.env.get('TWITTER_ACCESS_TOKEN_SECRET');
 
   if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
-    throw new Error('Twitter API credentials not configured. Please set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET in settings.');
+    throw new Error('Twitter API credentials not configured. Please set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET in settings.');
   }
 
   // Twitter v2 API with OAuth 1.0a
