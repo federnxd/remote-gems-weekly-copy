@@ -187,7 +187,21 @@ async function publishInstagramWithImage(text, imageUrl) {
   if (!createRes.ok) throw new Error(`Instagram create container: ${await createRes.text()}`);
   const { id: creationId } = await createRes.json();
 
-  // Step 2: Publish the container
+  // Step 2: Poll until media container is FINISHED (ready to publish)
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const statusRes = await fetch(
+      `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${pageAccessToken}`
+    );
+    if (!statusRes.ok) break;
+    const statusData = await statusRes.json();
+    if (statusData.status_code === 'FINISHED') break;
+    if (statusData.status_code === 'ERROR') throw new Error(`Instagram media processing failed: ${JSON.stringify(statusData)}`);
+    // else IN_PROGRESS — keep waiting
+  }
+
+  // Step 3: Publish the container
   const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
