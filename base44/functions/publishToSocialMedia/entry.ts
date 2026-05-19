@@ -212,6 +212,44 @@ async function publishInstagramWithImage(text, imageUrl) {
   return { postId: data.id };
 }
 
+async function publishBluesky(text) {
+  const handle = Deno.env.get('BLUESKY_HANDLE');
+  const appPassword = Deno.env.get('BLUESKY_APP_PASSWORD');
+
+  if (!handle || !appPassword) {
+    throw new Error('Bluesky credentials not configured. Please set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD.');
+  }
+
+  // Step 1: Create session (get access token)
+  const sessionRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: handle, password: appPassword }),
+  });
+  if (!sessionRes.ok) throw new Error(`Bluesky auth: ${await sessionRes.text()}`);
+  const { accessJwt, did } = await sessionRes.json();
+
+  // Step 2: Create post (max 300 chars)
+  const postText = text.length > 300 ? text.slice(0, 297) + '...' : text;
+
+  const postRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessJwt}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      repo: did,
+      collection: 'app.bsky.feed.post',
+      record: {
+        $type: 'app.bsky.feed.post',
+        text: postText,
+        createdAt: new Date().toISOString(),
+      },
+    }),
+  });
+  if (!postRes.ok) throw new Error(`Bluesky post: ${await postRes.text()}`);
+  const data = await postRes.json();
+  return { postId: data.uri };
+}
+
 async function publishThreads(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('THREADS_USER_ID');
@@ -284,6 +322,9 @@ Deno.serve(async (req) => {
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
+        } else if (platform === 'bluesky') {
+          const r = await publishBluesky(postContent);
+          results.bluesky = { success: true, postId: r.postId };
         } else if (platform === 'instagram') {
           const imageToUse = igImageUrl || fileUrl;
           if (!imageToUse) throw new Error('Instagram requires an image. Please generate or attach an image.');

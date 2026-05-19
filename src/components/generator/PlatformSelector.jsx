@@ -60,6 +60,20 @@ export const PLATFORMS = [
       </svg>
     ),
   },
+  {
+    id: 'bluesky',
+    label: 'Bluesky',
+    group: 'social',
+    tone: 'Conversational, authentic, tech-savvy. Max 300 chars. Community-first tone, no corporate speak. Use hashtags sparingly.',
+    color: '#0085ff',
+    bgActive: 'bg-[#0085ff]',
+    borderActive: 'border-[#0085ff]',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+        <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.99.906 1.216 1.23.521 1.518 0 2.318 0 3.57c0 1.894.787 7.227 1.052 8.174.674 2.38 3.124 3.17 5.locally 2.8-.061.013-.122.026-.183.04C3.734 15.06 1.403 16.913.96 19.24c-.486 2.557 1.913 4.622 4.385 3.74 3.728-1.324 6.534-5.41 6.655-5.593.12.183 2.927 4.269 6.655 5.594 2.472.881 4.871-1.184 4.385-3.74-.443-2.328-2.774-4.181-5.909-4.627a6.07 6.07 0 0 1-.183-.04c2.553.37 5.003-.42 5.677-2.8.265-.947 1.052-6.28 1.052-8.174 0-1.252-.521-2.052-1.216-2.34-.774-.324-1.35-.286-3.986 1.575C16.046 4.747 13.087 8.686 12 10.8Z"/>
+      </svg>
+    ),
+  },
   // --- Job Boards (copy-paste targets) ---
   {
     id: 'weworkremotely',
