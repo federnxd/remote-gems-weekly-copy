@@ -11,8 +11,9 @@ import { format, addDays, getDay } from 'date-fns';
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
 const NON_LINKEDIN_PLATFORMS = [
-  'twitter', 'instagram', 'weworkremotely', 'wellfound',
-  'remotive', 'flexjobs', 'remoteok', 'reddit', 'discord',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky',
+  'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
+  'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
 
 const ALL_PLATFORMS = ['linkedin', ...NON_LINKEDIN_PLATFORMS];
@@ -49,7 +50,11 @@ const THOUGHT_LEADERSHIP_TOPICS = [
 const PLATFORM_TONES = {
   linkedin: 'Professional, insightful, story-driven. Use industry language. 3,000 char limit.',
   twitter: 'Punchy, hook immediately. Max 280 characters. No fluff.',
+  facebook: 'Friendly, community-focused, conversational. Use emojis, keep it engaging and shareable.',
   instagram: 'Visual-first, warm and inspiring. Use line breaks and emojis for readability.',
+  mastodon: 'Open, community-driven, no-algorithm feed. Authentic and conversational. Use hashtags for discoverability. Max 500 chars.',
+  bluesky: 'Conversational, authentic, tech-savvy. Max 300 chars. Community-first tone, no corporate speak.',
+  indiehackers: 'Founder-friendly, builder community. Emphasize mission, equity, growth potential, and bootstrapped culture.',
   weworkremotely: 'Remote-first, flexible work focus. Emphasize async culture and global team.',
   wellfound: 'Startup-oriented, founder-to-candidate feel. Emphasize mission and impact.',
   remotive: 'Community-driven. Speak to remote work lifestyle. Tech-forward language.',
