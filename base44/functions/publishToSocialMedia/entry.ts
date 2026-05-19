@@ -131,6 +131,25 @@ async function publishTwitter(text) {
   return { postId: data.data?.id };
 }
 
+async function publishFacebook(text) {
+  const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
+
+  if (!pageAccessToken || !pageId) {
+    throw new Error('Facebook credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID in settings.');
+  }
+
+  const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text, access_token: pageAccessToken }),
+  });
+
+  if (!res.ok) throw new Error(`Facebook API: ${await res.text()}`);
+  const data = await res.json();
+  return { postId: data.id };
+}
+
 async function publishThreads(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('THREADS_USER_ID');
@@ -197,6 +216,9 @@ Deno.serve(async (req) => {
         } else if (platform === 'twitter') {
           const r = await publishTwitter(postContent);
           results.twitter = { success: true, postId: r.postId };
+        } else if (platform === 'facebook') {
+          const r = await publishFacebook(postContent);
+          results.facebook = { success: true, postId: r.postId };
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
