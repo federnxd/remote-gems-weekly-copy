@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, XCircle, Send, Paperclip, X, FileText } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Send, Paperclip, X, FileText, Sparkles, Image } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { PLATFORMS } from './PlatformSelector';
@@ -21,7 +21,10 @@ export default function MultiPublishButton({ content, postId, selectedPlatforms,
   const [statuses, setStatuses] = useState({});
   const [isPublishing, setIsPublishing] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [instagramImage, setInstagramImage] = useState(null); // { url, isGenerated }
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const fileInputRef = useRef(null);
+  const igFileInputRef = useRef(null);
 
   const activePlatforms = PLATFORMS.filter(p => selectedPlatforms.includes(p.id));
   const done = Object.keys(statuses).length > 0 && !isPublishing;
@@ -41,13 +44,45 @@ export default function MultiPublishButton({ content, postId, selectedPlatforms,
     setAttachedFile(null);
   };
 
+  const handleGenerateInstagramImage = async () => {
+    setIsGeneratingImage(true);
+    try {
+      // Build a themed prompt from the post content
+      const snippet = content?.slice(0, 300) || '';
+      const prompt = `Create a visually compelling, professional Instagram post image for a remote work job recruitment brand called "Remote Gems Weekly". 
+The post is about: ${snippet}
+Style: Modern, warm and inspiring. Clean composition. Use elements like laptops, diverse remote workers, home offices, globe/world map motifs, or abstract professional shapes. 
+Color palette: deep blue, teal, warm gold accents. No text overlays. Square 1:1 format. High quality, photorealistic or clean illustration style.`;
+      const result = await base44.integrations.Core.GenerateImage({ prompt });
+      setInstagramImage({ url: result.url, isGenerated: true });
+      toast.success('Instagram image generated!');
+    } catch (e) {
+      toast.error('Failed to generate image: ' + e.message);
+    }
+    setIsGeneratingImage(false);
+  };
+
+  const handleInstagramFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Instagram only supports images.'); return; }
+    const url = URL.createObjectURL(file);
+    setInstagramImage({ url, file, isGenerated: false });
+    e.target.value = '';
+  };
+
+  const removeInstagramImage = () => {
+    if (instagramImage?.url && !instagramImage.isGenerated) URL.revokeObjectURL(instagramImage.url);
+    setInstagramImage(null);
+  };
+
   const handleOpen = () => {
     setStatuses({});
     setOpen(true);
   };
 
   const handleClose = () => {
-    if (!isPublishing) { setOpen(false); removeAttachment(); }
+    if (!isPublishing) { setOpen(false); removeAttachment(); removeInstagramImage(); }
   };
 
   const handlePublish = async () => {
@@ -65,11 +100,25 @@ export default function MultiPublishButton({ content, postId, selectedPlatforms,
       fileType = attachedFile.file.type;
     }
 
+    // For Instagram: use generated image URL directly, or upload the manually attached file
+    let igImageUrl = null;
+    if (selectedPlatforms.includes('instagram')) {
+      if (instagramImage?.isGenerated) {
+        igImageUrl = instagramImage.url;
+      } else if (instagramImage?.file) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: instagramImage.file });
+        igImageUrl = file_url;
+      }
+    }
+
     const res = await base44.functions.invoke('publishToSocialMedia', {
       postContent: content,
       postId: postId || null,
       platforms: activePlatforms.map(p => p.id),
-      fileUrl, fileName, fileType,
+      fileUrl: fileUrl || igImageUrl,
+      fileName,
+      fileType: fileType || (igImageUrl ? 'image/jpeg' : null),
+      igImageUrl,
     });
 
     const results = res.data?.results || {};
@@ -143,6 +192,53 @@ export default function MultiPublishButton({ content, postId, selectedPlatforms,
               );
             })}
           </div>
+
+          {/* Instagram image (required) */}
+          {selectedPlatforms.includes('instagram') && !done && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-[#e1306c] flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5" />
+                Instagram Image <span className="font-normal text-muted-foreground">(required)</span>
+              </p>
+              {instagramImage ? (
+                <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/40">
+                  <img src={instagramImage.url} alt="Instagram" className="w-12 h-12 object-cover rounded flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium">{instagramImage.isGenerated ? 'AI Generated Image' : instagramImage.file?.name}</p>
+                    <p className="text-xs text-muted-foreground">Ready for Instagram</p>
+                  </div>
+                  <button onClick={removeInstagramImage} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs border-[#e1306c]/40 text-[#e1306c] hover:bg-[#e1306c]/5"
+                    onClick={handleGenerateInstagramImage}
+                    disabled={isGeneratingImage}
+                  >
+                    {isGeneratingImage
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                      : <><Sparkles className="w-3.5 h-3.5" /> Generate AI Image</>
+                    }
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => igFileInputRef.current?.click()}
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    Upload
+                  </Button>
+                  <input ref={igFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleInstagramFileChange} />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* LinkedIn attachment (only if linkedin is selected) */}
           {selectedPlatforms.includes('linkedin') && !done && (

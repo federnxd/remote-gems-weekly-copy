@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { postContent, postId, platforms, fileUrl, fileName, fileType } = await req.json();
+    const { postContent, postId, platforms, fileUrl, fileName, fileType, igImageUrl } = await req.json();
 
     if (!postContent) return Response.json({ error: 'postContent is required' }, { status: 400 });
     if (!platforms || platforms.length === 0) return Response.json({ error: 'No platforms selected' }, { status: 400 });
@@ -271,8 +271,9 @@ Deno.serve(async (req) => {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
         } else if (platform === 'instagram') {
-          if (!fileUrl) throw new Error('Instagram requires an image. Please attach an image.');
-          const r = await publishInstagramWithImage(postContent, fileUrl);
+          const imageToUse = igImageUrl || fileUrl;
+          if (!imageToUse) throw new Error('Instagram requires an image. Please generate or attach an image.');
+          const r = await publishInstagramWithImage(postContent, imageToUse);
           results.instagram = { success: true, postId: r.postId };
         }
       } catch (e) {
