@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, PenTool, Briefcase, CalendarDays, 
-  Target, BarChart3, Lightbulb, Menu, X, Megaphone, TrendingUp, History
+  Target, BarChart3, Lightbulb, Menu, X, Megaphone, TrendingUp, History,
+  Pause, Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -24,6 +27,26 @@ const navItems = [
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
+  const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Check current pause state on mount
+    base44.functions.invoke('toggleAutoPosting', { pause: null })
+      .catch(() => {}); // Ignore errors, just for initial check if needed
+  }, []);
+
+  const handleTogglePause = async () => {
+    setIsLoading(true);
+    try {
+      const result = await base44.functions.invoke('toggleAutoPosting', { pause: !isPaused });
+      setIsPaused(result.data.isPaused);
+      toast.success(result.data.message);
+    } catch (err) {
+      toast.error('Failed to toggle auto-posting: ' + err.message);
+    }
+    setIsLoading(false);
+  };
 
   return (
     <>
@@ -53,14 +76,37 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         )}
       >
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">m1</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">m1</span>
+              </div>
+              <div>
+                <h1 className="font-bold text-sm tracking-tight">Referral Engine</h1>
+                <p className="text-[11px] text-muted-foreground">micro1 • LinkedIn</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-sm tracking-tight">Referral Engine</h1>
-              <p className="text-[11px] text-muted-foreground">micro1 • LinkedIn</p>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleTogglePause}
+              disabled={isLoading}
+              className={cn(
+                "h-8 w-8 rounded-lg transition-colors",
+                isPaused 
+                  ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" 
+                  : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+              )}
+              title={isPaused ? "Resume auto-posting" : "Pause auto-posting"}
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isPaused ? (
+                <Play className="w-4 h-4" />
+              ) : (
+                <Pause className="w-4 h-4" />
+              )}
+            </Button>
           </div>
         </div>
 
