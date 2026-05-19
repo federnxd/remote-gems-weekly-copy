@@ -212,6 +212,31 @@ async function publishInstagramWithImage(text, imageUrl) {
   return { postId: data.id };
 }
 
+async function publishMastodon(text) {
+  const instanceUrl = Deno.env.get('MASTODON_INSTANCE_URL');
+  const accessToken = Deno.env.get('MASTODON_ACCESS_TOKEN');
+
+  if (!instanceUrl || !accessToken) {
+    throw new Error('Mastodon credentials not configured. Please set MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN.');
+  }
+
+  // Mastodon limit is 500 chars
+  const postText = text.length > 500 ? text.slice(0, 497) + '...' : text;
+  const baseUrl = instanceUrl.replace(/\/+$/, ''); // remove trailing slashes
+
+  const res = await fetch(`${baseUrl}/api/v1/statuses`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status: postText, visibility: 'public' }),
+  });
+  if (!res.ok) throw new Error(`Mastodon API: ${await res.text()}`);
+  const data = await res.json();
+  return { postId: data.id };
+}
+
 async function publishBluesky(text) {
   const handle = Deno.env.get('BLUESKY_HANDLE');
   const appPassword = Deno.env.get('BLUESKY_APP_PASSWORD');
@@ -322,6 +347,9 @@ Deno.serve(async (req) => {
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
+        } else if (platform === 'mastodon') {
+          const r = await publishMastodon(postContent);
+          results.mastodon = { success: true, postId: r.postId };
         } else if (platform === 'bluesky') {
           const r = await publishBluesky(postContent);
           results.bluesky = { success: true, postId: r.postId };
