@@ -2,14 +2,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 /**
  * Runs every Monday at 6:00 AM Argentina time (UTC-3).
- * Generates posts for ALL platforms (LinkedIn, Twitter, Instagram, Mastodon, Bluesky, 
+ * Generates posts for NON-LINKEDIN platforms (Twitter, Instagram, Mastodon, Bluesky, Threads,
  * job boards, Reddit, Discord) for the entire current week (Monday-Sunday).
+ * LinkedIn posts are generated separately via monthlyAllRolesPosts automation.
  * Each platform gets one post per day, spread across the week.
- * All posts saved as 'scheduled' — approval email sent for LinkedIn posts only.
+ * All posts saved as 'scheduled'.
  */
 
 const ALL_PLATFORMS = [
-  'linkedin', 'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
   'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
   'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
@@ -17,12 +18,12 @@ const ALL_PLATFORMS = [
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
 const PLATFORM_TONES = {
-  linkedin: 'Professional, insightful, story-driven. Use industry language. 3,000 char limit.',
   twitter: 'Punchy, hook immediately. Max 280 characters. No fluff.',
   facebook: 'Friendly, community-focused, conversational. Use emojis, keep it engaging and shareable.',
   instagram: 'Visual-first, warm and inspiring. Use line breaks and emojis for readability. Call to action at the end.',
   mastodon: 'Open, community-driven, no-algorithm feed. Authentic and conversational. Use hashtags for discoverability. Max 500 chars.',
   bluesky: 'Conversational, authentic, tech-savvy. Max 300 chars. Community-first tone, no corporate speak. Use hashtags sparingly.',
+  threads: 'Casual, conversational, Instagram-like. Friendly and approachable. Use emojis naturally.',
   indiehackers: 'Founder-friendly, builder community. Emphasize mission, equity, growth potential, and bootstrapped culture.',
   weworkremotely: 'Remote-first, flexible work focus. Emphasize async culture and global team. Keep concise and scannable.',
   wellfound: 'Startup-oriented, founder-to-candidate feel. Emphasize mission, growth stage, and impact.',

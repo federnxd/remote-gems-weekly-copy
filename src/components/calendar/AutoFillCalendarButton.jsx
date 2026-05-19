@@ -11,7 +11,7 @@ import { format, addDays, getDay } from 'date-fns';
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
 const NON_LINKEDIN_PLATFORMS = [
-  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
   'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
   'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
@@ -54,6 +54,7 @@ const PLATFORM_TONES = {
   instagram: 'Visual-first, warm and inspiring. Use line breaks and emojis for readability.',
   mastodon: 'Open, community-driven, no-algorithm feed. Authentic and conversational. Use hashtags for discoverability. Max 500 chars.',
   bluesky: 'Conversational, authentic, tech-savvy. Max 300 chars. Community-first tone, no corporate speak.',
+  threads: 'Casual, conversational, Instagram-like. Friendly and approachable. Use emojis naturally.',
   indiehackers: 'Founder-friendly, builder community. Emphasize mission, equity, growth potential, and bootstrapped culture.',
   weworkremotely: 'Remote-first, flexible work focus. Emphasize async culture and global team.',
   wellfound: 'Startup-oriented, founder-to-candidate feel. Emphasize mission and impact.',
