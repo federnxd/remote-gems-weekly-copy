@@ -150,6 +150,54 @@ async function publishFacebook(text) {
   return { postId: data.id };
 }
 
+async function publishInstagram(text) {
+  const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
+
+  if (!pageAccessToken || !igAccountId) {
+    throw new Error('Instagram credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID in settings.');
+  }
+
+  // Instagram only supports image/video posts via API; text-only requires a caption on an image.
+  // We'll post as a text-only "reel" workaround isn't available — instead use a plain caption with a placeholder image.
+  // Actually the Instagram Content Publishing API requires media. We'll use a publicly accessible image URL.
+  // Best approach: create a text-only post isn't supported. We need at least an image.
+  // We'll throw a helpful error if no image is provided.
+  throw new Error('Instagram requires an image to publish. Please attach an image when publishing to Instagram.');
+}
+
+async function publishInstagramWithImage(text, imageUrl) {
+  const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
+
+  if (!pageAccessToken || !igAccountId) {
+    throw new Error('Instagram credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID in settings.');
+  }
+
+  // Step 1: Create media container
+  const createRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      image_url: imageUrl,
+      caption: text,
+      access_token: pageAccessToken,
+    }),
+  });
+  if (!createRes.ok) throw new Error(`Instagram create container: ${await createRes.text()}`);
+  const { id: creationId } = await createRes.json();
+
+  // Step 2: Publish the container
+  const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ creation_id: creationId, access_token: pageAccessToken }),
+  });
+  if (!publishRes.ok) throw new Error(`Instagram publish: ${await publishRes.text()}`);
+  const data = await publishRes.json();
+  return { postId: data.id };
+}
+
 async function publishThreads(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('THREADS_USER_ID');
@@ -222,6 +270,10 @@ Deno.serve(async (req) => {
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
+        } else if (platform === 'instagram') {
+          if (!fileUrl) throw new Error('Instagram requires an image. Please attach an image.');
+          const r = await publishInstagramWithImage(postContent, fileUrl);
+          results.instagram = { success: true, postId: r.postId };
         }
       } catch (e) {
         results[platform] = { success: false, error: e.message };
