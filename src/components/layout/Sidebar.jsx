@@ -83,12 +83,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">m1</span>
-              </div>
+              <img 
+                src="https://media.base44.com/images/public/69fa0f8cf2ee4daa2ecf29f3/463644364_Logo4circle.png" 
+                alt="Remote Gems Weekly" 
+                className="w-9 h-9 rounded-xl object-cover"
+              />
               <div>
-                <h1 className="font-bold text-sm tracking-tight">Referral Engine</h1>
-                <p className="text-[11px] text-muted-foreground">micro1 • LinkedIn</p>
+                <h1 className="font-bold text-sm tracking-tight">Remote Gems Weekly</h1>
+                <p className="text-[11px] text-muted-foreground">LinkedIn Automation</p>
               </div>
             </div>
             <Button
