@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AutoFillCalendarButton from '@/components/calendar/AutoFillCalendarButton';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
@@ -31,6 +31,7 @@ const statusDot = {
 export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedPost, setSelectedPost] = useState(null);
+  const [dayPosts, setDayPosts] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const queryClient = useQueryClient();
 
@@ -271,7 +272,12 @@ export default function Calendar() {
                             </Draggable>
                           ))}
                           {dayPosts.length > 3 && (
-                            <div className="text-[10px] text-muted-foreground px-1">+{dayPosts.length - 3} more</div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDayPosts({ date: dateKey, posts: dayPosts }); }}
+                              className="text-[10px] text-primary hover:underline px-1 block"
+                            >
+                              +{dayPosts.length - 3} more
+                            </button>
                           )}
                         </div>
                         {provided.placeholder}
@@ -343,6 +349,55 @@ export default function Calendar() {
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Day Posts Dialog */}
+      {dayPosts && (
+        <Dialog open={!!dayPosts} onOpenChange={() => setDayPosts(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-primary" />
+                Posts for {format(parseISO(dayPosts.date), 'MMMM d, yyyy')}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {dayPosts.posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="border border-border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => { setDayPosts(null); setSelectedPost(post); }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={cn('w-2 h-2 rounded-full flex-shrink-0', statusDot[post.status])} />
+                        <h4 className="font-semibold text-sm truncate">{post.title}</h4>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Badge className={strategyColors[post.strategy]}>{post.strategy?.replace(/_/g, ' ')}</Badge>
+                        <Badge variant="outline" className="capitalize text-xs">{post.status}</Badge>
+                        {post.scheduled_time && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            {post.scheduled_time}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                      {post.target_roles && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          <strong>Targets:</strong> {post.target_roles}
+                        </p>
+                      )}
+                    </div>
+                    <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </div>
+                </div>
+              ))}
             </div>
           </DialogContent>
         </Dialog>
