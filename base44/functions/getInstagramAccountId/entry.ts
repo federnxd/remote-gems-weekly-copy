@@ -13,28 +13,29 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'FACEBOOK_PAGE_ACCESS_TOKEN or FACEBOOK_PAGE_ID not set' }, { status: 400 });
     }
 
-    // Fetch Instagram Business Account linked to the Facebook Page
-    const res = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
+    // Check token permissions
+    const debugRes = await fetch(
+      `https://graph.facebook.com/v19.0/debug_token?input_token=${pageAccessToken}&access_token=${pageAccessToken}`
     );
-    const data = await res.json();
+    const debugData = await debugRes.json();
 
-    if (!res.ok) {
-      return Response.json({ error: 'Facebook API error', details: data }, { status: 500 });
-    }
+    // Try fetching instagram_business_account
+    const igRes = await fetch(
+      `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,instagram_business_account,connected_instagram_account&access_token=${pageAccessToken}`
+    );
+    const igData = await igRes.json();
 
-    if (!data.instagram_business_account) {
-      return Response.json({ 
-        error: 'No Instagram Business Account linked to this Facebook Page',
-        hint: 'Make sure your Instagram is a Business/Creator account and connected to this Facebook Page',
-        pageData: data
-      }, { status: 404 });
-    }
+    // Also try listing all pages to confirm which page we have
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v19.0/me/accounts?access_token=${pageAccessToken}`
+    );
+    const pagesData = await pagesRes.json();
 
-    return Response.json({ 
-      success: true,
-      instagramUserId: data.instagram_business_account.id,
-      message: `Set INSTAGRAM_USER_ID = ${data.instagram_business_account.id}`
+    return Response.json({
+      pageId,
+      pageData: igData,
+      tokenScopes: debugData?.data?.scopes || debugData,
+      pages: pagesData,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
