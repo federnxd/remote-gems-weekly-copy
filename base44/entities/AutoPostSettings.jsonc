@@ -1,0 +1,12 @@
+{
+  "name": "AutoPostSettings",
+  "type": "object",
+  "properties": {
+    "is_paused": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether auto-posting is currently paused"
+    }
+  },
+  "required": []
+}
