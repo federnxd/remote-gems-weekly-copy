@@ -34,7 +34,7 @@ export const PLATFORMS = [
   {
     id: 'twitter',
     label: 'X / Twitter',
-    group: 'social',
+    group: 'community',
     tone: 'Punchy, real-time, hashtag-driven. Max 280 characters. Hook immediately, no fluff.',
     color: '#000000',
     bgActive: 'bg-black',
