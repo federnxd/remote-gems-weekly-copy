@@ -25,9 +25,9 @@ Deno.serve(async (req) => {
       'monthlyAllRolesPosts',
     ];
     const autoPostAutomations = automations.filter(a => autoPostFunctions.includes(a.function_name));
-    // If any are inactive, we're paused
-    const anyActive = autoPostAutomations.some(a => a.is_active);
-    return Response.json({ isPaused: !anyActive, automations: autoPostAutomations.map(a => ({ id: a.id, name: a.name, is_active: a.is_active })) });
+    // If all are active, auto-post is running (not paused)
+    const allActive = autoPostAutomations.length > 0 && autoPostAutomations.every(a => a.is_active);
+    return Response.json({ isRunning: allActive, automations: autoPostAutomations.map(a => ({ id: a.id, name: a.name, is_active: a.is_active })) });
   }
 
   const db = base44.asServiceRole;
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
   return Response.json({ 
     message: pause ? 'Auto-posting paused' : 'Auto-posting resumed',
-    isPaused: pause,
+    isRunning: !pause,
     toggledCount: toToggle.length,
     automations: results,
   });

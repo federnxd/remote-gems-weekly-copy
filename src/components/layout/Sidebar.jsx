@@ -27,20 +27,25 @@ const navItems = [
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
-  const [isPaused, setIsPaused] = useState(false);
+  const [isRunning, setIsRunning] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check current pause state on mount
+    // Check current state on mount
     base44.functions.invoke('toggleAutoPosting', { pause: null })
-      .catch(() => {}); // Ignore errors, just for initial check if needed
+      .then((res) => {
+        if (res.data?.isRunning !== undefined) {
+          setIsRunning(res.data.isRunning);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleTogglePause = async () => {
     setIsLoading(true);
     try {
-      const result = await base44.functions.invoke('toggleAutoPosting', { pause: !isPaused });
-      setIsPaused(result.data.isPaused);
+      const result = await base44.functions.invoke('toggleAutoPosting', { pause: isRunning });
+      setIsRunning(result.data.isRunning);
       toast.success(result.data.message);
     } catch (err) {
       toast.error('Failed to toggle auto-posting: ' + err.message);
@@ -93,18 +98,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               disabled={isLoading}
               className={cn(
                 "h-8 w-8 rounded-lg transition-colors",
-                isPaused 
+                isRunning 
                   ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" 
                   : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
               )}
-              title={isPaused ? "Resume auto-posting" : "Pause auto-posting"}
+              title={isRunning ? "Pause auto-posting" : "Resume auto-posting"}
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : isPaused ? (
-                <Play className="w-4 h-4" />
-              ) : (
+              ) : isRunning ? (
                 <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4" />
               )}
             </Button>
           </div>
