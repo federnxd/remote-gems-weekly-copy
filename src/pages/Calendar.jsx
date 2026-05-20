@@ -120,10 +120,7 @@ export default function Calendar() {
         return d >= weekStart && d <= weekEnd;
       } catch { return false; }
     });
-    for (const p of weekPosts) {
-      await base44.entities.GeneratedPost.delete(p.id);
-      await new Promise(res => setTimeout(res, 300));
-    }
+    await Promise.all(weekPosts.map(p => base44.entities.GeneratedPost.delete(p.id)));
     queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
     toast.success(`Deleted ${weekPosts.length} scheduled posts for this week`);
     setIsCleaning(false);
