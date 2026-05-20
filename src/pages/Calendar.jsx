@@ -4,7 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus, Globe } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus, Globe, Eraser } from 'lucide-react';
+import { startOfWeek, endOfWeek } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
 import AutoFillCalendarButton from '@/components/calendar/AutoFillCalendarButton';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
@@ -33,6 +35,7 @@ export default function Calendar() {
   const [selectedPost, setSelectedPost] = useState(null);
   const [dayPosts, setDayPosts] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
+  const [isCleaning, setIsCleaning] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: posts = [] } = useQuery({
@@ -106,6 +109,23 @@ export default function Calendar() {
     toast.success(destId === 'unscheduled' ? 'Moved back to unscheduled' : `Rescheduled to ${format(parseISO(destId), 'MMM d')}`);
   };
 
+  const cleanWeek = async () => {
+    setIsCleaning(true);
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });     // Sunday
+    const weekPosts = posts.filter(p => {
+      if (!p.scheduled_date || p.status === 'published') return false;
+      try {
+        const d = parseISO(p.scheduled_date);
+        return d >= weekStart && d <= weekEnd;
+      } catch { return false; }
+    });
+    await Promise.all(weekPosts.map(p => base44.entities.GeneratedPost.delete(p.id)));
+    queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+    toast.success(`Deleted ${weekPosts.length} scheduled posts for this week`);
+    setIsCleaning(false);
+  };
+
   const markPublished = (post) => {
     updateMutation.mutate({ id: post.id, data: { status: 'published' } });
     setSelectedPost(null);
@@ -126,6 +146,28 @@ export default function Calendar() {
           <Badge variant="secondary" className="bg-primary/10 text-primary">{scheduledCount} Scheduled</Badge>
         </div>
         <div className="flex items-center gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={isCleaning}>
+                <Eraser className="w-4 h-4" />
+                {isCleaning ? 'Cleaning…' : 'Clean Week'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clean this week's scheduled posts?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all <strong>scheduled</strong> (non-published) posts for the current week (Mon–Sun). This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={cleanWeek} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Yes, clean week
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <AutoFillCalendarButton
             currentMonth={currentMonth}
             onPostsCreated={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
