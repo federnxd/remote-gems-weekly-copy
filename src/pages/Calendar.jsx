@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Trash2, GripVertical, Plus, Globe, Eraser } from 'lucide-react';
-import { startOfWeek, endOfWeek } from 'date-fns';
+import { startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
 import AutoFillCalendarButton from '@/components/calendar/AutoFillCalendarButton';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -36,6 +36,7 @@ export default function Calendar() {
   const [dayPosts, setDayPosts] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanWeekDate, setCleanWeekDate] = useState(new Date());
   const queryClient = useQueryClient();
 
   const { data: posts = [] } = useQuery({
@@ -64,8 +65,12 @@ export default function Calendar() {
 
   const scheduledPosts = posts.filter(p => p.scheduled_date);
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-  const startPadding = getDay(days[0]);
+  // Calendar starts on Monday (weekStartsOn: 1)
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   const getPostsForDay = (day) =>
     scheduledPosts.filter(p => {
@@ -111,8 +116,8 @@ export default function Calendar() {
 
   const cleanWeek = async () => {
     setIsCleaning(true);
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });     // Sunday
+    const weekStart = startOfWeek(cleanWeekDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(cleanWeekDate, { weekStartsOn: 1 });
     const weekPosts = posts.filter(p => {
       if (!p.scheduled_date || p.status === 'published') return false;
       try {
@@ -122,7 +127,7 @@ export default function Calendar() {
     });
     await Promise.all(weekPosts.map(p => base44.entities.GeneratedPost.delete(p.id)));
     queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
-    toast.success(`Deleted ${weekPosts.length} scheduled posts for this week`);
+    toast.success(`Deleted ${weekPosts.length} scheduled posts for week of ${format(weekStart, 'MMM d')}`);
     setIsCleaning(false);
   };
 
@@ -155,11 +160,31 @@ export default function Calendar() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Clean this week's scheduled posts?</AlertDialogTitle>
+                <AlertDialogTitle>Clean a week's scheduled posts</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete all <strong>scheduled</strong> (non-published) posts for the current week (Mon–Sun). This cannot be undone.
+                  Select the week to clean. All <strong>scheduled</strong> (non-published) posts for that Mon–Sun range will be permanently deleted.
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="flex items-center justify-center gap-3 py-2">
+                <Button variant="ghost" size="icon" onClick={() => setCleanWeekDate(d => subWeeks(d, 1))}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm font-semibold w-48 text-center">
+                  {format(startOfWeek(cleanWeekDate, { weekStartsOn: 1 }), 'MMM d')} – {format(endOfWeek(cleanWeekDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+                </span>
+                <Button variant="ghost" size="icon" onClick={() => setCleanWeekDate(d => addWeeks(d, 1))}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                {posts.filter(p => {
+                  if (!p.scheduled_date || p.status === 'published') return false;
+                  try {
+                    const d = parseISO(p.scheduled_date);
+                    return d >= startOfWeek(cleanWeekDate, { weekStartsOn: 1 }) && d <= endOfWeek(cleanWeekDate, { weekStartsOn: 1 });
+                  } catch { return false; }
+                }).length} scheduled posts will be deleted
+              </p>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={cleanWeek} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
@@ -251,7 +276,7 @@ export default function Calendar() {
           <div className="flex-1 overflow-auto">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-border bg-card sticky top-0 z-10">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
                 <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 border-r border-border last:border-r-0">
                   {d}
                 </div>
@@ -260,15 +285,11 @@ export default function Calendar() {
 
             {/* Weeks */}
             <div className="grid grid-cols-7" style={{ minHeight: '100%' }}>
-              {/* Padding cells */}
-              {Array.from({ length: startPadding }).map((_, i) => (
-                <div key={`pad-${i}`} className="border-r border-b border-border min-h-[120px] bg-muted/10" />
-              ))}
-
               {days.map(day => {
                 const dayPosts = getPostsForDay(day);
                 const today = isToday(day);
                 const dateKey = format(day, 'yyyy-MM-dd');
+                const isCurrentMonth = isSameMonth(day, currentMonth);
 
                 return (
                   <Droppable key={dateKey} droppableId={dateKey}>
@@ -279,13 +300,14 @@ export default function Calendar() {
                         className={cn(
                           'min-h-[120px] border-r border-b border-border p-1.5 transition-colors relative',
                           today && 'bg-primary/5',
+                          !isCurrentMonth && 'bg-muted/20',
                           snapshot.isDraggingOver && 'bg-blue-50 dark:bg-blue-950/30 ring-inset ring-2 ring-primary/40'
                         )}
                       >
                         {/* Day number */}
                         <div className={cn(
                           'text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1',
-                          today ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                          today ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50'
                         )}>
                           {format(day, 'd')}
                         </div>
@@ -329,15 +351,7 @@ export default function Calendar() {
                 );
               })}
 
-              {/* Fill remaining cells to complete the last week row */}
-              {(() => {
-                const totalCells = startPadding + days.length;
-                const remainder = totalCells % 7;
-                if (remainder === 0) return null;
-                return Array.from({ length: 7 - remainder }).map((_, i) => (
-                  <div key={`tail-${i}`} className="border-r border-b border-border min-h-[120px] bg-muted/10" />
-                ));
-              })()}
+
             </div>
           </div>
         </div>
