@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Wand2, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { Loader2, Wand2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addDays, getDay } from 'date-fns';
+import { format, addDays, getDay, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
@@ -184,18 +184,28 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const [progress, setProgress] = useState(0);
   const [totalTasks, setTotalTasks] = useState(0);
   const [generatedCount, setGeneratedCount] = useState(0);
+  const [selectedWeekDate, setSelectedWeekDate] = useState(new Date());
 
-  const openDialog = async () => {
-    const firstOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const today = new Date();
-    const fromDate = firstOfMonth > today ? firstOfMonth : today;
+  const updateWeek = (fromDate) => {
     const nextSlots = getWeekSlotDates(fromDate);
     setSlots(nextSlots);
+  };
+
+  const openDialog = async () => {
+    const today = new Date();
+    setSelectedWeekDate(today);
+    updateWeek(today);
     setStep('preview');
     setProgress(0);
     setGeneratedCount(0);
     setTotalTasks(0);
     setOpen(true);
+  };
+
+  const handleWeekChange = (direction) => {
+    const newDate = direction === 'prev' ? subWeeks(selectedWeekDate, 1) : addWeeks(selectedWeekDate, 1);
+    setSelectedWeekDate(newDate);
+    updateWeek(newDate);
   };
 
   const handleGenerate = async () => {
@@ -278,7 +288,20 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
                 Generates posts for the <strong>full week</strong> following the strategy plan — job posts on Mon/Wed/Fri/Sat, thought leadership on Tue/Thu/Sun, across all platforms.
               </p>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {/* Week selector */}
+              <div className="flex items-center justify-center gap-3 py-1 border rounded-lg bg-muted/30">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleWeekChange('prev')}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm font-semibold w-48 text-center">
+                  {format(startOfWeek(selectedWeekDate, { weekStartsOn: 1 }), 'MMM d')} – {format(endOfWeek(selectedWeekDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+                </span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleWeekChange('next')}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {slots.map((slot, i) => (
                   <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg border bg-card">
                     <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" />
