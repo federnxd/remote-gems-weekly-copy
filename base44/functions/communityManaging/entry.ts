@@ -295,12 +295,77 @@ async function runBlueskySession(base44, log) {
   return log;
 }
 
+// ── FACEBOOK: reply to comments on own Page posts ────────────────────────────
+async function runFacebookCommentReplies(base44, log) {
+  const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
+  const pageToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  if (!pageId || !pageToken) { log.warnings = 'Facebook credentials missing'; return log; }
+
+  const baseUrl = 'https://graph.facebook.com/v19.0';
+
+  // Fetch recent Page posts (last 10)
+  let posts = [];
+  try {
+    const postsRes = await fetch(
+      `${baseUrl}/${pageId}/posts?fields=id,message,comments_count&limit=10&access_token=${pageToken}`
+    );
+    if (!postsRes.ok) { log.warnings = `Facebook posts fetch failed: ${postsRes.status}`; return log; }
+    const postsData = await postsRes.json();
+    posts = postsData.data || [];
+  } catch (e) { log.warnings = `Facebook posts error: ${e.message}`; return log; }
+
+  const maxReplies = Math.floor(Math.random() * 4) + 2; // 2-5 replies per session
+
+  for (const post of posts) {
+    if (log.comments_posted >= maxReplies) break;
+
+    // Fetch top-level comments on this post
+    let comments = [];
+    try {
+      const commentsRes = await fetch(
+        `${baseUrl}/${post.id}/comments?fields=id,message,from,comments{id}&limit=15&filter=stream&access_token=${pageToken}`
+      );
+      if (!commentsRes.ok) continue;
+      const commentsData = await commentsRes.json();
+      comments = commentsData.data || [];
+    } catch { continue; }
+
+    for (const comment of comments) {
+      if (log.comments_posted >= maxReplies) break;
+      if (!comment.message || comment.message.length < 5) continue;
+      // Skip comments that already have replies (we likely replied already)
+      if (comment.comments && comment.comments.data && comment.comments.data.length > 0) continue;
+      // Skip our own Page comments
+      if (comment.from && comment.from.id === pageId) continue;
+
+      await sleep(randMs(15, 45));
+      try {
+        const reply = await generateCommentReply(post.message, comment.message, 'facebook');
+        const replyRes = await fetch(`${baseUrl}/${comment.id}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: reply, access_token: pageToken }),
+        });
+        if (replyRes.ok) log.comments_posted++;
+      } catch { /* continue */ }
+    }
+
+    await sleep(randMs(10, 30));
+  }
+
+  log.status = 'success';
+  return log;
+}
+
 // ── LLM: generate a reply to a comment on our own post ───────────────────────
 async function generateCommentReply(postCaption, commentText, platform) {
   const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
-  const platformNote = platform === 'instagram'
-    ? 'Instagram (warm, visual, community-driven tone)'
-    : 'Threads (casual, conversational, authentic)';
+  const platformNotes = {
+    instagram: 'Instagram (warm, visual, community-driven tone)',
+    threads: 'Threads (casual, conversational, authentic)',
+    facebook: 'Facebook (friendly, professional, community-focused)',
+  };
+  const platformNote = platformNotes[platform] || 'social media (professional and warm)';
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -313,7 +378,8 @@ Rules:
 - Address what the commenter said specifically, never be generic
 - Never mention referral links or promotional content
 - If they ask a question, give a helpful direct answer
-- Sound like a real person, not a brand bot`,
+- Sound like a real person, not a brand bot
+- For Facebook: slightly more formal but still friendly`,
       },
       {
         role: 'user',
@@ -534,6 +600,24 @@ Deno.serve(async (req) => {
       results.push({ platform: 'instagram', ...igLog });
     } else {
       results.push({ platform: 'instagram', status: 'skipped', reason: 'Daily reply limit reached' });
+    }
+
+    // Pause between platforms
+    await sleep(randMs(60, 180));
+
+    // ── Facebook: reply to comments on own Page posts ──
+    const fbDaily = dailyTotals['facebook'] || { likes: 0, comments: 0, follows: 0 };
+    if (fbDaily.comments < 20) {
+      const fbLog = {
+        run_date: today, platform: 'facebook',
+        likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
+        posts_found: 0, status: 'success', warnings: null, notes: 'comment_replies',
+      };
+      await runFacebookCommentReplies(base44, fbLog);
+      await base44.asServiceRole.entities.CommunityEngagementLog.create(fbLog);
+      results.push({ platform: 'facebook', ...fbLog });
+    } else {
+      results.push({ platform: 'facebook', status: 'skipped', reason: 'Daily reply limit reached' });
     }
 
     // Pause between platforms
