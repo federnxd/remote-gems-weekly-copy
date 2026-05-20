@@ -90,8 +90,32 @@ async function buildJobPostPrompt(slot, roles, platform) {
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
   const currentYear = new Date().getFullYear();
+  const isLinkedInPersonalStory = platform === 'linkedin' && slot.strategy === 'social_proof';
 
-  return `You are writing a referral post for micro1 on behalf of a professional who works there as an Audio Expert Reviewer. Write in first person, personal and credible.
+  const headlineExamples = `
+HEADLINE EXAMPLES (pick ONE creative variation — never repeat the same formula):
+- "Been exploring remote AI work lately — here's what I found at micro1 👇"
+- "If you're a specialist looking for legit remote work, this might be for you 🌍"
+- "micro1 is quietly building something big — and they need experts like you"
+- "Real remote roles. Real pay. No gimmicks. micro1 is hiring across 30+ fields."
+- "Tired of vague job listings? Here are actual open roles with actual pay rates."
+- "A friend asked me last week: 'Is micro1 legit?' — here's the honest answer."
+- "Not another generic job post — these are verified, paid, remote expert roles."
+- "What does it actually take to work with micro1? A short interview + your expertise."
+- "Remote + specialized + well-paid — the trifecta most platforms can't offer. micro1 can."
+- "Sharing this because I wish someone had told me about this sooner:"
+Pick something fresh and fitting for the PLATFORM TONE and STRATEGY. Make the first line grab attention naturally.`;
+
+  const personalStorySection = isLinkedInPersonalStory ? `
+2. PERSONAL INTRO (1 short paragraph):
+   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
+   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team` : `
+2. BRIEF CONTEXT (1–2 sentences):
+   - Do NOT mention your personal job role or story
+   - Briefly frame WHY micro1 is worth paying attention to (e.g. AI company, global remote hiring, growing platform)
+   - Keep it natural, not promotional`;
+
+  return `You are writing a referral post for micro1. Write in first person, credible and genuine.
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
@@ -102,15 +126,12 @@ CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
 ROLES TO FEATURE:
 ${roleList}
 
-FOLLOW THIS EXACT STRUCTURE:
+FOLLOW THIS STRUCTURE:
 
-1. HEADLINE (first 2 lines — fully visible without "See more"):
-   📍 ${currentMonth} - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ ${REFERRAL_LINK}
-
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
+1. HEADLINE (first 1–2 lines — must be unique, creative, and human):
+${headlineExamples}
+   ALWAYS add the referral link on its own line right after: ➡️ ${REFERRAL_LINK}
+${personalStorySection}
 
 3. WHO SHOULD APPLY (1 short paragraph with 👉):
    - Professionals with solid expertise and good English
@@ -131,8 +152,10 @@ FOLLOW THIS EXACT STRUCTURE:
 STRICT RULES:
 - NO "earn money", "make money", "easy income", "extra cash", "side hustle"
 - NO fake urgency or hype
+- NO fixed/template headlines — every post must open differently
 - For Twitter: keep under 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity
+- Personal story (working at micro1 as Audio Expert/Reviewer) is ONLY allowed on LinkedIn social_proof posts
 
 Generate ONLY the post content, no explanations.`;
 }
