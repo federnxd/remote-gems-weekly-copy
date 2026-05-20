@@ -40,7 +40,7 @@ export default function Calendar() {
 
   const { data: posts = [] } = useQuery({
     queryKey: ['generated-posts'],
-    queryFn: () => base44.entities.GeneratedPost.list('-created_date'),
+    queryFn: () => base44.entities.GeneratedPost.list('-created_date', 500),
   });
 
   const { data: snapshots = [] } = useQuery({
