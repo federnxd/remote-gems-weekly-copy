@@ -1,0 +1,65 @@
+{
+  "name": "CommunityEngagementLog",
+  "type": "object",
+  "properties": {
+    "run_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of this engagement session"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "mastodon",
+        "bluesky",
+        "facebook",
+        "instagram",
+        "threads"
+      ],
+      "description": "Platform where engagement occurred"
+    },
+    "likes_given": {
+      "type": "number",
+      "default": 0
+    },
+    "comments_posted": {
+      "type": "number",
+      "default": 0
+    },
+    "follows_made": {
+      "type": "number",
+      "default": 0
+    },
+    "unfollows_made": {
+      "type": "number",
+      "default": 0
+    },
+    "posts_found": {
+      "type": "number",
+      "default": 0,
+      "description": "Relevant posts discovered in this session"
+    },
+    "warnings": {
+      "type": "string",
+      "description": "Any rate-limit warnings or anomalies detected"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "skipped",
+        "error"
+      ],
+      "default": "success"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional session notes"
+    }
+  },
+  "required": [
+    "run_date",
+    "platform"
+  ]
+}
