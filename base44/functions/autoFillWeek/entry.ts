@@ -74,7 +74,7 @@ DAY: ${dayName}
 STRATEGY: ${strategy} (${strategyNotes[strategy]})
 PLATFORM TONE: ${tone}
 
-REFERRAL LINK: ${referralLink}
+REFERRAL LINK: ${REFERRAL_LINK}
 
 CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
 
@@ -85,7 +85,7 @@ FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform):
 
 1. HEADLINE (first 2 lines — fully visible without "See more"):
    📍 ${currentMonth} - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ ${referralLink}
+   ➡️ ${REFERRAL_LINK}
 
 2. PERSONAL INTRO (1 short paragraph):
    - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
