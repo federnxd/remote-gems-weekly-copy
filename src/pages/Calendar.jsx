@@ -151,7 +151,7 @@ export default function Calendar() {
           <Badge variant="secondary" className="bg-primary/10 text-primary">{scheduledCount} Scheduled</Badge>
         </div>
         <div className="flex items-center gap-2">
-          <AlertDialog>
+          <AlertDialog onOpenChange={(open) => { if (open) setCleanWeekDate(new Date()); }}>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={isCleaning}>
                 <Eraser className="w-4 h-4" />
