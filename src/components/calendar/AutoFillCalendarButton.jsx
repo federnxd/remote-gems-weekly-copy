@@ -83,7 +83,8 @@ async function buildJobPostPrompt(slot, roles, platform) {
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
   const currentYear = new Date().getFullYear();
-  const isLinkedInPersonalStory = platform === 'linkedin' && slot.strategy === 'social_proof';
+  const isLinkedIn = platform === 'linkedin';
+  const isLinkedInPersonalStory = isLinkedIn && slot.strategy === 'social_proof';
 
   // Use fixed monthly header only for the first post of the month (Monday of first week, day 1–7)
   const isFirstWeekOfMonth = slot.date && slot.date.getDate() <= 7 && slot.dayOfWeek === 1;
@@ -94,29 +95,34 @@ async function buildJobPostPrompt(slot, roles, platform) {
    ${fixedMonthlyHeader}`
     : `1. HEADLINE (first 1–2 lines — must be unique, creative, and human):
 HEADLINE EXAMPLES (pick ONE creative variation — never repeat the same formula):
-- "Been exploring remote AI work lately — here's what I found at micro1 👇"
-- "If you're a specialist looking for legit remote work, this might be for you 🌍"
+${isLinkedIn ? `- "Been exploring remote AI work lately — here's what I found at micro1 👇"
 - "micro1 is quietly building something big — and they need experts like you"
 - "Real remote roles. Real pay. No gimmicks. micro1 is hiring across 30+ fields."
-- "Tired of vague job listings? Here are actual open roles with actual pay rates."
 - "A friend asked me last week: 'Is micro1 legit?' — here's the honest answer."
+- "What does it actually take to work with micro1? A short interview + your expertise."` : `- "Been looking at remote AI jobs lately — here's what I found 👇"
+- "If you're a specialist looking for legit remote work, this might be for you 🌍"
+- "Leading AI companies are quietly hiring across 30+ fields — here's the list"
+- "Tired of vague job listings? Here are actual open roles with actual pay rates."
 - "Not another generic job post — these are verified, paid, remote expert roles."
-- "What does it actually take to work with micro1? A short interview + your expertise."
-- "Remote + specialized + well-paid — the trifecta most platforms can't offer. micro1 can."
-- "Sharing this because I wish someone had told me about this sooner:"
+- "Remote + specialized + well-paid — a combo most platforms can't offer. But this one can."
+- "Sharing this because I wish someone had told me about this sooner:"`}
 Pick something fresh and fitting for the PLATFORM TONE and STRATEGY. Make the first line grab attention naturally.
    ALWAYS add the referral link on its own line right after: ➡️ ${REFERRAL_LINK}`;
+
+  const rolesIntro = isLinkedIn
+    ? 'micro1 is hiring experts across many fields — here\'s a sample of open roles:'
+    : 'Leading AI companies are hiring experts across many fields — here\'s a sample of open roles:';
 
   const personalStorySection = isLinkedInPersonalStory ? `
 2. PERSONAL INTRO (1 short paragraph):
    - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
    - Genuine and warm — mention reliable pay, flexible remote hours, supportive team` : `
 2. BRIEF CONTEXT (1–2 sentences):
-   - Do NOT mention your personal job role or story
-   - Briefly frame WHY micro1 is worth paying attention to (e.g. AI company, global remote hiring, growing platform)
+   - Do NOT mention any specific company name
+   - Briefly frame the opportunity: remote expert roles at leading AI companies, global hiring, growing field
    - Keep it natural, not promotional`;
 
-  return `You are writing a referral post for micro1. Write in first person, credible and genuine.
+  return `You are writing a referral recruitment post. Write in first person, credible and genuine.
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
@@ -138,7 +144,7 @@ ${personalStorySection}
    - Include: ( 🛑 Always check your spam folder just in case!!! 🛑 )
 
 4. ROLES LIST:
-   - "micro1 is hiring experts across many fields — here's a sample of open roles:"
+   - "${rolesIntro}"
    - Use the roles listed above, clean dash bullet format
    - End with: "...and many more!"
 
@@ -155,6 +161,7 @@ STRICT RULES:
 - For Twitter: keep under 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity
 - Personal story (working at micro1 as Audio Expert/Reviewer) is ONLY allowed on LinkedIn social_proof posts
+${!isLinkedIn ? '- CRITICAL: Do NOT mention "micro1" or any specific company name anywhere in the post' : ''}
 
 Generate ONLY the post content, no explanations.`;
 }

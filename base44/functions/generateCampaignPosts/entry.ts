@@ -40,22 +40,28 @@ function buildPostPrompt(roles, platform, referralLink, highlightNew) {
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+  const isLinkedIn = platform === 'linkedin';
 
   const headline = highlightNew
     ? `🌟 NEW WEEKLY ROLES at Leading AI Companies — These are the new open roles for the week 🚀\n   ➡️ ${referralLink}`
     : `📍 ${currentMonth} - Remote Opportunities at Leading AI Companies 🤖\n   ➡️ ${referralLink}`;
 
-  const personalIntroSection = highlightNew ? `
-2. BRIEF CONTEXT (1 short paragraph):
-   - Frame these as freshly added roles — hot off the press
-   - Mention that new roles appear regularly so now is the time to apply
-   - Do NOT mention your personal story or job title` : `
+  const companyRef = isLinkedIn ? 'micro1' : 'leading AI companies';
+  const rolesIntro = isLinkedIn
+    ? 'micro1 is hiring experts across many fields — here\'s a sample of open roles:'
+    : 'Leading AI companies are hiring experts across many fields — here\'s a sample of open roles:';
+
+  const section2 = isLinkedIn && !highlightNew ? `
 2. PERSONAL INTRO (1 short paragraph):
    - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
    - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
-   - NOT salesy`;
+   - NOT salesy` : `
+2. BRIEF CONTEXT (1 short paragraph):
+   - Frame the opportunity naturally — ${highlightNew ? 'these are freshly added roles, hot off the press' : `remote expert roles at ${companyRef} are open now`}
+   - Do NOT mention any specific company name
+   - Keep it genuine, not promotional`;
 
-  return `You are writing a referral post for micro1 on behalf of a professional who works there as an Audio Expert Reviewer. Write in first person, personal and credible.
+  return `You are writing a referral recruitment post. Write in first person, personal and credible.
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
@@ -64,7 +70,7 @@ REFERRAL LINK: ${referralLink}
 
 CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
 
-${highlightNew ? 'FOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just added to the platform this week.' : 'FOCUS: Monthly round-up of all current open roles across all fields.'}
+${highlightNew ? 'FOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just added this week.' : 'FOCUS: Monthly round-up of current open remote expert roles.'}
 
 ROLES TO FEATURE:
 ${roleList}
@@ -73,7 +79,7 @@ FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform, but keep all se
 
 1. HEADLINE (first 2 lines — must be fully visible without "See more"):
    ${headline}
-${personalIntroSection}
+${section2}
 
 3. WHO SHOULD APPLY (1 short paragraph with 👉):
    - Professionals with solid expertise and good English
@@ -81,7 +87,7 @@ ${personalIntroSection}
    - Include: ( 🛑 Always check your spam folder just in case!!! 🛑 )
 
 4. ROLES LIST:
-   - Intro: "micro1 is hiring experts across many fields — here's a sample of open roles:"
+   - Intro: "${rolesIntro}"
    ${highlightNew ? '- Note which ones are newly added (🆕)' : ''}
    - Use the roles listed above, clean dash bullet format
    - End with: "...and many more!"
@@ -101,6 +107,7 @@ STRICT RULES:
 - Emojis: purposeful only (👉 📍 ➡️ 🌟 🚀 🙌 👍 🛑 🆕), not for hype
 - For Twitter: keep it under 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity, not an advertiser
+${!isLinkedIn ? '- CRITICAL: Do NOT mention "micro1" or any specific company name anywhere in the post' : ''}
 
 Generate ONLY the post content, no explanations.`;
 }
