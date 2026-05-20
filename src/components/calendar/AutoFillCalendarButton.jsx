@@ -210,11 +210,16 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
     let created = 0;
     const topicIndex = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
       const slot = slots[slotIdx];
 
       for (let pIdx = 0; pIdx < slot.platforms.length; pIdx++) {
         const platform = slot.platforms[pIdx];
+
+        // Small delay between calls to avoid rate limiting
+        if (done > 0) await sleep(800);
 
         let content;
         if (slot.type === 'thought') {
