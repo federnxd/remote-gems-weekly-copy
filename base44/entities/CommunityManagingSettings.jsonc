@@ -1,0 +1,12 @@
+{
+  "name": "CommunityManagingSettings",
+  "type": "object",
+  "properties": {
+    "is_paused": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether community managing is currently paused"
+    }
+  },
+  "required": []
+}

@@ -31,24 +31,29 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check current state on mount
-    base44.functions.invoke('toggleAutoPosting', { pause: null })
-      .then((res) => {
-        if (res.data?.isRunning !== undefined) {
-          setIsRunning(res.data.isRunning);
-        }
-      })
-      .catch(() => {});
+    // Check current state on mount for both services
+    Promise.all([
+      base44.functions.invoke('toggleAutoPosting', { pause: null }),
+      base44.functions.invoke('toggleCommunityManaging', { pause: null }),
+    ]).then(([autoRes]) => {
+      if (autoRes.data?.isRunning !== undefined) {
+        setIsRunning(autoRes.data.isRunning);
+      }
+    }).catch(() => {});
   }, []);
 
   const handleTogglePause = async () => {
     setIsLoading(true);
     try {
-      const result = await base44.functions.invoke('toggleAutoPosting', { pause: isRunning });
+      // Toggle both services together
+      const [result] = await Promise.all([
+        base44.functions.invoke('toggleAutoPosting', { pause: isRunning }),
+        base44.functions.invoke('toggleCommunityManaging', { pause: isRunning }),
+      ]);
       setIsRunning(result.data.isRunning);
       toast.success(result.data.message);
     } catch (err) {
-      toast.error('Failed to toggle auto-posting: ' + err.message);
+      toast.error('Failed to toggle services: ' + err.message);
     }
     setIsLoading(false);
   };
