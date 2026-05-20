@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Wand2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addDays, getDay, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
+import { format, addDays, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
@@ -65,15 +65,8 @@ const PLATFORM_TONES = {
   discord: 'Ultra-casual, direct, community-insider tone. Short messages. Use emojis.',
 };
 
-function getMonday(fromDate) {
-  const today = fromDate || new Date();
-  const dow = getDay(today);
-  const daysUntilMonday = dow === 1 ? 0 : dow === 0 ? 1 : 8 - dow;
-  return addDays(today, daysUntilMonday);
-}
-
 function getWeekSlotDates(fromDate) {
-  const monday = getMonday(fromDate);
+  const monday = startOfWeek(fromDate || new Date(), { weekStartsOn: 1 });
   return WEEKLY_SCHEDULE.map(slot => {
     const dayOffset = slot.dayOfWeek === 0 ? 6 : slot.dayOfWeek - 1; // Sun = day 6 of week
     const date = addDays(monday, dayOffset);
