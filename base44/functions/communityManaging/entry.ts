@@ -295,6 +295,171 @@ async function runBlueskySession(base44, log) {
   return log;
 }
 
+// ── LLM: generate a reply to a comment on our own post ───────────────────────
+async function generateCommentReply(postCaption, commentText, platform) {
+  const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
+  const platformNote = platform === 'instagram'
+    ? 'Instagram (warm, visual, community-driven tone)'
+    : 'Threads (casual, conversational, authentic)';
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: `You are a genuine, warm community manager replying to comments on your own ${platformNote} posts about remote work and AI job opportunities.
+Rules:
+- 1-2 sentences max, warm and conversational
+- Address what the commenter said specifically, never be generic
+- Never mention referral links or promotional content
+- If they ask a question, give a helpful direct answer
+- Sound like a real person, not a brand bot`,
+      },
+      {
+        role: 'user',
+        content: `Your post was about: "${(postCaption || '').slice(0, 200)}"\nSomeone commented: "${commentText.slice(0, 300)}"\nWrite a genuine reply:`,
+      },
+    ],
+    max_tokens: 100,
+    temperature: 0.8,
+  });
+  return completion.choices[0].message.content.trim();
+}
+
+// ── INSTAGRAM: reply to comments on own posts ─────────────────────────────────
+async function runInstagramCommentReplies(base44, log) {
+  const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
+  const pageToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  if (!igAccountId || !pageToken) { log.warnings = 'Instagram credentials missing'; return log; }
+
+  const baseUrl = `https://graph.facebook.com/v19.0`;
+
+  // Fetch recent media (last 10 posts)
+  let media = [];
+  try {
+    const mediaRes = await fetch(`${baseUrl}/${igAccountId}/media?fields=id,caption,comments_count&limit=10&access_token=${pageToken}`);
+    if (!mediaRes.ok) { log.warnings = `Instagram media fetch failed: ${mediaRes.status}`; return log; }
+    const mediaData = await mediaRes.json();
+    media = mediaData.data || [];
+  } catch (e) { log.warnings = `Instagram media error: ${e.message}`; return log; }
+
+  const maxReplies = Math.floor(Math.random() * 4) + 2; // 2-5 replies per session
+
+  for (const post of media) {
+    if (log.comments_posted >= maxReplies) break;
+    if (!post.comments_count || post.comments_count === 0) continue;
+
+    // Fetch comments on this post
+    let comments = [];
+    try {
+      const commentsRes = await fetch(`${baseUrl}/${post.id}/comments?fields=id,text,timestamp,replies{id}&limit=10&access_token=${pageToken}`);
+      if (!commentsRes.ok) continue;
+      const commentsData = await commentsRes.json();
+      comments = commentsData.data || [];
+    } catch { continue; }
+
+    for (const comment of comments) {
+      if (log.comments_posted >= maxReplies) break;
+      // Skip if we already replied (has replies sub-object with content)
+      if (comment.replies && comment.replies.data && comment.replies.data.length > 0) continue;
+      if (!comment.text || comment.text.length < 5) continue;
+
+      await sleep(randMs(15, 45));
+      try {
+        const reply = await generateCommentReply(post.caption, comment.text, 'instagram');
+        const replyRes = await fetch(`${baseUrl}/${post.id}/replies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: reply, access_token: pageToken }),
+        });
+        if (replyRes.ok) log.comments_posted++;
+      } catch { /* continue */ }
+    }
+
+    await sleep(randMs(10, 30));
+  }
+
+  log.status = 'success';
+  return log;
+}
+
+// ── THREADS: reply to comments on own posts ───────────────────────────────────
+async function runThreadsCommentReplies(base44, log) {
+  const threadsUserId = Deno.env.get('THREADS_USER_ID');
+  const threadsToken = Deno.env.get('THREADS_ACCESS_TOKEN');
+  if (!threadsUserId || !threadsToken) { log.warnings = 'Threads credentials missing'; return log; }
+
+  const baseUrl = `https://graph.threads.net/v1.0`;
+
+  // Fetch recent posts
+  let posts = [];
+  try {
+    const postsRes = await fetch(`${baseUrl}/${threadsUserId}/threads?fields=id,text,timestamp&limit=10&access_token=${threadsToken}`);
+    if (!postsRes.ok) { log.warnings = `Threads posts fetch failed: ${postsRes.status}`; return log; }
+    const postsData = await postsRes.json();
+    posts = postsData.data || [];
+  } catch (e) { log.warnings = `Threads posts error: ${e.message}`; return log; }
+
+  const maxReplies = Math.floor(Math.random() * 4) + 2; // 2-5 replies per session
+
+  for (const post of posts) {
+    if (log.comments_posted >= maxReplies) break;
+
+    // Fetch replies/conversations on this post
+    let replies = [];
+    try {
+      const repliesRes = await fetch(`${baseUrl}/${post.id}/conversation?fields=id,text,timestamp,username&limit=10&access_token=${threadsToken}`);
+      if (!repliesRes.ok) continue;
+      const repliesData = await repliesRes.json();
+      replies = repliesData.data || [];
+    } catch { continue; }
+
+    // Only reply to top-level comments from other users (not our own)
+    const ourReplies = new Set(replies.filter(r => r.username === undefined).map(r => r.id));
+
+    for (const reply of replies) {
+      if (log.comments_posted >= maxReplies) break;
+      if (!reply.text || reply.text.length < 5) continue;
+      // Skip if we already replied to this one
+      if (ourReplies.has(reply.id)) continue;
+
+      await sleep(randMs(15, 45));
+      try {
+        const replyText = await generateCommentReply(post.text, reply.text, 'threads');
+
+        // Create reply media object first
+        const createRes = await fetch(`${baseUrl}/${threadsUserId}/threads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            media_type: 'TEXT',
+            text: replyText,
+            reply_to_id: reply.id,
+            access_token: threadsToken,
+          }),
+        });
+        if (!createRes.ok) continue;
+        const createData = await createRes.json();
+
+        // Publish the reply
+        if (createData.id) {
+          const publishRes = await fetch(`${baseUrl}/${threadsUserId}/threads_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ creation_id: createData.id, access_token: threadsToken }),
+          });
+          if (publishRes.ok) log.comments_posted++;
+        }
+      } catch { /* continue */ }
+    }
+
+    await sleep(randMs(10, 30));
+  }
+
+  log.status = 'success';
+  return log;
+}
+
 // ── MAIN HANDLER ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   try {
@@ -353,8 +518,41 @@ Deno.serve(async (req) => {
       results.push({ platform: 'bluesky', status: 'skipped', reason: 'Daily limit reached' });
     }
 
-    // Note: Facebook, Instagram, Threads APIs do not support engaging with external posts/profiles.
-    // These platforms are handled by auto-posting only. Will revisit if APIs expand.
+    // Pause between platforms
+    await sleep(randMs(60, 180));
+
+    // ── Instagram: reply to comments on own posts ──
+    const igDaily = dailyTotals['instagram'] || { likes: 0, comments: 0, follows: 0 };
+    if (igDaily.comments < 20) {
+      const igLog = {
+        run_date: today, platform: 'instagram',
+        likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
+        posts_found: 0, status: 'success', warnings: null, notes: 'comment_replies',
+      };
+      await runInstagramCommentReplies(base44, igLog);
+      await base44.asServiceRole.entities.CommunityEngagementLog.create(igLog);
+      results.push({ platform: 'instagram', ...igLog });
+    } else {
+      results.push({ platform: 'instagram', status: 'skipped', reason: 'Daily reply limit reached' });
+    }
+
+    // Pause between platforms
+    await sleep(randMs(60, 180));
+
+    // ── Threads: reply to comments on own posts ──
+    const threadsDaily = dailyTotals['threads'] || { likes: 0, comments: 0, follows: 0 };
+    if (threadsDaily.comments < 20) {
+      const tLog = {
+        run_date: today, platform: 'threads',
+        likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
+        posts_found: 0, status: 'success', warnings: null, notes: 'comment_replies',
+      };
+      await runThreadsCommentReplies(base44, tLog);
+      await base44.asServiceRole.entities.CommunityEngagementLog.create(tLog);
+      results.push({ platform: 'threads', ...tLog });
+    } else {
+      results.push({ platform: 'threads', status: 'skipped', reason: 'Daily reply limit reached' });
+    }
 
     return Response.json({ success: true, date: today, sessions: results });
   } catch (error) {
