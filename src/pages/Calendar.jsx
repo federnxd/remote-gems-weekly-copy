@@ -33,7 +33,7 @@ const statusDot = {
 export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedPost, setSelectedPost] = useState(null);
-  const [dayPosts, setDayPosts] = useState(null);
+  const [selectedDayPosts, setSelectedDayPosts] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const [isCleaning, setIsCleaning] = useState(false);
   const [cleanWeekDate, setCleanWeekDate] = useState(new Date());
@@ -337,7 +337,7 @@ export default function Calendar() {
                           ))}
                           {dayPosts.length > 3 && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setDayPosts({ date: dateKey, posts: dayPosts }); }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedDayPosts({ date: dateKey, posts: dayPosts }); }}
                               className="text-[10px] text-primary hover:underline px-1 block"
                             >
                               +{dayPosts.length - 3} more
@@ -411,21 +411,21 @@ export default function Calendar() {
       )}
 
       {/* Day Posts Dialog */}
-      {dayPosts && (
-        <Dialog open={!!dayPosts} onOpenChange={() => setDayPosts(null)}>
+      {selectedDayPosts && (
+        <Dialog open={!!selectedDayPosts} onOpenChange={() => setSelectedDayPosts(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-primary" />
-                Posts for {format(parseISO(dayPosts.date), 'MMMM d, yyyy')}
+                Posts for {format(parseISO(selectedDayPosts.date), 'MMMM d, yyyy')}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-              {dayPosts.posts.map((post) => (
+              {selectedDayPosts.posts.map((post) => (
                 <div
                   key={post.id}
                   className="border border-border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer"
-                  onClick={() => { setDayPosts(null); setSelectedPost(post); }}
+                  onClick={() => { setSelectedDayPosts(null); setSelectedPost(post); }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
