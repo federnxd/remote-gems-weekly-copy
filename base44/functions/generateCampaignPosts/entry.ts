@@ -41,6 +41,20 @@ function buildPostPrompt(roles, platform, referralLink, highlightNew) {
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
+  const headline = highlightNew
+    ? `🌟 NEW WEEKLY ROLES at Leading AI Companies — These are the new open roles for the week 🚀\n   ➡️ ${referralLink}`
+    : `📍 ${currentMonth} - Remote Opportunities at Leading AI Companies 🤖\n   ➡️ ${referralLink}`;
+
+  const personalIntroSection = highlightNew ? `
+2. BRIEF CONTEXT (1 short paragraph):
+   - Frame these as freshly added roles — hot off the press
+   - Mention that new roles appear regularly so now is the time to apply
+   - Do NOT mention your personal story or job title` : `
+2. PERSONAL INTRO (1 short paragraph):
+   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
+   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
+   - NOT salesy`;
+
   return `You are writing a referral post for micro1 on behalf of a professional who works there as an Audio Expert Reviewer. Write in first person, personal and credible.
 
 PLATFORM: ${platform.toUpperCase()}
@@ -50,7 +64,7 @@ REFERRAL LINK: ${referralLink}
 
 CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
 
-${highlightNew ? 'FOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just added to the platform.' : 'FOCUS: Monthly round-up of all current open roles across all fields.'}
+${highlightNew ? 'FOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just added to the platform this week.' : 'FOCUS: Monthly round-up of all current open roles across all fields.'}
 
 ROLES TO FEATURE:
 ${roleList}
@@ -58,13 +72,8 @@ ${roleList}
 FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform, but keep all sections):
 
 1. HEADLINE (first 2 lines — must be fully visible without "See more"):
-   📍 ${currentMonth} - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ ${referralLink}
-
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
-   - NOT salesy
+   ${headline}
+${personalIntroSection}
 
 3. WHO SHOULD APPLY (1 short paragraph with 👉):
    - Professionals with solid expertise and good English
@@ -89,7 +98,7 @@ STRICT RULES:
 - NO "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast"
 - NO fake urgency or hype
 - Compensation: mention "reliable pay" or "competitive compensation" naturally, once max
-- Emojis: purposeful only (👉 📍 ➡️ 🙌 👍 🛑 🆕), not for hype
+- Emojis: purposeful only (👉 📍 ➡️ 🌟 🚀 🙌 👍 🛑 🆕), not for hype
 - For Twitter: keep it under 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity, not an advertiser
 

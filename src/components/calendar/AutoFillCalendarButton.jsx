@@ -85,7 +85,14 @@ async function buildJobPostPrompt(slot, roles, platform) {
   const currentYear = new Date().getFullYear();
   const isLinkedInPersonalStory = platform === 'linkedin' && slot.strategy === 'social_proof';
 
-  const headlineExamples = `
+  // Use fixed monthly header only for the first post of the month (Monday of first week, day 1–7)
+  const isFirstWeekOfMonth = slot.date && slot.date.getDate() <= 7 && slot.dayOfWeek === 1;
+  const fixedMonthlyHeader = `📍 ${currentMonth} - Remote Opportunities at Leading AI Companies 🤖\n➡️ ${REFERRAL_LINK}`;
+
+  const headlineSection = isFirstWeekOfMonth
+    ? `1. HEADLINE (first 2 lines — use this EXACT header, do not change it):
+   ${fixedMonthlyHeader}`
+    : `1. HEADLINE (first 1–2 lines — must be unique, creative, and human):
 HEADLINE EXAMPLES (pick ONE creative variation — never repeat the same formula):
 - "Been exploring remote AI work lately — here's what I found at micro1 👇"
 - "If you're a specialist looking for legit remote work, this might be for you 🌍"
@@ -97,7 +104,8 @@ HEADLINE EXAMPLES (pick ONE creative variation — never repeat the same formula
 - "What does it actually take to work with micro1? A short interview + your expertise."
 - "Remote + specialized + well-paid — the trifecta most platforms can't offer. micro1 can."
 - "Sharing this because I wish someone had told me about this sooner:"
-Pick something fresh and fitting for the PLATFORM TONE and STRATEGY. Make the first line grab attention naturally.`;
+Pick something fresh and fitting for the PLATFORM TONE and STRATEGY. Make the first line grab attention naturally.
+   ALWAYS add the referral link on its own line right after: ➡️ ${REFERRAL_LINK}`;
 
   const personalStorySection = isLinkedInPersonalStory ? `
 2. PERSONAL INTRO (1 short paragraph):
@@ -121,9 +129,7 @@ ${roleList}
 
 FOLLOW THIS STRUCTURE:
 
-1. HEADLINE (first 1–2 lines — must be unique, creative, and human):
-${headlineExamples}
-   ALWAYS add the referral link on its own line right after: ➡️ ${REFERRAL_LINK}
+${headlineSection}
 ${personalStorySection}
 
 3. WHO SHOULD APPLY (1 short paragraph with 👉):
