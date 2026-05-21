@@ -18,6 +18,7 @@ import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
 import MetricsHistory from './pages/MetricsHistory';
 import IdeaLab from './pages/IdeaLab';
+import ThreadsCallback from './pages/ThreadsCallback';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,6 +60,7 @@ const AuthenticatedApp = () => {
         <Route path="/history" element={<MetricsHistory />} />
         <Route path="/idealab" element={<IdeaLab />} />
       </Route>
+      <Route path="/threads-callback" element={<ThreadsCallback />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
