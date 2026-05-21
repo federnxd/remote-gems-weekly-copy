@@ -30,12 +30,24 @@ Deno.serve(async (req) => {
 
     const results = {};
 
+    // ── Get Page-scoped access token first ────────────────────────────────
+    let pageAccessToken = pageToken;
+    try {
+      const pageTokenRes = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}?fields=access_token&access_token=${pageToken}`
+      );
+      const pageTokenData = await pageTokenRes.json();
+      if (pageTokenData.access_token) {
+        pageAccessToken = pageTokenData.access_token;
+      }
+    } catch { /* fallback to original token */ }
+
     // ── FACEBOOK ──────────────────────────────────────────────────────────
     try {
       const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: COMING_SOON_MESSAGE, access_token: pageToken }),
+        body: JSON.stringify({ message: COMING_SOON_MESSAGE, access_token: pageAccessToken }),
       });
       const fbData = await fbRes.json();
       if (!fbRes.ok) {
@@ -49,14 +61,16 @@ Deno.serve(async (req) => {
 
     // ── INSTAGRAM ─────────────────────────────────────────────────────────
     try {
-      // Step 1: Create media container
+      const igImageUrl = 'https://media.base44.com/images/public/69fa0f8cf2ee4daa2ecf29f3/e12bc7fb1_generated_image.png';
+
+      // Step 1: Create media container with image
       const createRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          media_type: 'TEXT',
-          text: INSTAGRAM_COMING_SOON,
-          access_token: pageToken,
+          image_url: igImageUrl,
+          caption: INSTAGRAM_COMING_SOON,
+          access_token: pageAccessToken,
         }),
       });
       const createData = await createRes.json();
@@ -68,7 +82,7 @@ Deno.serve(async (req) => {
         const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ creation_id: createData.id, access_token: pageToken }),
+          body: JSON.stringify({ creation_id: createData.id, access_token: pageAccessToken }),
         });
         const publishData = await publishRes.json();
         if (!publishRes.ok) {
