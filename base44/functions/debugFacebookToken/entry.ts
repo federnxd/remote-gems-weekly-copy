@@ -37,11 +37,17 @@ Deno.serve(async (req) => {
     });
     postTest = await postRes.json();
 
+    // Get the actual page ID from the token itself
+    const meRes = await fetch(`https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${pageToken}`);
+    const meData = await meRes.json();
+
     return Response.json({
       tokenType: debugData?.data?.type,
       tokenScopes: debugData?.data?.scopes,
-      hasPageToken: !!pageData.access_token,
-      pageName: pageData.name,
+      actualPageId: meData.id,
+      actualPageName: meData.name,
+      configuredPageId: pageId,
+      pageIdMatch: meData.id === pageId,
       postTest,
     });
   } catch (error) {
