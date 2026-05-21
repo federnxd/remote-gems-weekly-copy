@@ -6,36 +6,36 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+    const pageToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
     const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
 
-    if (!pageAccessToken || !pageId) {
-      return Response.json({ error: 'FACEBOOK_PAGE_ACCESS_TOKEN or FACEBOOK_PAGE_ID not set' }, { status: 400 });
-    }
-
-    // Check token permissions
-    const debugRes = await fetch(
-      `https://graph.facebook.com/v19.0/debug_token?input_token=${pageAccessToken}&access_token=${pageAccessToken}`
-    );
-    const debugData = await debugRes.json();
-
-    // Try fetching instagram_business_account
+    // Fetch Instagram Business Account ID linked to this page
     const igRes = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,instagram_business_account,connected_instagram_account&access_token=${pageAccessToken}`
+      `https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${pageToken}`
     );
     const igData = await igRes.json();
 
-    // Also try listing all pages to confirm which page we have
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?access_token=${pageAccessToken}`
+    if (!igData.instagram_business_account) {
+      return Response.json({ 
+        error: 'No Instagram account linked to this page',
+        pageId,
+        rawResponse: igData 
+      }, { status: 400 });
+    }
+
+    const igAccountId = igData.instagram_business_account.id;
+
+    // Also fetch basic info to confirm it's valid
+    const infoRes = await fetch(
+      `https://graph.facebook.com/v19.0/${igAccountId}?fields=name,username&access_token=${pageToken}`
     );
-    const pagesData = await pagesRes.json();
+    const infoData = await infoRes.json();
 
     return Response.json({
-      pageId,
-      pageData: igData,
-      tokenScopes: debugData?.data?.scopes || debugData,
-      pages: pagesData,
+      instagramAccountId: igAccountId,
+      name: infoData.name,
+      username: infoData.username,
+      message: 'Update your INSTAGRAM_ACCOUNT_ID secret with this value'
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
