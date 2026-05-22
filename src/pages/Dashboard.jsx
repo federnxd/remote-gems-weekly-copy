@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
 import ReferralInsightsModal from '@/components/dashboard/ReferralInsightsModal';
+import CrossPlatformStats from '@/components/dashboard/CrossPlatformStats';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -82,6 +83,8 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: ['dashboard-snapshots'] });
         }}
       />
+
+      <CrossPlatformStats posts={posts} />
 
       <StatsGrid posts={posts} />
 
