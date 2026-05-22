@@ -84,7 +84,7 @@ export default function Dashboard() {
         }}
       />
 
-      <CrossPlatformStats posts={posts} />
+      <CrossPlatformStats posts={posts} onSynced={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })} />
 
       <StatsGrid posts={posts} />
 

@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Eye, Heart, MessageCircle, Repeat2, MousePointer, Share2, Bookmark, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Eye, Heart, MessageCircle, Repeat2, MousePointer, Share2, RefreshCw } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 
 // Platform color tokens (bg + text)
 const PLATFORM_CONFIG = {
@@ -20,7 +23,24 @@ const PlatformDot = ({ platform }) => {
   );
 };
 
-export default function CrossPlatformStats({ posts }) {
+export default function CrossPlatformStats({ posts, onSynced }) {
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      const res = await base44.functions.invoke('syncAllPlatformStats', {});
+      if (res.data?.success) {
+        toast.success(res.data.message || 'All platform stats synced!');
+        onSynced?.();
+      } else {
+        toast.error(res.data?.error || 'Sync failed');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    }
+    setSyncing(false);
+  };
   // ── Aggregate per-platform ──────────────────────────────────────────────
   const linkedin = {
     impressions: posts.reduce((s, p) => s + (p.impressions || 0), 0),
@@ -117,6 +137,10 @@ export default function CrossPlatformStats({ posts }) {
             ))}
           </div>
           <h2 className="text-sm font-semibold text-foreground">All Platforms Overview</h2>
+          <Button size="sm" variant="outline" className="ml-auto gap-1.5 h-7 text-xs" onClick={handleSyncAll} disabled={syncing}>
+            <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync All'}
+          </Button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {topCards.map(({ label, value, icon: Icon, color }) => (

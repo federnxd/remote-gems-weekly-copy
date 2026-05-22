@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Eye, ThumbsUp, MessageSquare, Share2, MousePointer, Pencil, AlertCircle } from 'lucide-react';
+import { Eye, ThumbsUp, MessageSquare, Share2, MousePointer, Pencil, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 
@@ -80,6 +81,24 @@ function EditFBStatsModal({ post, open, onClose }) {
 
 export default function FacebookDashboard() {
   const [editingPost, setEditingPost] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await base44.functions.invoke('syncAllPlatformStats', {});
+      if (res.data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+        toast.success(`Synced ${res.data.synced?.fb ?? 0} Facebook posts`);
+      } else {
+        toast.error(res.data?.error || 'Sync failed');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    }
+    setSyncing(false);
+  };
 
   const { data: posts = [] } = useQuery({
     queryKey: ['generated-posts'],
@@ -103,14 +122,20 @@ export default function FacebookDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#1877f2]/10 flex items-center justify-center">
-          <FacebookIcon />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#1877f2]/10 flex items-center justify-center">
+            <FacebookIcon />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Facebook Dashboard</h1>
+            <p className="text-sm text-muted-foreground">{fbPosts.length} published posts</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Facebook Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{fbPosts.length} published posts · manual stats entry</p>
-        </div>
+        <Button size="sm" className="gap-2 bg-[#1877f2] hover:bg-[#1877f2]/90" onClick={handleSync} disabled={syncing}>
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? 'Syncing…' : 'Sync Stats'}
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
