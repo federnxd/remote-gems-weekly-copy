@@ -50,7 +50,31 @@
     },
     "linkedin_post_id": {
       "type": "string",
-      "description": "The LinkedIn UGC post URN (urn:li:share:...) returned after publishing"
+      "description": "LinkedIn UGC post URN"
+    },
+    "twitter_post_id": {
+      "type": "string",
+      "description": "Twitter/X tweet ID"
+    },
+    "fb_post_id": {
+      "type": "string",
+      "description": "Facebook post ID"
+    },
+    "ig_post_id": {
+      "type": "string",
+      "description": "Instagram media ID"
+    },
+    "threads_post_id": {
+      "type": "string",
+      "description": "Threads post ID"
+    },
+    "bsky_post_id": {
+      "type": "string",
+      "description": "Bluesky post URI"
+    },
+    "mastodon_post_id": {
+      "type": "string",
+      "description": "Mastodon status ID"
     },
     "impressions": {
       "type": "number",
@@ -94,6 +118,114 @@
     "last_synced_at": {
       "type": "string",
       "description": "ISO timestamp of last LinkedIn sync"
+    },
+    "twitter_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "twitter_likes": {
+      "type": "number",
+      "default": 0
+    },
+    "twitter_replies": {
+      "type": "number",
+      "default": 0
+    },
+    "twitter_retweets": {
+      "type": "number",
+      "default": 0
+    },
+    "twitter_link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "fb_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "fb_likes": {
+      "type": "number",
+      "default": 0
+    },
+    "fb_comments": {
+      "type": "number",
+      "default": 0
+    },
+    "fb_shares": {
+      "type": "number",
+      "default": 0
+    },
+    "fb_link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_likes": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_comments": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_shares": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_saves": {
+      "type": "number",
+      "default": 0
+    },
+    "ig_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "threads_views": {
+      "type": "number",
+      "default": 0
+    },
+    "threads_likes": {
+      "type": "number",
+      "default": 0
+    },
+    "threads_replies": {
+      "type": "number",
+      "default": 0
+    },
+    "threads_reposts": {
+      "type": "number",
+      "default": 0
+    },
+    "bsky_likes": {
+      "type": "number",
+      "default": 0
+    },
+    "bsky_replies": {
+      "type": "number",
+      "default": 0
+    },
+    "bsky_reposts": {
+      "type": "number",
+      "default": 0
+    },
+    "bsky_quotes": {
+      "type": "number",
+      "default": 0
+    },
+    "mastodon_favourites": {
+      "type": "number",
+      "default": 0
+    },
+    "mastodon_boosts": {
+      "type": "number",
+      "default": 0
+    },
+    "mastodon_replies": {
+      "type": "number",
+      "default": 0
     },
     "notes": {
       "type": "string"

@@ -19,6 +19,13 @@ import Analytics from './pages/Analytics';
 import MetricsHistory from './pages/MetricsHistory';
 import IdeaLab from './pages/IdeaLab';
 import ThreadsCallback from './pages/ThreadsCallback';
+import LinkedInDashboard from './pages/platforms/LinkedInDashboard';
+import TwitterDashboard from './pages/platforms/TwitterDashboard';
+import FacebookDashboard from './pages/platforms/FacebookDashboard';
+import InstagramDashboard from './pages/platforms/InstagramDashboard';
+import ThreadsDashboard from './pages/platforms/ThreadsDashboard';
+import BlueSkyDashboard from './pages/platforms/BlueSkyDashboard';
+import MastodonDashboard from './pages/platforms/MastodonDashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,6 +66,13 @@ const AuthenticatedApp = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/history" element={<MetricsHistory />} />
         <Route path="/idealab" element={<IdeaLab />} />
+        <Route path="/platforms/linkedin" element={<LinkedInDashboard />} />
+        <Route path="/platforms/twitter" element={<TwitterDashboard />} />
+        <Route path="/platforms/facebook" element={<FacebookDashboard />} />
+        <Route path="/platforms/instagram" element={<InstagramDashboard />} />
+        <Route path="/platforms/threads" element={<ThreadsDashboard />} />
+        <Route path="/platforms/bluesky" element={<BlueSkyDashboard />} />
+        <Route path="/platforms/mastodon" element={<MastodonDashboard />} />
       </Route>
       <Route path="/threads-callback" element={<ThreadsCallback />} />
       <Route path="*" element={<PageNotFound />} />

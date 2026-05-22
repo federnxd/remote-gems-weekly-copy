@@ -341,23 +341,41 @@ Deno.serve(async (req) => {
         } else if (platform === 'twitter') {
           const r = await publishTwitter(postContent);
           results.twitter = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { twitter_post_id: r.postId, status: 'published' });
+          }
         } else if (platform === 'facebook') {
           const r = await publishFacebook(postContent);
           results.facebook = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { fb_post_id: r.postId, status: 'published' });
+          }
         } else if (platform === 'threads') {
           const r = await publishThreads(postContent);
           results.threads = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { threads_post_id: r.postId, status: 'published' });
+          }
         } else if (platform === 'mastodon') {
           const r = await publishMastodon(postContent);
           results.mastodon = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { mastodon_post_id: r.postId, status: 'published' });
+          }
         } else if (platform === 'bluesky') {
           const r = await publishBluesky(postContent);
           results.bluesky = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { bsky_post_id: r.postId, status: 'published' });
+          }
         } else if (platform === 'instagram') {
           const imageToUse = igImageUrl || fileUrl;
           if (!imageToUse) throw new Error('Instagram requires an image. Please generate or attach an image.');
           const r = await publishInstagramWithImage(postContent, imageToUse);
           results.instagram = { success: true, postId: r.postId };
+          if (postId && r.postId) {
+            await base44.asServiceRole.entities.GeneratedPost.update(postId, { ig_post_id: r.postId, status: 'published' });
+          }
         }
       } catch (e) {
         results[platform] = { success: false, error: e.message };
