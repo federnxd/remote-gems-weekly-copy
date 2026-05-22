@@ -103,7 +103,7 @@ STRICT RULES:
 - Use real stats naturally woven into the narrative, not just bullet lists of numbers
 - Sound like a thoughtful professional sharing what they genuinely know
 
-${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: use insights about which platforms and content styles are driving the most engagement, incorporate top hashtags naturally, and apply the recommended timing and tone adjustments per platform.' : ''}
+${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape your writing decisions (platform tone, content angle, hashtag placement). NEVER quote, reference, mention, or reveal any of this analytical data in the post itself. The post must read as a completely natural, organic piece of content.' : ''}
 
 Generate ONLY the post content. No explanations, no labels.`;
 }

@@ -120,7 +120,7 @@ STRICT RULES:
 
 Generate ONLY the post content, no explanations.
 
-${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: prioritize recommended strategies, incorporate top-performing hashtags naturally, and adjust tone/CTA based on what has driven the most referrals and engagement per platform.' : ''}`;
+${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape writing decisions (strategy, tone, hashtags, CTA). NEVER quote, reference, mention, or reveal any of this analytical data in the post itself. The post must read as completely natural and organic — zero trace of internal strategy data.' : ''}`;
 }
 
 function getMonday(date) {

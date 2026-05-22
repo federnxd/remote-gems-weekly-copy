@@ -92,7 +92,7 @@ STRICT RULES:
 - For Twitter: max 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity
 
-${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: adjust your tone, hashtags, and angle based on what has been proven to drive referrals. Prioritize the recommended strategies and incorporate top-performing hashtags naturally.' : ''}
+${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape your writing decisions (tone, angle, hashtag selection, CTA style). NEVER quote, reference, mention, or reveal any of this data in the post itself. The post must read as a natural, organic piece of content with zero trace of analytical data or internal strategy.' : ''}
 
 Generate ONLY the post content, no explanations.`;
 }
