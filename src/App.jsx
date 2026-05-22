@@ -26,6 +26,7 @@ import InstagramDashboard from './pages/platforms/InstagramDashboard';
 import ThreadsDashboard from './pages/platforms/ThreadsDashboard';
 import BlueSkyDashboard from './pages/platforms/BlueSkyDashboard';
 import MastodonDashboard from './pages/platforms/MastodonDashboard';
+import PlannerReports from './pages/PlannerReports';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/platforms/threads" element={<ThreadsDashboard />} />
         <Route path="/platforms/bluesky" element={<BlueSkyDashboard />} />
         <Route path="/platforms/mastodon" element={<MastodonDashboard />} />
+        <Route path="/planner" element={<PlannerReports />} />
       </Route>
       <Route path="/threads-callback" element={<ThreadsCallback />} />
       <Route path="*" element={<PageNotFound />} />

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, PenTool, Briefcase, CalendarDays, 
   Target, BarChart3, Lightbulb, Menu, X, Megaphone, TrendingUp, History,
-  Pause, Play, ChevronDown, ChevronRight
+  Pause, Play, ChevronDown, ChevronRight, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,7 @@ const navItems = [
   { path: '/strategy', icon: Target, label: 'Strategy Plan' },
   { path: '/weekly', icon: CalendarDays, label: 'Weekly Planner' },
   { path: '/playbook', icon: Lightbulb, label: 'Referral Playbook' },
+  { path: '/planner', icon: Brain, label: 'DataAnalystPlanner' },
 ];
 
 export default function Sidebar({ isOpen, setIsOpen }) {

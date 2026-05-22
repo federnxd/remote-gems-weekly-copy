@@ -1,0 +1,78 @@
+{
+  "name": "PlannerReport",
+  "type": "object",
+  "properties": {
+    "report_type": {
+      "type": "string",
+      "enum": [
+        "weekly",
+        "monthly"
+      ],
+      "description": "Type of analysis report"
+    },
+    "period_label": {
+      "type": "string",
+      "description": "Human-readable period, e.g. 'Week of May 19, 2026' or 'May 2026'"
+    },
+    "top_performing_strategies": {
+      "type": "string",
+      "description": "JSON array of strategy insights with avg engagement and referral rates"
+    },
+    "underperforming_strategies": {
+      "type": "string",
+      "description": "JSON array of strategies that should be deprioritized"
+    },
+    "top_performing_posts": {
+      "type": "string",
+      "description": "JSON array of top post IDs and why they performed well"
+    },
+    "platform_insights": {
+      "type": "string",
+      "description": "JSON object with per-platform performance summary"
+    },
+    "engagement_time_insights": {
+      "type": "string",
+      "description": "Best days/times for posting and engagement"
+    },
+    "recommended_hashtags": {
+      "type": "string",
+      "description": "Comma-separated list of recommended hashtags for community managing"
+    },
+    "recommended_posting_times": {
+      "type": "string",
+      "description": "JSON object with platform -> recommended time windows"
+    },
+    "recommended_strategies": {
+      "type": "string",
+      "description": "Ordered list of strategies to prioritize next period"
+    },
+    "action_items": {
+      "type": "string",
+      "description": "JSON array of top 3-5 actionable changes for the coming period"
+    },
+    "ban_risk_flags": {
+      "type": "string",
+      "description": "JSON array of platforms or behaviors flagged as risky"
+    },
+    "community_managing_paused_platforms": {
+      "type": "string",
+      "description": "Comma-separated list of platforms where CM was paused due to risk"
+    },
+    "full_analysis": {
+      "type": "string",
+      "description": "Full narrative analysis from the AI planner"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "error"
+      ],
+      "default": "completed"
+    }
+  },
+  "required": [
+    "report_type",
+    "period_label"
+  ]
+}
