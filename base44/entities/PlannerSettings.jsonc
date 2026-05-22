@@ -1,0 +1,12 @@
+{
+  "name": "PlannerSettings",
+  "type": "object",
+  "properties": {
+    "is_paused": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the DataAnalystPlanner is currently paused"
+    }
+  },
+  "required": []
+}

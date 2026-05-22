@@ -53,10 +53,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [platformsOpen, setPlatformsOpen] = useState(isPlatformRoute);
 
   useEffect(() => {
-    // Check current state on mount for both services
+    // Check current state on mount for all services
     Promise.all([
       base44.functions.invoke('toggleAutoPosting', { pause: null }),
       base44.functions.invoke('toggleCommunityManaging', { pause: null }),
+      base44.functions.invoke('toggleDataAnalystPlanner', { pause: null }),
     ]).then(([autoRes]) => {
       if (autoRes.data?.isRunning !== undefined) {
         setIsRunning(autoRes.data.isRunning);
@@ -67,10 +68,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const handleTogglePause = async () => {
     setIsLoading(true);
     try {
-      // Toggle both services together
+      // Toggle all three services together
       const [result] = await Promise.all([
         base44.functions.invoke('toggleAutoPosting', { pause: isRunning }),
         base44.functions.invoke('toggleCommunityManaging', { pause: isRunning }),
+        base44.functions.invoke('toggleDataAnalystPlanner', { pause: isRunning }),
       ]);
       setIsRunning(result.data.isRunning);
       toast.success(result.data.message);

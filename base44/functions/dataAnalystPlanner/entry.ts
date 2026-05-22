@@ -7,6 +7,12 @@ Deno.serve(async (req) => {
     const db = base44.asServiceRole;
     const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
 
+    // Check if paused
+    const plannerSettings = await db.entities.PlannerSettings.filter({});
+    if (plannerSettings.length > 0 && plannerSettings[0].is_paused) {
+      return Response.json({ skipped: true, message: 'DataAnalystPlanner is paused.' });
+    }
+
     // Determine report type from payload or auto-detect
     let body = {};
     try { body = await req.json(); } catch { /* no body */ }
