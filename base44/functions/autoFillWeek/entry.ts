@@ -44,7 +44,7 @@ const DAY_STRATEGIES = [
   'targeted_role',      // Sunday
 ];
 
-function buildPrompt(roles, platform, dayOfWeek, strategy) {
+function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') {
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
@@ -118,7 +118,9 @@ STRICT RULES:
 - For Bluesky: max 300 chars, authentic tone
 - For Reddit/Discord: sound like a real person sharing an opportunity, not an advertiser
 
-Generate ONLY the post content, no explanations.`;
+Generate ONLY the post content, no explanations.
+
+${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: prioritize recommended strategies, incorporate top-performing hashtags naturally, and adjust tone/CTA based on what has driven the most referrals and engagement per platform.' : ''}`;
 }
 
 function getMonday(date) {
@@ -153,6 +155,17 @@ Deno.serve(async (req) => {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
 
+  // Fetch planner context
+  let plannerContext = '';
+  let plannerPostingTimes = {};
+  try {
+    const plannerRes = await db.functions.invoke('getPlannerContext', {});
+    if (plannerRes?.hasData) {
+      plannerContext = plannerRes.context || '';
+      plannerPostingTimes = plannerRes.postingTimes || {};
+    }
+  } catch { /* continue without planner context */ }
+
   // For each day of the week
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const currentDate = addDays(monday, dayOffset);
@@ -164,12 +177,13 @@ Deno.serve(async (req) => {
     for (const platform of ALL_PLATFORMS) {
       try {
         const content = await db.integrations.Core.InvokeLLM({
-          prompt: buildPrompt(roles, platform, dayOffset, strategy),
+          prompt: buildPrompt(roles, platform, dayOffset, strategy, plannerContext),
         });
 
-        // Stagger times throughout the day
-        const hour = 8 + Math.floor(platform.length / 3); // Spread between 8am-6pm
-        const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+        // Use planner-recommended time or stagger throughout the day
+        const defaultHour = 8 + Math.floor(platform.length / 3);
+        const plannerTime = plannerPostingTimes[platform];
+        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
 
         const post = await db.entities.GeneratedPost.create({
           title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,

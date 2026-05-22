@@ -35,7 +35,7 @@ const DAY_STRATEGY = {
   6: { strategy: 'urgency',       styleNote: 'Write with a mild weekend urgency angle. Mention that the week is ending, now is a great time to apply, positions fill up. NOT fake panic — just a genuine nudge.' },
 };
 
-function buildPrompt(roles, platform, dayLabel, styleNote) {
+function buildPrompt(roles, platform, dayLabel, styleNote, plannerContext = '') {
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
@@ -92,6 +92,8 @@ STRICT RULES:
 - For Twitter: max 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity
 
+${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: adjust your tone, hashtags, and angle based on what has been proven to drive referrals. Prioritize the recommended strategies and incorporate top-performing hashtags naturally.' : ''}
+
 Generate ONLY the post content, no explanations.`;
 }
 
@@ -116,14 +118,29 @@ Deno.serve(async (req) => {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
 
+  // Fetch planner context to inject into prompts
+  let plannerContext = '';
+  let plannerPostingTimes = {};
+  try {
+    const plannerRes = await db.functions.invoke('getPlannerContext', {});
+    if (plannerRes?.hasData) {
+      plannerContext = plannerRes.context || '';
+      plannerPostingTimes = plannerRes.postingTimes || {};
+    }
+  } catch { /* continue without planner context */ }
+
   const created = [];
   const errors = [];
 
   for (const platform of NON_LINKEDIN_PLATFORMS) {
     try {
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(roles, platform, dayLabel, strategyConfig.styleNote),
+        prompt: buildPrompt(roles, platform, dayLabel, strategyConfig.styleNote, plannerContext),
       });
+
+      // Use planner-recommended posting time if available
+      const defaultTime = dayOfWeek === 6 ? '10:00' : '08:00';
+      const scheduledTime = plannerPostingTimes[platform] || defaultTime;
 
       const post = await db.entities.GeneratedPost.create({
         title: `${dayLabel} Job Post — ${platform} — ${scheduledDate}`,
@@ -132,7 +149,7 @@ Deno.serve(async (req) => {
         target_roles: roles.map(r => r.title).join(', '),
         status: 'scheduled',
         scheduled_date: scheduledDate,
-        scheduled_time: dayOfWeek === 6 ? '10:00' : '08:00',
+        scheduled_time: scheduledTime,
         notes: `[AUTO_GENERATED] platform:${platform} type:job_post day:${dayLabel}`,
       });
 

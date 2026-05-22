@@ -68,7 +68,7 @@ Rules:
 }
 
 // ── MASTODON ──────────────────────────────────────────────────────────────────
-async function runMastodonSession(base44, log) {
+async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
   const instanceUrl = (Deno.env.get('MASTODON_INSTANCE_URL') || '').replace(/\/+$/, '');
   const token = Deno.env.get('MASTODON_ACCESS_TOKEN');
   if (!instanceUrl || !token) { log.warnings = 'Mastodon credentials missing'; return log; }
@@ -80,12 +80,12 @@ async function runMastodonSession(base44, log) {
   const maxComments = Math.floor(Math.random() * 3) + 1;    // 1-4 per session
   const maxFollows = Math.floor(Math.random() * 8) + 3;     // 3-11 per session
 
-  // Pick 2-3 random hashtags to search
-  const hashtags = pickRandom(NICHE_HASHTAGS, Math.floor(Math.random() * 2) + 2);
+  // Pick 2-3 random hashtags to search (from planner-recommended or default list)
+  const selectedHashtags = pickRandom(hashtags, Math.floor(Math.random() * 2) + 2);
   const seenPostIds = new Set();
   const seenAccountIds = new Set();
 
-  for (const tag of hashtags) {
+  for (const tag of selectedHashtags) {
     if (log.likes_given >= maxLikes && log.follows_made >= maxFollows) break;
 
     let res, posts;
@@ -163,7 +163,7 @@ async function runMastodonSession(base44, log) {
 }
 
 // ── BLUESKY ───────────────────────────────────────────────────────────────────
-async function runBlueskySession(base44, log) {
+async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
   const handle = Deno.env.get('BLUESKY_HANDLE');
   const appPassword = Deno.env.get('BLUESKY_APP_PASSWORD');
   if (!handle || !appPassword) { log.warnings = 'Bluesky credentials missing'; return log; }
@@ -188,11 +188,11 @@ async function runBlueskySession(base44, log) {
   const maxComments = Math.floor(Math.random() * 3) + 1;
   const maxFollows = Math.floor(Math.random() * 8) + 3;
 
-  const hashtags = pickRandom(NICHE_HASHTAGS, Math.floor(Math.random() * 2) + 2);
+  const selectedBskyHashtags = pickRandom(hashtags, Math.floor(Math.random() * 2) + 2);
   const seenUris = new Set();
   const seenDids = new Set();
 
-  for (const tag of hashtags) {
+  for (const tag of selectedBskyHashtags) {
     if (log.likes_given >= maxLikes && log.follows_made >= maxFollows) break;
 
     let posts = [];
@@ -538,6 +538,19 @@ Deno.serve(async (req) => {
       return Response.json({ message: 'Community managing is paused. Skipping.' });
     }
 
+    // Fetch planner recommended hashtags & community managing adjustments
+    let plannerHashtags = null;
+    try {
+      const plannerRes = await base44.asServiceRole.functions.invoke('getPlannerContext', {});
+      if (plannerRes?.hasData && plannerRes.recommendedHashtags?.length > 0) {
+        // Use planner hashtags but strip # prefix (NICHE_HASHTAGS has no #)
+        plannerHashtags = plannerRes.recommendedHashtags.map(h => h.replace(/^#/, '').toLowerCase()).filter(Boolean);
+      }
+    } catch { /* continue with defaults */ }
+
+    // Override hashtags with planner recommendations if available
+    const activeHashtags = plannerHashtags && plannerHashtags.length > 0 ? plannerHashtags : NICHE_HASHTAGS;
+
     const today = new Date().toISOString().split('T')[0];
     const results = [];
 
@@ -559,7 +572,7 @@ Deno.serve(async (req) => {
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
         posts_found: 0, status: 'success', warnings: null, notes: null,
       };
-      await runMastodonSession(base44, mLog);
+      await runMastodonSession(base44, mLog, activeHashtags);
       await base44.asServiceRole.entities.CommunityEngagementLog.create(mLog);
       results.push({ platform: 'mastodon', ...mLog });
     } else {
@@ -577,7 +590,7 @@ Deno.serve(async (req) => {
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
         posts_found: 0, status: 'success', warnings: null, notes: null,
       };
-      await runBlueskySession(base44, bLog);
+      await runBlueskySession(base44, bLog, activeHashtags);
       await base44.asServiceRole.entities.CommunityEngagementLog.create(bLog);
       results.push({ platform: 'bluesky', ...bLog });
     } else {

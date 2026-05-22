@@ -69,7 +69,7 @@ function getDateOffset(days) {
   return d.toISOString().split('T')[0];
 }
 
-function buildThoughtLeadershipPrompt(platform, theme, angle, dayLabel) {
+function buildThoughtLeadershipPrompt(platform, theme, angle, dayLabel, plannerContext = '') {
   const tone = PLATFORM_TONES[platform] || 'Informative, engaging, professional.';
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
@@ -103,6 +103,8 @@ STRICT RULES:
 - Use real stats naturally woven into the narrative, not just bullet lists of numbers
 - Sound like a thoughtful professional sharing what they genuinely know
 
+${plannerContext ? plannerContext + '\n\nAPPLY THE PLANNER FEEDBACK ABOVE: use insights about which platforms and content styles are driving the most engagement, incorporate top hashtags naturally, and apply the recommended timing and tone adjustments per platform.' : ''}
+
 Generate ONLY the post content. No explanations, no labels.`;
 }
 
@@ -118,16 +120,29 @@ Deno.serve(async (req) => {
   const theme = getTodayTheme();
   const scheduledDate = today.toISOString().split('T')[0];
 
+  // Fetch planner context
+  let plannerContext = '';
+  let plannerPostingTimes = {};
+  try {
+    const plannerRes = await db.functions.invoke('getPlannerContext', {});
+    if (plannerRes?.hasData) {
+      plannerContext = plannerRes.context || '';
+      plannerPostingTimes = plannerRes.postingTimes || {};
+    }
+  } catch { /* continue without planner context */ }
+
   const created = [];
   const errors = [];
 
   for (const platform of NON_LINKEDIN_PLATFORMS) {
     try {
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayLabel),
+        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayLabel, plannerContext),
         add_context_from_internet: true,
         model: 'gemini_3_flash',
       });
+
+      const scheduledTime = plannerPostingTimes[platform] || '11:00';
 
       const post = await db.entities.GeneratedPost.create({
         title: `${dayLabel} Thought Leadership — ${platform} — ${scheduledDate}`,
@@ -136,7 +151,7 @@ Deno.serve(async (req) => {
         target_roles: 'general audience',
         status: 'scheduled',
         scheduled_date: scheduledDate,
-        scheduled_time: '11:00',
+        scheduled_time: scheduledTime,
         notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership theme:${theme.theme}`,
       });
 
