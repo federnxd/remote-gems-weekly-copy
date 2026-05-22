@@ -38,14 +38,14 @@ function extractDollar(text, ...labels) {
 
 function parseMicro1(text) {
   return {
-    total_referrals:        extractNumber(text, 'Total referrals'),
-    ai_interview_completed: extractNumber(text, 'AI interview completed'),
-    minimum_criteria_met:   extractNumber(text, 'Minimum criteria met'),
-    certified:              extractNumber(text, 'Certified'),
-    matched_to_project:     extractNumber(text, 'Matched to project'),
-    successful_referrals:   extractNumber(text, 'Successful referrals'),
-    total_cash_earned:      extractDollar(text, 'Total cash earned'),
-    available_balance:      extractDollar(text, 'Available balance'),
+    total_referrals:        extractNumber(text, 'Total referrals', 'Total de referencias', 'Referencias totales'),
+    ai_interview_completed: extractNumber(text, 'AI interview completed', 'Entrevista de IA completada', 'Entrevista IA completada'),
+    minimum_criteria_met:   extractNumber(text, 'Minimum criteria met', 'Criterio mínimo cumplido', 'Criterios mínimos cumplidos'),
+    certified:              extractNumber(text, 'Certified', 'Certificado', 'Certificados'),
+    matched_to_project:     extractNumber(text, 'Matched to project', 'Asignado a proyecto', 'Asignados a proyecto'),
+    successful_referrals:   extractNumber(text, 'Successful referrals', 'Referencias exitosas', 'Referencias exitosa'),
+    total_cash_earned:      extractDollar(text, 'Total cash earned', 'Total de efectivo ganado', 'Efectivo total ganado'),
+    available_balance:      extractDollar(text, 'Available balance', 'Saldo disponible', 'Balance disponible'),
   };
 }
 
@@ -127,7 +127,8 @@ export default function DashboardSnapshotModal({ open, onClose, onSaved }) {
   const [linkedInParsed, setLinkedInParsed] = useState(null);
   const [notes, setNotes] = useState('');
   const [snapshotDate, setSnapshotDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [saving, setSaving] = useState(false);
+  const [savingMicro1, setSavingMicro1] = useState(false);
+  const [savingLinkedIn, setSavingLinkedIn] = useState(false);
 
   const handleParseMicro1 = () => {
     setMicro1Parsed(parseMicro1(micro1Paste));
@@ -145,25 +146,34 @@ export default function DashboardSnapshotModal({ open, onClose, onSaved }) {
   const updateLinkedInField = (key, val) =>
     setLinkedInParsed(prev => ({ ...prev, [key]: parseFloat(val) || 0 }));
 
-  const canSave = micro1Parsed || linkedInParsed;
-
-  const handleSave = async () => {
-    if (!canSave) { toast.error('Extract at least one section first'); return; }
-    setSaving(true);
+  const handleSaveMicro1 = async () => {
+    setSavingMicro1(true);
     await base44.entities.CompanyDashboardSnapshot.create({
       snapshot_date: snapshotDate,
-      raw_paste: [micro1Paste, linkedInPaste].filter(Boolean).join('\n\n---\n\n'),
-      ...(micro1Parsed || {}),
-      ...(linkedInParsed || {}),
+      raw_paste: micro1Paste,
+      ...micro1Parsed,
       notes,
     });
-    toast.success('Snapshot saved!');
-    setSaving(false);
-    setMicro1Paste(''); setLinkedInPaste('');
-    setMicro1Parsed(null); setLinkedInParsed(null);
-    setNotes('');
+    toast.success('micro1 snapshot saved!');
+    setSavingMicro1(false);
+    setMicro1Paste('');
+    setMicro1Parsed(null);
     onSaved?.();
-    onClose();
+  };
+
+  const handleSaveLinkedIn = async () => {
+    setSavingLinkedIn(true);
+    await base44.entities.CompanyDashboardSnapshot.create({
+      snapshot_date: snapshotDate,
+      raw_paste: linkedInPaste,
+      ...linkedInParsed,
+      notes,
+    });
+    toast.success('LinkedIn snapshot saved!');
+    setSavingLinkedIn(false);
+    setLinkedInPaste('');
+    setLinkedInParsed(null);
+    onSaved?.();
   };
 
   return (
@@ -205,66 +215,66 @@ export default function DashboardSnapshotModal({ open, onClose, onSaved }) {
             />
           </div>
 
+          {/* Notes */}
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Notes (optional)</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any context..." className="h-8 text-sm" />
+          </div>
+
           {/* Extracted fields review */}
-          {(micro1Parsed || linkedInParsed) && (
-            <div className="space-y-4 border rounded-xl p-4 bg-muted/30">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Extracted — edit if needed</p>
-
-              {micro1Parsed && (
-                <>
-                  <div>
-                    <p className="text-xs font-semibold mb-2 text-orange-600">Referral Funnel</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {FUNNEL_FIELDS.map(({ key, label }) => (
-                        <div key={key}>
-                          <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
-                          <Input type="number" value={micro1Parsed[key]} onChange={e => updateMicro1Field(key, e.target.value)} className="h-8 text-sm" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold mb-2 text-orange-600">Earnings</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {EARNINGS_FIELDS.map(({ key, label, step }) => (
-                        <div key={key}>
-                          <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
-                          <Input type="number" step={step} value={micro1Parsed[key]} onChange={e => updateMicro1Field(key, e.target.value)} className="h-8 text-sm" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {linkedInParsed && (
-                <div>
-                  <p className="text-xs font-semibold mb-2 text-primary">LinkedIn Analytics</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {LINKEDIN_FIELDS.map(({ key, label }) => (
-                      <div key={key}>
-                        <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
-                        <Input type="number" value={linkedInParsed[key]} onChange={e => updateLinkedInField(key, e.target.value)} className="h-8 text-sm" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+          {micro1Parsed && (
+            <div className="space-y-4 border rounded-xl p-4 bg-orange-50/40 border-orange-200">
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">micro1 — Edit if needed</p>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Notes (optional)</Label>
-                <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any context..." className="h-8 text-sm" />
+                <p className="text-xs font-semibold mb-2 text-orange-600">Referral Funnel</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {FUNNEL_FIELDS.map(({ key, label }) => (
+                    <div key={key}>
+                      <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
+                      <Input type="number" value={micro1Parsed[key]} onChange={e => updateMicro1Field(key, e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  ))}
+                </div>
               </div>
+              <div>
+                <p className="text-xs font-semibold mb-2 text-orange-600">Earnings</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {EARNINGS_FIELDS.map(({ key, label, step }) => (
+                    <div key={key}>
+                      <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
+                      <Input type="number" step={step} value={micro1Parsed[key]} onChange={e => updateMicro1Field(key, e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Button onClick={handleSaveMicro1} disabled={savingMicro1} className="w-full gap-2 bg-orange-600 hover:bg-orange-700">
+                {savingMicro1 && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save micro1 Snapshot
+              </Button>
+            </div>
+          )}
+
+          {linkedInParsed && (
+            <div className="space-y-4 border rounded-xl p-4 bg-blue-50/40 border-blue-200">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wide">LinkedIn — Edit if needed</p>
+              <div className="grid grid-cols-2 gap-3">
+                {LINKEDIN_FIELDS.map(({ key, label }) => (
+                  <div key={key}>
+                    <Label className="text-xs text-muted-foreground mb-1 block">{label}</Label>
+                    <Input type="number" value={linkedInParsed[key]} onChange={e => updateLinkedInField(key, e.target.value)} className="h-8 text-sm" />
+                  </div>
+                ))}
+              </div>
+              <Button onClick={handleSaveLinkedIn} disabled={savingLinkedIn} className="w-full gap-2">
+                {savingLinkedIn && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save LinkedIn Snapshot
+              </Button>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!canSave || saving} className="gap-2">
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            Save Snapshot
-          </Button>
+          <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
