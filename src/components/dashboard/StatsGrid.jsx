@@ -1,12 +1,24 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { TrendingUp, Users, Eye, UserCheck } from 'lucide-react';
 
 export default function StatsGrid({ posts }) {
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['dashboard-snapshots'],
+    queryFn: () => base44.entities.CompanyDashboardSnapshot.list('-snapshot_date', 1),
+  });
+  const snap = snapshots[0];
+
+  // LinkedIn impressions from snapshot (profile-level) if available, else per-post sum
+  const linkedinImpressions = snap?.impressions ?? posts.reduce((s, p) => s + (p.impressions || 0), 0);
+
   // Sum impressions/reach across ALL platforms
-  const totalImpressions = posts.reduce((s, p) =>
-    s + (p.impressions || 0) + (p.twitter_impressions || 0) + (p.fb_impressions || 0) +
-    (p.ig_impressions || 0) + (p.threads_views || 0) + (p.ig_reach || 0), 0);
+  const totalImpressions = linkedinImpressions +
+    posts.reduce((s, p) =>
+      s + (p.twitter_impressions || 0) + (p.fb_impressions || 0) +
+      (p.ig_impressions || 0) + (p.threads_views || 0) + (p.ig_reach || 0), 0);
 
   const totalReferrals = posts.reduce((s, p) => s + (p.referrals || 0), 0);
   const totalHired = posts.reduce((s, p) => s + (p.hired || 0), 0);

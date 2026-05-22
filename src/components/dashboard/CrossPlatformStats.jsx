@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, Heart, MessageCircle, Repeat2, MousePointer, Share2, RefreshCw } from 'lucide-react';
@@ -26,6 +27,12 @@ const PlatformDot = ({ platform }) => {
 export default function CrossPlatformStats({ posts, onSynced }) {
   const [syncing, setSyncing] = useState(false);
 
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['dashboard-snapshots'],
+    queryFn: () => base44.entities.CompanyDashboardSnapshot.list('-snapshot_date', 1),
+  });
+  const snap = snapshots[0];
+
   const handleSyncAll = async () => {
     setSyncing(true);
     try {
@@ -42,7 +49,14 @@ export default function CrossPlatformStats({ posts, onSynced }) {
     setSyncing(false);
   };
   // ── Aggregate per-platform ──────────────────────────────────────────────
-  const linkedin = {
+  // LinkedIn: prefer profile-level snapshot (manually pasted) over per-post sums
+  const linkedin = snap ? {
+    impressions: snap.impressions || 0,
+    likes:       snap.reactions || 0,
+    comments:    snap.comments || 0,
+    shares:      snap.reposts || 0,
+    clicks:      snap.link_clicks || 0,
+  } : {
     impressions: posts.reduce((s, p) => s + (p.impressions || 0), 0),
     likes:       posts.reduce((s, p) => s + (p.likes || 0), 0),
     comments:    posts.reduce((s, p) => s + (p.comments || 0), 0),
