@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,6 +210,38 @@ export default function BlueSkyDashboard() {
           </div>
         )}
       </Card>
+
+      {bskyPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={bskyPosts}
+              engagementFn={p => {
+                const total = (p.bsky_likes || 0) + (p.bsky_replies || 0) + (p.bsky_reposts || 0) + (p.bsky_quotes || 0);
+                return total;
+              }}
+              color="#0085ff"
+            />
+            <StrategyPerformanceChart
+              posts={bskyPosts}
+              engagementFn={p => (p.bsky_likes || 0) + (p.bsky_replies || 0) + (p.bsky_reposts || 0) + (p.bsky_quotes || 0)}
+              color="#0085ff"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={bskyPosts} metricKey="bsky_reposts" metricLabel="Reposts" color="#0085ff" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Likes', value: totalLikes },
+                { label: 'Replies', value: totalReplies },
+                { label: 'Reposts', value: totalReposts },
+                { label: 'Quotes', value: totalQuotes },
+              ]}
+              colors={['#ef4444', '#0ea5e9', '#22c55e', '#9333ea']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditBskyStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />

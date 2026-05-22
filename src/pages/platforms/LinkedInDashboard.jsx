@@ -6,6 +6,7 @@ import { Linkedin, ClipboardPaste } from 'lucide-react';
 import LinkedInEngagement from '@/components/dashboard/LinkedInEngagement';
 import LinkedInOverallStats from '@/components/dashboard/LinkedInOverallStats';
 import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 
 export default function LinkedInDashboard() {
   const queryClient = useQueryClient();
@@ -46,6 +47,36 @@ export default function LinkedInDashboard() {
 
       {/* Profile-level analytics (from manual paste) */}
       <LinkedInOverallStats onPasteClick={() => setShowSnapshotModal(true)} />
+
+      {/* Analytics Charts */}
+      {publishedPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={publishedPosts}
+              engagementFn={p => p.impressions > 0 ? parseFloat(((( p.likes || 0) + (p.comments || 0) + (p.shares || 0)) / p.impressions * 100).toFixed(2)) : 0}
+              color="#0a66c2"
+            />
+            <StrategyPerformanceChart
+              posts={publishedPosts}
+              engagementFn={p => p.impressions > 0 ? parseFloat(((( p.likes || 0) + (p.comments || 0) + (p.shares || 0)) / p.impressions * 100).toFixed(2)) : 0}
+              color="#0a66c2"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={publishedPosts} metricKey="impressions" metricLabel="Impressions" color="#0a66c2" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Likes', value: publishedPosts.reduce((s, p) => s + (p.likes || 0), 0) },
+                { label: 'Comments', value: publishedPosts.reduce((s, p) => s + (p.comments || 0), 0) },
+                { label: 'Shares', value: publishedPosts.reduce((s, p) => s + (p.shares || 0), 0) },
+                { label: 'Clicks', value: publishedPosts.reduce((s, p) => s + (p.clicks || 0), 0) },
+              ]}
+              colors={['#0a66c2', '#f59e0b', '#9333ea', '#22c55e']}
+            />
+          </div>
+        </>
+      )}
 
       {/* Per-post engagement (auto-synced from LinkedIn API) */}
       <LinkedInEngagement posts={posts} />

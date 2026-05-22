@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -206,6 +207,34 @@ export default function MastodonDashboard() {
           </div>
         )}
       </Card>
+
+      {mastodonPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={mastodonPosts}
+              engagementFn={p => (p.mastodon_favourites || 0) + (p.mastodon_boosts || 0) + (p.mastodon_replies || 0)}
+              color="#563acc"
+            />
+            <StrategyPerformanceChart
+              posts={mastodonPosts}
+              engagementFn={p => (p.mastodon_favourites || 0) + (p.mastodon_boosts || 0) + (p.mastodon_replies || 0)}
+              color="#563acc"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={mastodonPosts} metricKey="mastodon_boosts" metricLabel="Boosts" color="#563acc" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Favourites', value: totalFavourites },
+                { label: 'Boosts', value: totalBoosts },
+                { label: 'Replies', value: totalReplies },
+              ]}
+              colors={['#eab308', '#22c55e', '#9333ea']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditMastodonStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />

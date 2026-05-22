@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -226,6 +227,35 @@ export default function InstagramDashboard() {
           </div>
         )}
       </Card>
+
+      {igPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={igPosts}
+              engagementFn={p => p.ig_reach > 0 ? parseFloat(((( p.ig_likes || 0) + (p.ig_comments || 0) + (p.ig_saves || 0)) / p.ig_reach * 100).toFixed(2)) : 0}
+              color="#dc2743"
+            />
+            <StrategyPerformanceChart
+              posts={igPosts}
+              engagementFn={p => p.ig_reach > 0 ? parseFloat(((( p.ig_likes || 0) + (p.ig_comments || 0) + (p.ig_saves || 0)) / p.ig_reach * 100).toFixed(2)) : 0}
+              color="#dc2743"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={igPosts} metricKey="ig_saves" metricLabel="Saves" color="#3b82f6" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Likes', value: totalLikes },
+                { label: 'Comments', value: totalComments },
+                { label: 'Shares', value: totalShares },
+                { label: 'Saves', value: totalSaves },
+              ]}
+              colors={['#ef4444', '#f59e0b', '#ec4899', '#3b82f6']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditIGStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />

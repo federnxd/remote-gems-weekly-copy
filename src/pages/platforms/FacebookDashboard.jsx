@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -214,6 +214,35 @@ export default function FacebookDashboard() {
           </div>
         )}
       </Card>
+
+      {fbPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={fbPosts}
+              engagementFn={p => p.fb_impressions > 0 ? parseFloat(((( p.fb_likes || 0) + (p.fb_comments || 0) + (p.fb_shares || 0)) / p.fb_impressions * 100).toFixed(2)) : 0}
+              color="#1877f2"
+            />
+            <StrategyPerformanceChart
+              posts={fbPosts}
+              engagementFn={p => p.fb_impressions > 0 ? parseFloat(((( p.fb_likes || 0) + (p.fb_comments || 0) + (p.fb_shares || 0)) / p.fb_impressions * 100).toFixed(2)) : 0}
+              color="#1877f2"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={fbPosts} metricKey="fb_link_clicks" metricLabel="Link Clicks" color="#1877f2" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Reactions', value: totalLikes },
+                { label: 'Comments', value: totalComments },
+                { label: 'Shares', value: totalShares },
+                { label: 'Link Clicks', value: totalClicks },
+              ]}
+              colors={['#1877f2', '#f59e0b', '#9333ea', '#22c55e']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditFBStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />

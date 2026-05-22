@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,6 +210,34 @@ export default function ThreadsDashboard() {
           </div>
         )}
       </Card>
+
+      {threadsPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={threadsPosts}
+              engagementFn={p => p.threads_views > 0 ? parseFloat(((( p.threads_likes || 0) + (p.threads_replies || 0) + (p.threads_reposts || 0)) / p.threads_views * 100).toFixed(2)) : 0}
+              color="#374151"
+            />
+            <StrategyPerformanceChart
+              posts={threadsPosts}
+              engagementFn={p => p.threads_views > 0 ? parseFloat(((( p.threads_likes || 0) + (p.threads_replies || 0) + (p.threads_reposts || 0)) / p.threads_views * 100).toFixed(2)) : 0}
+              color="#374151"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={threadsPosts} metricKey="threads_views" metricLabel="Views" color="#374151" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Likes', value: totalLikes },
+                { label: 'Replies', value: totalReplies },
+                { label: 'Reposts', value: totalReposts },
+              ]}
+              colors={['#ef4444', '#0ea5e9', '#22c55e']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditThreadsStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />

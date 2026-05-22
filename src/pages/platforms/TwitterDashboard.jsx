@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { EngagementTrendChart, StrategyPerformanceChart, TopPostsChart, EngagementMixChart } from '@/components/platforms/PlatformAnalyticsCharts';
 import { base44 } from '@/api/base44Client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -195,6 +196,35 @@ export default function TwitterDashboard() {
           </div>
         )}
       </Card>
+
+      {twitterPosts.length >= 2 && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EngagementTrendChart
+              posts={twitterPosts}
+              engagementFn={p => p.twitter_impressions > 0 ? parseFloat(((( p.twitter_likes || 0) + (p.twitter_replies || 0) + (p.twitter_retweets || 0)) / p.twitter_impressions * 100).toFixed(2)) : 0}
+              color="#000000"
+            />
+            <StrategyPerformanceChart
+              posts={twitterPosts}
+              engagementFn={p => p.twitter_impressions > 0 ? parseFloat(((( p.twitter_likes || 0) + (p.twitter_replies || 0) + (p.twitter_retweets || 0)) / p.twitter_impressions * 100).toFixed(2)) : 0}
+              color="#000000"
+            />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TopPostsChart posts={twitterPosts} metricKey="twitter_impressions" metricLabel="Impressions" color="#0ea5e9" />
+            <EngagementMixChart
+              metrics={[
+                { label: 'Likes', value: totalLikes },
+                { label: 'Replies', value: totalReplies },
+                { label: 'Retweets', value: totalRetweets },
+                { label: 'Link Clicks', value: totalClicks },
+              ]}
+              colors={['#ef4444', '#0ea5e9', '#22c55e', '#9333ea']}
+            />
+          </div>
+        </>
+      )}
 
       {editingPost && (
         <EditTwitterStatsModal post={editingPost} open={!!editingPost} onClose={() => setEditingPost(null)} />
