@@ -142,10 +142,21 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
 
+  let body = {};
+  try { body = await req.json(); } catch { /* no body */ }
+
+  // If target_next_week is true (or called on Sunday), generate for NEXT week
   const today = new Date();
-  const monday = getMonday(today);
-  
-  // Generate posts for the next 7 days (Monday-Sunday)
+  const isSunday = today.getDay() === 0;
+  const targetNextWeek = body.target_next_week === true || isSunday;
+
+  let monday = getMonday(today);
+  if (targetNextWeek) {
+    // Advance to next Monday
+    monday = addDays(monday, 7);
+  }
+
+  // Generate posts for the 7 days (Monday-Sunday) of the target week
   const created = [];
   const errors = [];
 
@@ -155,29 +166,60 @@ Deno.serve(async (req) => {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
 
-  // Fetch planner context
+  // Separate new roles for Monday spotlight
+  const newRoles = roles.filter(r => r.is_new);
+  const allRoles = roles;
+
+  // Fetch planner context (includes recommended strategies and posting times)
   let plannerContext = '';
   let plannerPostingTimes = {};
+  let plannerStrategies = [];
   try {
     const plannerRes = await db.functions.invoke('getPlannerContext', {});
     if (plannerRes?.hasData) {
       plannerContext = plannerRes.context || '';
       plannerPostingTimes = plannerRes.postingTimes || {};
+      // Use planner-recommended strategies if available (ordered list)
+      if (plannerRes.recommendedStrategies && plannerRes.recommendedStrategies.length >= 2) {
+        plannerStrategies = plannerRes.recommendedStrategies;
+      }
     }
   } catch { /* continue without planner context */ }
+
+  // Build the day strategy rotation — use planner-recommended if available
+  const effectiveDayStrategies = plannerStrategies.length >= 7
+    ? plannerStrategies.slice(0, 7)
+    : plannerStrategies.length >= 2
+      ? [
+          'targeted_role',     // Monday always highlights new roles
+          plannerStrategies[0],
+          plannerStrategies[1],
+          plannerStrategies[2] || 'urgency',
+          plannerStrategies[3] || 'carousel_text',
+          plannerStrategies[4] || 'niche_community',
+          'targeted_role',     // Sunday recap
+        ]
+      : DAY_STRATEGIES;
 
   // For each day of the week
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const currentDate = addDays(monday, dayOffset);
     const dateStr = currentDate.toISOString().split('T')[0];
-    const dayOfWeek = currentDate.getDay(); // 0=Sun, 1=Mon, etc.
-    const strategy = DAY_STRATEGIES[dayOffset];
+    const strategy = effectiveDayStrategies[dayOffset];
+
+    // Monday: always spotlight new roles (if any), fallback to all roles
+    const dayRoles = (dayOffset === 0 && newRoles.length > 0) ? newRoles : allRoles;
 
     // For each platform
     for (const platform of ALL_PLATFORMS) {
       try {
+        // Monday prompt gets a special new-roles intro instruction
+        const mondayExtra = dayOffset === 0 && newRoles.length > 0
+          ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Make sure to highlight them prominently as "fresh opportunities" at the top of the roles list.`
+          : '';
+
         const content = await db.integrations.Core.InvokeLLM({
-          prompt: buildPrompt(roles, platform, dayOffset, strategy, plannerContext),
+          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + mondayExtra,
         });
 
         // Use planner-recommended time or stagger throughout the day
@@ -189,11 +231,11 @@ Deno.serve(async (req) => {
           title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
           content,
           strategy,
-          target_roles: roles.map(r => r.title).join(', '),
+          target_roles: dayRoles.map(r => r.title).join(', '),
           status: 'scheduled',
           scheduled_date: dateStr,
           scheduled_time: timeStr,
-          notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}`,
+          notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}${dayOffset === 0 && newRoles.length > 0 ? ' new_roles_monday' : ''}`,
         });
 
         created.push({ postId: post.id, platform, date: dateStr });
@@ -205,7 +247,10 @@ Deno.serve(async (req) => {
 
   return Response.json({
     message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${monday.toISOString().split('T')[0]}`,
+    targetWeek: monday.toISOString().split('T')[0],
     totalCreated: created.length,
+    usedPlannerStrategies: plannerStrategies.length > 0,
+    newRolesOnMonday: newRoles.length,
     errors: errors.length > 0 ? errors : undefined,
   });
 });
