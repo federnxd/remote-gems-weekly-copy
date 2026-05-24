@@ -47,39 +47,13 @@ Deno.serve(async (req) => {
       if (!igRes.ok) {
         results.instagram = { valid: false, error: igData.error?.message };
       } else {
-        // Try to create a media container WITHOUT publishing (dry run)
-        const createRes = await fetch(
-          `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id&access_token=${pageToken}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              image_url: 'https://via.placeholder.com/100x100.png',
-              caption: 'test'
-            })
-          }
-        );
-        const createData = await createRes.json();
-        
-        if (!createRes.ok) {
-          results.instagram = { 
-            valid: false, 
-            error: createData.error?.message,
-            accountName: igData.name,
-            username: igData.username,
-            mediaCount: igData.media_count
-          };
-        } else {
-          // Successfully created container - can publish
-          results.instagram = { 
-            valid: true,
-            accountName: igData.name,
-            username: igData.username,
-            mediaCount: igData.media_count,
-            containerCreated: true,
-            containerId: createData.id
-          };
-        }
+        // Account accessible — publishing capability verified via testSocialPlatforms
+        results.instagram = { 
+          valid: true,
+          accountName: igData.name,
+          username: igData.username,
+          mediaCount: igData.media_count
+        };
       }
     } catch (e) {
       results.instagram = { valid: false, error: e.message };
