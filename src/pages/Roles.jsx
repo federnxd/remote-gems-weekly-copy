@@ -111,9 +111,9 @@ export default function Roles() {
     const removed = roles.filter(r => !extractedTitles.includes(r.title.toLowerCase()));
     const existing = roles.filter(r => extractedTitles.includes(r.title.toLowerCase()));
 
-    // Add new roles
-    for (const r of newOnes) {
-      await base44.entities.OpenRole.create({
+    // Run all DB operations in parallel
+    await Promise.all([
+      ...newOnes.map(r => base44.entities.OpenRole.create({
         title: r.title,
         category: categoryGuess(r.title),
         priority: r.is_high_demand ? 'high' : 'medium',
@@ -123,13 +123,11 @@ export default function Roles() {
         openings: r.openings || 0,
         required_skills: r.required_skills || '',
         pay_rate: r.pay_rate || '',
-      });
-    }
-    // Update existing roles with latest extracted data
-    for (const role of existing) {
-      const matched = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
-      if (matched) {
-        await base44.entities.OpenRole.update(role.id, {
+      })),
+      ...existing.map(role => {
+        const matched = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
+        if (!matched) return Promise.resolve();
+        return base44.entities.OpenRole.update(role.id, {
           openings: matched.openings ?? role.openings,
           is_new: matched.is_new || false,
           is_high_demand: matched.is_high_demand || false,
@@ -137,12 +135,9 @@ export default function Roles() {
           pay_rate: matched.pay_rate || role.pay_rate || '',
           is_active: true,
         });
-      }
-    }
-    // Deactivate removed roles (mark inactive rather than delete)
-    for (const role of removed) {
-      await base44.entities.OpenRole.update(role.id, { is_active: false, is_new: false });
-    }
+      }),
+      ...removed.map(role => base44.entities.OpenRole.update(role.id, { is_active: false, is_new: false })),
+    ]);
 
     queryClient.invalidateQueries({ queryKey: ['open-roles'] });
     setIsSyncing(false);
