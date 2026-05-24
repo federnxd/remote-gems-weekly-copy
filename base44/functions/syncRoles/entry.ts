@@ -12,11 +12,13 @@ Deno.serve(async (req) => {
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `Extract all job roles from the following text. For each role extract:
 - "title": the job title (string)
-- "is_new": true if the role is labeled or tagged as "NEW" (e.g. "NEW", "🆕", "new role"), false otherwise
-- "is_high_demand": true if the role is labeled as "High demand", "High Demand", "🔥", or similar urgency indicators, false otherwise
+- "is_new": true if the role is labeled or tagged as "NEW" or "🆕" anywhere near it, false otherwise
+- "is_high_demand": true if the words "High Demand", "high demand", "HIGH DEMAND", or "🔥" appear anywhere near or next to the role title. Look carefully — these tags are often on the same line or right after the title. If you see "High Demand" anywhere adjacent to a role, set this to true.
 - "openings": number of open positions (look for patterns like "3 openings", "(5)", "x2", "2 positions"). Use 0 if not found.
 - "required_skills": key skills or requirements mentioned for this role (short comma-separated string, e.g. "Python, 3+ years exp, ML"). Empty string if not found.
 - "pay_rate": any pay/compensation info for this role (e.g. "$25/hr", "$80k-120k", "up to $50/hr"). Empty string if not found.
+
+IMPORTANT: Do NOT miss "High Demand" or "🔥" tags. They may appear inline with the title like: "ML Engineer 🔥 High Demand" or on the same line. Always check the full line for these tags.
 
 Return a JSON object with a "roles" array.
 
