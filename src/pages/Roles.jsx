@@ -312,7 +312,12 @@ export default function Roles() {
                     🆕 NEW
                   </Badge>
                 )}
-                {role.priority === 'high' && (
+                {role.is_high_demand && (
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] font-bold border border-orange-300">
+                    🔥 High Demand
+                  </Badge>
+                )}
+                {role.priority === 'high' && !role.is_high_demand && (
                   <Badge variant="secondary" className="bg-destructive/10 text-destructive text-[10px]">
                     High Priority
                   </Badge>
