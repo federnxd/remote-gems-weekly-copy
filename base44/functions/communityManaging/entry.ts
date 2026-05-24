@@ -3,7 +3,12 @@ import OpenAI from 'npm:openai';
 
 // ── Utility: human-like random delay ─────────────────────────────────────────
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const randMs = (minSec, maxSec) => Math.floor(Math.random() * (maxSec - minSec + 1) + minSec) * 1000;
+// Wide-variance human delay: seconds range + random extra ms to avoid integer patterns
+const randMs = (minSec, maxSec) => {
+  const base = Math.floor(Math.random() * (maxSec - minSec + 1) + minSec) * 1000;
+  const jitter = Math.floor(Math.random() * 800); // sub-second jitter
+  return base + jitter;
+};
 
 // ── Niche hashtags & keywords ─────────────────────────────────────────────────
 const NICHE_HASHTAGS = [
@@ -75,10 +80,10 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  // Session limits
-  const maxLikes = Math.floor(Math.random() * 20) + 10;     // 10-30 per session
-  const maxComments = Math.floor(Math.random() * 3) + 1;    // 1-4 per session
-  const maxFollows = Math.floor(Math.random() * 8) + 3;     // 3-11 per session
+  // Session limits — deliberately low and varied to mimic casual browsing
+  const maxLikes = Math.floor(Math.random() * 12) + 5;      // 5-17 per session
+  const maxComments = Math.floor(Math.random() * 2) + 1;    // 1-3 per session
+  const maxFollows = Math.floor(Math.random() * 5) + 2;     // 2-7 per session
 
   // Pick 2-3 random hashtags to search (from planner-recommended or default list)
   const selectedHashtags = pickRandom(hashtags, Math.floor(Math.random() * 2) + 2);
@@ -110,9 +115,9 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
       // Skip our own posts
       if (post.account?.acct?.includes(instanceUrl.replace('https://', ''))) continue;
 
-      // Like the post (human delay before action)
+      // Like the post — simulate reading the post first, then reacting
       if (log.likes_given < maxLikes && !post.favourited) {
-        await sleep(randMs(8, 25));
+        await sleep(randMs(12, 40)); // reading time before liking
         try {
           const likeRes = await fetch(`${instanceUrl}/api/v1/statuses/${post.id}/favourite`, { method: 'POST', headers });
           if (likeRes.status === 429) { log.warnings = 'Rate limited during like'; return log; }
@@ -120,9 +125,9 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
         } catch { /* continue */ }
       }
 
-      // Maybe comment (much rarer, more human)
-      if (log.comments_posted < maxComments && content.length > 80 && Math.random() < 0.15) {
-        await sleep(randMs(30, 90));
+      // Maybe comment — very rare, needs "reading + composing" time
+      if (log.comments_posted < maxComments && content.length > 80 && Math.random() < 0.10) {
+        await sleep(randMs(45, 120)); // simulate reading + typing
         try {
           const comment = await generateComment(content, 'mastodon');
           const replyRes = await fetch(`${instanceUrl}/api/v1/statuses`, {
@@ -135,11 +140,11 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
         } catch { /* continue */ }
       }
 
-      // Maybe follow the account (rarest, most deliberate)
+      // Maybe follow the account — rarest, simulate going to profile first
       const accountId = post.account?.id;
-      if (accountId && !seenAccountIds.has(accountId) && log.follows_made < maxFollows && !post.account?.following && Math.random() < 0.2) {
+      if (accountId && !seenAccountIds.has(accountId) && log.follows_made < maxFollows && !post.account?.following && Math.random() < 0.12) {
         seenAccountIds.add(accountId);
-        await sleep(randMs(15, 40));
+        await sleep(randMs(20, 60)); // simulate viewing profile
         try {
           const followRes = await fetch(`${instanceUrl}/api/v1/accounts/${accountId}/follow`, { method: 'POST', headers });
           if (followRes.status === 429) { log.warnings = 'Rate limited during follow'; break; }
@@ -151,8 +156,8 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
       if (log.likes_given >= maxLikes && log.follows_made >= maxFollows && log.comments_posted >= maxComments) break;
     }
 
-    // Pause between hashtags
-    await sleep(randMs(20, 60));
+    // Pause between hashtags — simulate switching context / reading feed
+    await sleep(randMs(40, 120));
   }
 
   // Unfollow accounts that didn't follow back (tracked in a separate daily logic via log — keep simple for now)
@@ -184,9 +189,9 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
 
   const headers = { Authorization: `Bearer ${accessJwt}`, 'Content-Type': 'application/json' };
 
-  const maxLikes = Math.floor(Math.random() * 20) + 10;
-  const maxComments = Math.floor(Math.random() * 3) + 1;
-  const maxFollows = Math.floor(Math.random() * 8) + 3;
+  const maxLikes = Math.floor(Math.random() * 12) + 5;     // 5-17 per session
+  const maxComments = Math.floor(Math.random() * 2) + 1;   // 1-3 per session
+  const maxFollows = Math.floor(Math.random() * 5) + 2;    // 2-7 per session
 
   const selectedBskyHashtags = pickRandom(hashtags, Math.floor(Math.random() * 2) + 2);
   const seenUris = new Set();
@@ -222,9 +227,9 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
 
       const cid = post.cid;
 
-      // Like
+      // Like — simulate reading before reacting
       if (log.likes_given < maxLikes && !post.viewer?.like) {
-        await sleep(randMs(8, 25));
+        await sleep(randMs(12, 40));
         try {
           const likeRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
             method: 'POST',
@@ -240,9 +245,9 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
         } catch { /* continue */ }
       }
 
-      // Comment
-      if (log.comments_posted < maxComments && text.length > 80 && Math.random() < 0.15) {
-        await sleep(randMs(30, 90));
+      // Comment — very rare, with reading + typing simulation
+      if (log.comments_posted < maxComments && text.length > 80 && Math.random() < 0.10) {
+        await sleep(randMs(45, 120));
         try {
           const comment = await generateComment(text, 'bluesky');
           const replyRef = { root: { uri, cid }, parent: { uri, cid } };
@@ -265,11 +270,11 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
         } catch { /* continue */ }
       }
 
-      // Follow author
+      // Follow author — simulate visiting profile
       const authorDid = post.author?.did;
-      if (authorDid && !seenDids.has(authorDid) && log.follows_made < maxFollows && !post.author?.viewer?.following && Math.random() < 0.2) {
+      if (authorDid && !seenDids.has(authorDid) && log.follows_made < maxFollows && !post.author?.viewer?.following && Math.random() < 0.12) {
         seenDids.add(authorDid);
-        await sleep(randMs(15, 40));
+        await sleep(randMs(20, 60));
         try {
           const followRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
             method: 'POST',
@@ -288,7 +293,7 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
       if (log.likes_given >= maxLikes && log.follows_made >= maxFollows && log.comments_posted >= maxComments) break;
     }
 
-    await sleep(randMs(20, 60));
+    await sleep(randMs(40, 120));
   }
 
   log.status = 'success';
@@ -566,7 +571,7 @@ Deno.serve(async (req) => {
 
     // ── Mastodon session ──
     const mastodonDaily = dailyTotals['mastodon'] || { likes: 0, comments: 0, follows: 0 };
-    if (mastodonDaily.likes < 180 && mastodonDaily.comments < 22 && mastodonDaily.follows < 55) {
+    if (mastodonDaily.likes < 80 && mastodonDaily.comments < 10 && mastodonDaily.follows < 25) {
       const mLog = {
         run_date: today, platform: 'mastodon',
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
@@ -579,12 +584,12 @@ Deno.serve(async (req) => {
       results.push({ platform: 'mastodon', status: 'skipped', reason: 'Daily limit reached' });
     }
 
-    // Pause between platforms (human-like)
-    await sleep(randMs(60, 180));
+    // Pause between platforms — as if switching tabs or apps
+    await sleep(randMs(90, 300));
 
     // ── Bluesky session ──
     const bskyDaily = dailyTotals['bluesky'] || { likes: 0, comments: 0, follows: 0 };
-    if (bskyDaily.likes < 180 && bskyDaily.comments < 22 && bskyDaily.follows < 55) {
+    if (bskyDaily.likes < 80 && bskyDaily.comments < 10 && bskyDaily.follows < 25) {
       const bLog = {
         run_date: today, platform: 'bluesky',
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
@@ -598,7 +603,7 @@ Deno.serve(async (req) => {
     }
 
     // Pause between platforms
-    await sleep(randMs(60, 180));
+    await sleep(randMs(90, 300));
 
     // ── Instagram: reply to comments on own posts ──
     const igDaily = dailyTotals['instagram'] || { likes: 0, comments: 0, follows: 0 };
@@ -616,7 +621,7 @@ Deno.serve(async (req) => {
     }
 
     // Pause between platforms
-    await sleep(randMs(60, 180));
+    await sleep(randMs(90, 300));
 
     // ── Facebook: reply to comments on own Page posts ──
     const fbDaily = dailyTotals['facebook'] || { likes: 0, comments: 0, follows: 0 };
@@ -634,7 +639,7 @@ Deno.serve(async (req) => {
     }
 
     // Pause between platforms
-    await sleep(randMs(60, 180));
+    await sleep(randMs(90, 300));
 
     // ── Threads: reply to comments on own posts ──
     const threadsDaily = dailyTotals['threads'] || { likes: 0, comments: 0, follows: 0 };

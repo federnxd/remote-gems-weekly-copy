@@ -139,6 +139,9 @@ async function publishFacebook(text) {
     throw new Error('Facebook credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID in settings.');
   }
 
+  // Small human-like hesitation before posting
+  await new Promise(r => setTimeout(r, Math.floor(Math.random() * 4000) + 1000));
+
   const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -276,6 +279,8 @@ async function publishThreads(text) {
     throw new Error('Threads credentials not configured. Please set THREADS_ACCESS_TOKEN and THREADS_USER_ID in settings.');
   }
 
+  await new Promise(r => setTimeout(r, Math.floor(Math.random() * 4000) + 1000));
+
   // Step 1: Create media container
   const createRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
     method: 'POST',
@@ -317,8 +322,11 @@ Deno.serve(async (req) => {
 
     const results = {};
 
-    // Run all selected platforms in parallel
+    // Stagger platform posts to avoid simultaneous identical API bursts (more human-like)
+    const staggerMs = () => Math.floor(Math.random() * 8000) + 2000; // 2-10s between platforms
+
     const tasks = platforms.map(async (platform) => {
+      await new Promise(r => setTimeout(r, staggerMs()));
       try {
         if (platform === 'linkedin') {
           const { accessToken } = await base44.asServiceRole.connectors.getConnection('linkedin');
