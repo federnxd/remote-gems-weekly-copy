@@ -103,39 +103,8 @@ export default function Roles() {
   const handleSync = async () => {
     if (!syncText.trim()) return;
     setIsSyncing(true);
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Extract all job roles from the following text. For each role extract:
-- "title": the job title (string)
-- "is_new": true if the role is labeled or tagged as "NEW" (e.g. "NEW", "🆕", "new role"), false otherwise
-- "openings": number of open positions (look for patterns like "3 openings", "(5)", "x2", "2 positions"). Use 0 if not found.
-- "required_skills": key skills or requirements mentioned for this role (short comma-separated string, e.g. "Python, 3+ years exp, ML"). Empty string if not found.
-- "pay_rate": any pay/compensation info for this role (e.g. "$25/hr", "$80k-120k", "up to $50/hr"). Empty string if not found.
-
-Return a JSON object with a "roles" array.
-
-Text:
-${syncText}`,
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          roles: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                is_new: { type: 'boolean' },
-                openings: { type: 'number' },
-                required_skills: { type: 'string' },
-                pay_rate: { type: 'string' },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const extracted = result?.roles || [];
+    const response = await base44.functions.invoke('syncRoles', { syncText });
+    const extracted = response.data?.roles || [];
     const extractedTitles = extracted.map(r => r.title.toLowerCase());
     const existingTitles = roles.map(r => r.title.toLowerCase());
     const newOnes = extracted.filter(r => !existingTitles.includes(r.title.toLowerCase()));
@@ -147,9 +116,10 @@ ${syncText}`,
       await base44.entities.OpenRole.create({
         title: r.title,
         category: categoryGuess(r.title),
-        priority: 'medium',
+        priority: r.is_high_demand ? 'high' : 'medium',
         is_active: true,
         is_new: r.is_new || false,
+        is_high_demand: r.is_high_demand || false,
         openings: r.openings || 0,
         required_skills: r.required_skills || '',
         pay_rate: r.pay_rate || '',
@@ -162,6 +132,7 @@ ${syncText}`,
         await base44.entities.OpenRole.update(role.id, {
           openings: matched.openings ?? role.openings,
           is_new: matched.is_new || false,
+          is_high_demand: matched.is_high_demand || false,
           required_skills: matched.required_skills || role.required_skills || '',
           pay_rate: matched.pay_rate || role.pay_rate || '',
           is_active: true,
