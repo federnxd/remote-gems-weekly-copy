@@ -40,11 +40,15 @@ function isRelevantContent(text) {
 }
 
 // ── LLM: generate a context-aware professional comment ────────────────────────
-async function generateComment(postText, platform) {
+async function generateComment(postText, platform, highDemandRoles = []) {
   const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
   const platformNote = platform === 'mastodon'
     ? 'Mastodon community (open-source, decentralized, thoughtful tone)'
     : 'Bluesky community (tech-savvy, direct, authentic tone)';
+
+  const highDemandContext = highDemandRoles.length > 0
+    ? `\nContext: The following roles are currently in HIGH DEMAND (many openings, actively hiring): ${highDemandRoles.map(r => r.title).join(', ')}. If relevant to the post, you may naturally weave in that these types of roles are seeing strong demand right now — but only if it fits organically. Never force it.`
+    : '';
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -59,7 +63,7 @@ Rules:
 - Never mention your own product, brand, or referral links
 - Never use placeholder text or templates
 - Sound like a real person, not a bot
-- Avoid exclamation spam, stay measured and professional`,
+- Avoid exclamation spam, stay measured and professional${highDemandContext}`,
       },
       {
         role: 'user',
@@ -73,7 +77,7 @@ Rules:
 }
 
 // ── MASTODON ──────────────────────────────────────────────────────────────────
-async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
+async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS, highDemandRoles = []) {
   const instanceUrl = (Deno.env.get('MASTODON_INSTANCE_URL') || '').replace(/\/+$/, '');
   const token = Deno.env.get('MASTODON_ACCESS_TOKEN');
   if (!instanceUrl || !token) { log.warnings = 'Mastodon credentials missing'; return log; }
@@ -129,7 +133,7 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
       if (log.comments_posted < maxComments && content.length > 80 && Math.random() < 0.10) {
         await sleep(randMs(45, 120)); // simulate reading + typing
         try {
-          const comment = await generateComment(content, 'mastodon');
+          const comment = await generateComment(content, 'mastodon', highDemandRoles);
           const replyRes = await fetch(`${instanceUrl}/api/v1/statuses`, {
             method: 'POST',
             headers,
@@ -168,7 +172,7 @@ async function runMastodonSession(base44, log, hashtags = NICHE_HASHTAGS) {
 }
 
 // ── BLUESKY ───────────────────────────────────────────────────────────────────
-async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
+async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS, highDemandRoles = []) {
   const handle = Deno.env.get('BLUESKY_HANDLE');
   const appPassword = Deno.env.get('BLUESKY_APP_PASSWORD');
   if (!handle || !appPassword) { log.warnings = 'Bluesky credentials missing'; return log; }
@@ -249,7 +253,7 @@ async function runBlueskySession(base44, log, hashtags = NICHE_HASHTAGS) {
       if (log.comments_posted < maxComments && text.length > 80 && Math.random() < 0.10) {
         await sleep(randMs(45, 120));
         try {
-          const comment = await generateComment(text, 'bluesky');
+          const comment = await generateComment(text, 'bluesky', highDemandRoles);
           const replyRef = { root: { uri, cid }, parent: { uri, cid } };
           const replyRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
             method: 'POST',
@@ -554,7 +558,23 @@ Deno.serve(async (req) => {
     } catch { /* continue with defaults */ }
 
     // Override hashtags with planner recommendations if available
-    const activeHashtags = plannerHashtags && plannerHashtags.length > 0 ? plannerHashtags : NICHE_HASHTAGS;
+    const baseHashtags = plannerHashtags && plannerHashtags.length > 0 ? plannerHashtags : NICHE_HASHTAGS;
+
+    // Fetch high-demand roles to boost hashtag targeting and comment context
+    let highDemandRoles = [];
+    try {
+      const allRoles = await base44.asServiceRole.entities.OpenRole.filter({ is_active: true, is_high_demand: true });
+      highDemandRoles = allRoles.slice(0, 8); // cap to avoid token bloat
+    } catch { /* continue without */ }
+
+    // Build extra hashtags from high-demand role titles (e.g. "ML Engineer" -> "mlengineer")
+    const highDemandHashtags = highDemandRoles.flatMap(r => {
+      const slug = r.title.toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const words = r.title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      return [slug, ...words.map(w => w.replace(/[^a-z0-9]/g, ''))];
+    }).filter(Boolean);
+
+    const activeHashtags = [...new Set([...baseHashtags, ...highDemandHashtags])];
 
     const today = new Date().toISOString().split('T')[0];
     const results = [];
@@ -577,7 +597,7 @@ Deno.serve(async (req) => {
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
         posts_found: 0, status: 'success', warnings: null, notes: null,
       };
-      await runMastodonSession(base44, mLog, activeHashtags);
+      await runMastodonSession(base44, mLog, activeHashtags, highDemandRoles);
       await base44.asServiceRole.entities.CommunityEngagementLog.create(mLog);
       results.push({ platform: 'mastodon', ...mLog });
     } else {
@@ -595,7 +615,7 @@ Deno.serve(async (req) => {
         likes_given: 0, comments_posted: 0, follows_made: 0, unfollows_made: 0,
         posts_found: 0, status: 'success', warnings: null, notes: null,
       };
-      await runBlueskySession(base44, bLog, activeHashtags);
+      await runBlueskySession(base44, bLog, activeHashtags, highDemandRoles);
       await base44.asServiceRole.entities.CommunityEngagementLog.create(bLog);
       results.push({ platform: 'bluesky', ...bLog });
     } else {

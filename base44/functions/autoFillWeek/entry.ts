@@ -48,6 +48,7 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
+    if (r.is_high_demand) line += ' 🔥 HIGH DEMAND';
     if (r.pay_rate) line += ` (${r.pay_rate})`;
     return line;
   }).join('\n');
@@ -98,7 +99,7 @@ FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform):
 
 4. ROLES LIST:
    - "micro1 is hiring experts across many fields — here's a sample of open roles:"
-   - Use the roles listed above, clean dash format. Mark 🆕 new ones if any.
+   - Use the roles listed above, clean dash format. Mark 🆕 new ones and 🔥 HIGH DEMAND roles if any (high demand means many openings and urgently hiring).
    - End with: "...and many more!"
 
 5. REFERRAL PERK (1 line):
@@ -166,8 +167,11 @@ Deno.serve(async (req) => {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
 
-  // Separate new roles for Monday spotlight
+  // Separate new and high-demand roles for Monday spotlight
   const newRoles = roles.filter(r => r.is_new);
+  const highDemandRoles = roles.filter(r => r.is_high_demand);
+  // Monday spotlight: new roles first, then high-demand, fallback to all
+  const mondaySpotlightRoles = newRoles.length > 0 ? newRoles : highDemandRoles.length > 0 ? highDemandRoles : roles;
   const allRoles = roles;
 
   // Fetch planner context (includes recommended strategies and posting times)
@@ -207,15 +211,19 @@ Deno.serve(async (req) => {
     const dateStr = currentDate.toISOString().split('T')[0];
     const strategy = effectiveDayStrategies[dayOffset];
 
-    // Monday: always spotlight new roles (if any), fallback to all roles
-    const dayRoles = (dayOffset === 0 && newRoles.length > 0) ? newRoles : allRoles;
+    // Monday: spotlight new/high-demand roles, fallback to all
+    const dayRoles = dayOffset === 0 ? mondaySpotlightRoles : allRoles;
 
     // For each platform
     for (const platform of ALL_PLATFORMS) {
       try {
         // Monday prompt gets a special new-roles intro instruction
-        const mondayExtra = dayOffset === 0 && newRoles.length > 0
-          ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Make sure to highlight them prominently as "fresh opportunities" at the top of the roles list.`
+        const mondayExtra = dayOffset === 0
+          ? newRoles.length > 0
+            ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Highlight them prominently as "fresh opportunities" at the top of the roles list.`
+            : highDemandRoles.length > 0
+              ? `\n\nSPECIAL MONDAY INSTRUCTION: These are HIGH DEMAND roles (marked 🔥) with many open positions urgently needed. Highlight the urgency and volume of openings naturally without hype.`
+              : ''
           : '';
 
         const content = await db.integrations.Core.InvokeLLM({
@@ -235,7 +243,7 @@ Deno.serve(async (req) => {
           status: 'scheduled',
           scheduled_date: dateStr,
           scheduled_time: timeStr,
-          notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}${dayOffset === 0 && newRoles.length > 0 ? ' new_roles_monday' : ''}`,
+          notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}${dayOffset === 0 && newRoles.length > 0 ? ' new_roles_monday' : dayOffset === 0 && highDemandRoles.length > 0 ? ' high_demand_monday' : ''}`,
         });
 
         created.push({ postId: post.id, platform, date: dateStr });
