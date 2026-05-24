@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
     if (!syncText?.trim()) return Response.json({ error: 'No text provided' }, { status: 400 });
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      model: 'gpt_5_mini',
       prompt: `Extract all job roles from the following text. For each role extract:
 - "title": the job title (string)
 - "is_new": true if the role is labeled or tagged as "NEW" or "🆕" anywhere near it, false otherwise

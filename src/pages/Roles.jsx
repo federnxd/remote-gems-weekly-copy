@@ -103,7 +103,14 @@ export default function Roles() {
   const handleSync = async () => {
     if (!syncText.trim()) return;
     setIsSyncing(true);
-    const response = await base44.functions.invoke('syncRoles', { syncText });
+    let response;
+    try {
+      response = await base44.functions.invoke('syncRoles', { syncText });
+    } catch (err) {
+      toast.error('Sync failed — the request timed out. Try pasting a shorter list or fewer roles at once.');
+      setIsSyncing(false);
+      return;
+    }
     const extracted = response.data?.roles || [];
     const extractedTitles = extracted.map(r => r.title.toLowerCase());
     const existingTitles = roles.map(r => r.title.toLowerCase());
