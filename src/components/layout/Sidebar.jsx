@@ -53,14 +53,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [platformsOpen, setPlatformsOpen] = useState(isPlatformRoute);
 
   useEffect(() => {
-    // Check current state on mount for all services
-    Promise.all([
-      base44.functions.invoke('toggleAutoPosting', { pause: null }),
-      base44.functions.invoke('toggleCommunityManaging', { pause: null }),
-      base44.functions.invoke('toggleDataAnalystPlanner', { pause: null }),
-    ]).then(([autoRes]) => {
-      if (autoRes.data?.isRunning !== undefined) {
-        setIsRunning(autoRes.data.isRunning);
+    // Read status directly from the settings entity
+    base44.entities.AutoPostSettings.list().then((records) => {
+      if (records.length > 0) {
+        setIsRunning(!records[0].is_paused);
       }
     }).catch(() => {});
   }, []);
