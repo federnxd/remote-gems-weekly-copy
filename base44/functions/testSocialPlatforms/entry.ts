@@ -61,7 +61,11 @@ Deno.serve(async (req) => {
 
     // ── INSTAGRAM ─────────────────────────────────────────────────────────
     try {
-      const igImageUrl = 'https://media.base44.com/images/public/69fa0f8cf2ee4daa2ecf29f3/e12bc7fb1_generated_image.png';
+      // Auto-generate a relevant image using AI
+      const imageGenResult = await base44.asServiceRole.integrations.Core.GenerateImage({
+        prompt: 'A vibrant, modern, professional social media image for Instagram about remote work and AI jobs. Themes: remote work, technology, global talent, careers, hiring, AI industry. Style: clean, bold, visually striking, no text overlay. Bright colors, professional aesthetic for a tech recruitment brand.'
+      });
+      const igImageUrl = imageGenResult.url;
 
       // Step 1: Create media container with image
       const createRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media`, {
@@ -76,9 +80,12 @@ Deno.serve(async (req) => {
       const createData = await createRes.json();
 
       if (!createRes.ok || !createData.id) {
-        results.instagram = { success: false, error: createData.error?.message || JSON.stringify(createData) };
+        results.instagram = { success: false, error: `Container creation failed: ${JSON.stringify(createData)}` };
       } else {
-        // Step 2: Publish
+        // Step 2: Wait for Instagram to process the media (status API unreliable, fixed wait is more reliable)
+        await new Promise(r => setTimeout(r, 60000));
+
+        // Step 3: Publish
         const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -86,7 +93,7 @@ Deno.serve(async (req) => {
         });
         const publishData = await publishRes.json();
         if (!publishRes.ok) {
-          results.instagram = { success: false, error: publishData.error?.message || JSON.stringify(publishData) };
+          results.instagram = { success: false, error: `Publish failed: ${JSON.stringify(publishData)}` };
         } else {
           results.instagram = { success: true, postId: publishData.id };
         }

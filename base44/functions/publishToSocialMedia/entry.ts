@@ -150,7 +150,15 @@ async function publishFacebook(text) {
   return { postId: data.id };
 }
 
-async function publishInstagram(text) {
+async function generateInstagramImage(base44, text) {
+  // Build a thematic prompt from the post content
+  const keywords = text.slice(0, 200);
+  const prompt = `A vibrant, modern, professional social media image for Instagram about remote work and AI jobs. The image should evoke themes of: remote work, technology, global talent, careers, hiring, AI industry. Style: clean, bold, visually striking, no text overlay. Inspired by: "${keywords}". Bright colors, professional aesthetic, suitable for a tech recruitment brand.`;
+  const result = await base44.asServiceRole.integrations.Core.GenerateImage({ prompt });
+  return result.url;
+}
+
+async function publishInstagram(text, base44) {
   const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
   const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
 
@@ -158,17 +166,13 @@ async function publishInstagram(text) {
     throw new Error('Instagram credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID in settings.');
   }
 
-  // Instagram only supports image/video posts via API; text-only requires a caption on an image.
-  // We'll post as a text-only "reel" workaround isn't available — instead use a plain caption with a placeholder image.
-  // Actually the Instagram Content Publishing API requires media. We'll use a publicly accessible image URL.
-  // Best approach: create a text-only post isn't supported. We need at least an image.
-  // We'll throw a helpful error if no image is provided.
-  throw new Error('Instagram requires an image to publish. Please attach an image when publishing to Instagram.');
+  const imageUrl = await generateInstagramImage(base44, text);
+  return publishInstagramWithImage(text, imageUrl, pageAccessToken, igAccountId);
 }
 
-async function publishInstagramWithImage(text, imageUrl) {
-  const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
-  const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
+async function publishInstagramWithImage(text, imageUrl, pageAccessToken, igAccountId) {
+  if (!pageAccessToken) pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
+  if (!igAccountId) igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
 
   if (!pageAccessToken || !igAccountId) {
     throw new Error('Instagram credentials not configured. Please set FACEBOOK_PAGE_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID in settings.');
@@ -187,19 +191,8 @@ async function publishInstagramWithImage(text, imageUrl) {
   if (!createRes.ok) throw new Error(`Instagram create container: ${await createRes.text()}`);
   const { id: creationId } = await createRes.json();
 
-  // Step 2: Poll until media container is FINISHED (ready to publish)
-  const maxAttempts = 10;
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const statusRes = await fetch(
-      `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${pageAccessToken}`
-    );
-    if (!statusRes.ok) break;
-    const statusData = await statusRes.json();
-    if (statusData.status_code === 'FINISHED') break;
-    if (statusData.status_code === 'ERROR') throw new Error(`Instagram media processing failed: ${JSON.stringify(statusData)}`);
-    // else IN_PROGRESS — keep waiting
-  }
+  // Step 2: Wait for Instagram to process the media (status API unreliable, fixed wait is more reliable)
+  await new Promise(r => setTimeout(r, 60000));
 
   // Step 3: Publish the container
   const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
@@ -370,8 +363,9 @@ Deno.serve(async (req) => {
           }
         } else if (platform === 'instagram') {
           const imageToUse = igImageUrl || fileUrl;
-          if (!imageToUse) throw new Error('Instagram requires an image. Please generate or attach an image.');
-          const r = await publishInstagramWithImage(postContent, imageToUse);
+          const r = imageToUse
+            ? await publishInstagramWithImage(postContent, imageToUse)
+            : await publishInstagram(postContent, base44);
           results.instagram = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { ig_post_id: r.postId, status: 'published' });
