@@ -165,7 +165,10 @@ Deno.serve(async (req) => {
     const scheduledAt = new Date(`${post.scheduled_date}T${timeStr}:00-03:00`); // Argentina TZ
     const diffMs = scheduledAt - now;
     const diffMinutes = diffMs / 60000;
-    return diffMinutes >= 0 && diffMinutes <= 30 && !post.notes?.includes('[APPROVAL_SENT]') && !post.notes?.includes('[AUTO_PUBLISHED]');
+    // Publish if: within 30 min window OR already overdue (diffMinutes < 0 but still today)
+    const isOverdue = diffMinutes < 0 && diffMinutes > -1440; // within last 24 hours
+    const isDueSoon = diffMinutes >= 0 && diffMinutes <= 30;
+    return (isDueSoon || isOverdue) && !post.notes?.includes('[APPROVAL_SENT]') && !post.notes?.includes('[AUTO_PUBLISHED]');
   });
 
   const results = [];
@@ -180,10 +183,11 @@ Deno.serve(async (req) => {
       const approveUrl = `${appBaseUrl}/api/functions/approveScheduledPost?token=${encodeURIComponent(token)}&postId=${post.id}`;
       const timeDisplay = post.scheduled_time || '09:00';
 
-      await db.integrations.Core.SendEmail({
-        to: Deno.env.get('APPROVAL_EMAIL') || 'admin@example.com',
-        subject: `✅ Approve LinkedIn Post: "${post.title}" scheduled for ${post.scheduled_date} ${timeDisplay}`,
-        body: `
+      try {
+        await db.integrations.Core.SendEmail({
+          to: Deno.env.get('APPROVAL_EMAIL') || 'admin@example.com',
+          subject: `✅ Approve LinkedIn Post: "${post.title}" scheduled for ${post.scheduled_date} ${timeDisplay}`,
+          body: `
 Hi,
 
 A LinkedIn post is scheduled to go out at ${timeDisplay} on ${post.scheduled_date} (Argentina time).
@@ -204,14 +208,21 @@ ${approveUrl}
 If you do NOT want this post published, simply ignore this email.
 
 – Your LinkedIn Automation
-        `.trim(),
-      });
+          `.trim(),
+        });
 
-      await db.entities.GeneratedPost.update(post.id, {
-        notes: ((post.notes || '') + '\n[APPROVAL_SENT]').trim(),
-      });
+        await db.entities.GeneratedPost.update(post.id, {
+          notes: ((post.notes || '') + '\n[APPROVAL_SENT]').trim(),
+        });
 
-      results.push({ postId: post.id, title: post.title, platform: 'linkedin', status: 'approval_email_sent' });
+        results.push({ postId: post.id, title: post.title, platform: 'linkedin', status: 'approval_email_sent' });
+      } catch (emailErr) {
+        // If email fails, mark post for manual review but don't block other posts
+        await db.entities.GeneratedPost.update(post.id, {
+          notes: ((post.notes || '') + `\n[APPROVAL_EMAIL_FAILED: ${emailErr.message.slice(0, 100)}]`).trim(),
+        });
+        results.push({ postId: post.id, title: post.title, platform: 'linkedin', status: 'email_failed', error: emailErr.message });
+      }
 
     } else {
       // Non-LinkedIn: auto-publish directly
