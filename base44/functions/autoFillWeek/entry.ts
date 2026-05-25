@@ -255,9 +255,16 @@ Deno.serve(async (req) => {
   // manual call (no flag) → current week always
   const isAutomatedSundayRun = body.target_next_week === true || (isSunday && body.manual !== true);
 
-  let monday = getMonday(today);
-  if (isAutomatedSundayRun) {
-    monday = addDays(monday, 7); // advance to next Monday
+  // Allow frontend to pass an explicit target monday (manual override)
+  let monday;
+  if (body.target_monday) {
+    const [y, m, d] = body.target_monday.split('-').map(Number);
+    monday = new Date(y, m - 1, d);
+  } else {
+    monday = getMonday(today);
+    if (isAutomatedSundayRun) {
+      monday = addDays(monday, 7);
+    }
   }
 
   // Generate posts for the 7 days (Monday-Sunday) of the target week

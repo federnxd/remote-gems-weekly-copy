@@ -95,11 +95,11 @@ async function buildJobPostPrompt(slot, roles, platform) {
    ${fixedMonthlyHeader}`
     : `1. HEADLINE (first 1–2 lines — must be unique, creative, and human):
 HEADLINE EXAMPLES (pick ONE creative variation — never repeat the same formula):
-${isLinkedIn ? `- "Been exploring remote AI work lately — here's what I found at micro1 👇"
-- "micro1 is quietly building something big — and they need experts like you"
-- "Real remote roles. Real pay. No gimmicks. micro1 is hiring across 30+ fields."
-- "A friend asked me last week: 'Is micro1 legit?' — here's the honest answer."
-- "What does it actually take to work with micro1? A short interview + your expertise."` : `- "Been looking at remote AI jobs lately — here's what I found 👇"
+${isLinkedIn ? `- "Been exploring remote AI work lately — here's what I found 👇"
+- "Leading AI labs are quietly building something big — and they need experts like you"
+- "Real remote roles. Real pay. No gimmicks. Top AI companies are hiring across 30+ fields."
+- "A friend asked me last week: 'Are these AI expert roles legit?' — here's the honest answer."
+- "What does it actually take to get an AI expert role? A short interview + your expertise."` : `- "Been looking at remote AI jobs lately — here's what I found 👇"
 - "If you're a specialist looking for legit remote work, this might be for you 🌍"
 - "Leading AI companies are quietly hiring across 30+ fields — here's the list"
 - "Tired of vague job listings? Here are actual open roles with actual pay rates."
@@ -109,14 +109,9 @@ ${isLinkedIn ? `- "Been exploring remote AI work lately — here's what I found 
 Pick something fresh and fitting for the PLATFORM TONE and STRATEGY. Make the first line grab attention naturally.
    ALWAYS add the referral link on its own line right after: ➡️ ${REFERRAL_LINK}`;
 
-  const rolesIntro = isLinkedIn
-    ? 'micro1 is hiring experts across many fields — here\'s a sample of open roles:'
-    : 'Leading AI companies are hiring experts across many fields — here\'s a sample of open roles:';
+  const rolesIntro = 'Leading AI companies are hiring experts across many fields — here\'s a sample of open roles:';
 
-  const personalStorySection = isLinkedInPersonalStory ? `
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team` : `
+  const personalStorySection = `
 2. BRIEF CONTEXT (1–2 sentences):
    - Do NOT mention any specific company name
    - Briefly frame the opportunity: remote expert roles at leading AI companies, global hiring, growing field
@@ -160,8 +155,7 @@ STRICT RULES:
 - NO fixed/template headlines — every post must open differently
 - For Twitter: keep under 280 characters, just hook + link
 - For Reddit/Discord: sound like a real person sharing an opportunity
-- Personal story (working at micro1 as Audio Expert/Reviewer) is ONLY allowed on LinkedIn social_proof posts
-${!isLinkedIn ? '- CRITICAL: Do NOT mention "micro1" or any specific company name anywhere in the post' : ''}
+- CRITICAL: Do NOT mention "micro1" or any specific company name anywhere in the post. Refer only to "leading AI companies" or "top AI labs".
 
 Generate ONLY the post content, no explanations.`;
 }
@@ -171,7 +165,7 @@ function buildThoughtLeadershipPrompt(platform, topicIndex) {
   const tone = PLATFORM_TONES[platform] || 'Informative, engaging.';
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  return `You are writing a thought leadership post for ${platform.toUpperCase()} on behalf of a professional working at micro1 as an Audio Expert Reviewer. Write in first person — personal, credible, genuine. This is NOT a job ad.
+  return `You are writing a thought leadership post for ${platform.toUpperCase()} on behalf of a professional working in the AI industry. Write in first person — personal, credible, genuine. This is NOT a job ad.
 
 TODAY: ${currentDate}
 PLATFORM: ${platform.toUpperCase()}
@@ -183,7 +177,7 @@ INSTRUCTIONS:
 - Write an educational/informative post about the topic
 - Use real, plausible data from 2024-2025 (cite WEF, McKinsey, LinkedIn, OECD naturally)
 - Connect to your personal experience working remotely in AI
-- Do NOT mention job openings, referral links, or micro1 hiring
+- Do NOT mention job openings, referral links, or any specific company name
 - End with an open question or discussion invite (except Twitter: hashtags instead)
 - Twitter: max 280 chars, one punchy stat, 2 hashtags max
 - Reddit: conversational, curious, invite genuine discussion
@@ -240,59 +234,29 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const handleGenerate = async () => {
     setStep('generating');
     setProgress(0);
-
-    // Count total posts to generate (one per platform per slot)
     const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
     setTotalTasks(total);
 
-    let done = 0;
-    let created = 0;
-    const topicIndex = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    try {
+      // Delegate to backend to avoid browser timeout on 90+ LLM calls
+      const monday = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
+      const mondayStr = format(monday, 'yyyy-MM-dd');
 
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const result = await base44.functions.invoke('autoFillWeek', {
+        manual: true,
+        target_monday: mondayStr,
+      });
 
-    for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
-      const slot = slots[slotIdx];
-
-      for (let pIdx = 0; pIdx < slot.platforms.length; pIdx++) {
-        const platform = slot.platforms[pIdx];
-
-        // Small delay between calls to avoid rate limiting
-        if (done > 0) await sleep(800);
-
-        let content;
-        if (slot.type === 'thought') {
-          content = await base44.integrations.Core.InvokeLLM({
-            prompt: buildThoughtLeadershipPrompt(platform, topicIndex + slotIdx),
-            add_context_from_internet: true,
-            model: 'gemini_3_flash',
-          });
-        } else {
-          const prompt = await buildJobPostPrompt(slot, roles, platform);
-          content = await base44.integrations.Core.InvokeLLM({ prompt });
-        }
-
-        await base44.entities.GeneratedPost.create({
-          title: `${slot.label} — ${platform} — ${format(slot.date, 'MMM d')}`,
-          content,
-          strategy: slot.strategy,
-          status: 'scheduled',
-          scheduled_date: slot.dateStr,
-          scheduled_time: slot.time,
-          target_roles: slot.type === 'job' ? roles.map(r => r.title).join(', ') : 'general audience',
-          notes: `[AUTO_GENERATED] platform:${platform} type:${slot.type}`,
-        });
-
-        done++;
-        created++;
-        setProgress(done);
-        setGeneratedCount(created);
-      }
+      const created = result?.data?.totalCreated ?? result?.totalCreated ?? 0;
+      setGeneratedCount(created);
+      setProgress(total);
+      setStep('done');
+      toast.success(`${created} posts added to your calendar!`);
+      onPostsCreated?.();
+    } catch (err) {
+      toast.error('Generation failed: ' + (err?.message || 'Unknown error'));
+      setStep('preview');
     }
-
-    setStep('done');
-    toast.success(`${created} posts added to your calendar!`);
-    onPostsCreated?.();
   };
 
   return (
