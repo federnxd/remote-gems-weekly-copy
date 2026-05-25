@@ -446,16 +446,15 @@ Deno.serve(async (req) => {
       .filter(Boolean)
   );
 
-  // Process each day sequentially, but all platforms in parallel per day
+  // Build per-day work items
+  const dayJobs = [];
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const currentDate = addDays(monday, dayOffset);
     const dateStr = toDateStr(currentDate);
     const strategy = effectiveDayStrategies[dayOffset];
-
-    // Smart role selection based on strategy type
     const dayRoles = selectRolesForStrategy(strategy, dayOffset);
 
-    // Strategy-specific extra instructions injected into the prompt
+    // Strategy-specific extra instruction
     let strategyExtra = '';
     if (strategy === 'urgency') {
       const urgentTitles = dayRoles.filter(r => r.is_high_demand || (r.openings > 0 && r.openings <= 3));
@@ -478,44 +477,43 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Filter out platforms already filled for this day
     const platformsToFill = ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
     if (platformsToFill.length === 0) continue;
 
-    // Generate platforms in small batches to avoid rate limits
-    const BATCH_SIZE = 3;
-    for (let b = 0; b < platformsToFill.length; b += BATCH_SIZE) {
-      const batch = platformsToFill.slice(b, b + BATCH_SIZE);
-      if (b > 0) await new Promise(r => setTimeout(r, 1500));
-      const batchResults = await Promise.allSettled(
-        batch.map(async (platform) => {
-          const content = await db.integrations.Core.InvokeLLM({
-            prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
-          });
-          const defaultHour = 8 + Math.floor(platform.length / 3);
-          const plannerTime = plannerPostingTimes[platform];
-          const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
-          const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
-          const post = await db.entities.GeneratedPost.create({
-            title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
-            content,
-            strategy,
-            target_roles: dayRoles.map(r => r.title).join(', '),
-            status: 'scheduled',
-            scheduled_date: dateStr,
-            scheduled_time: timeStr,
-            notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories}`,
-          });
-          return { postId: post.id, platform, date: dateStr };
-        })
-      );
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          created.push(result.value);
-        } else {
-          errors.push({ date: dateStr, error: result.reason?.message });
-        }
-      }
+    for (const platform of platformsToFill) {
+      dayJobs.push({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform });
+    }
+  }
+
+  // Run ALL jobs in parallel — each LLM call is independent
+  const allResults = await Promise.allSettled(
+    dayJobs.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
+      const content = await db.integrations.Core.InvokeLLM({
+        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
+      });
+      const defaultHour = 8 + Math.floor(platform.length / 3);
+      const plannerTime = plannerPostingTimes[platform];
+      const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+      const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
+      const post = await db.entities.GeneratedPost.create({
+        title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
+        content,
+        strategy,
+        target_roles: dayRoles.map(r => r.title).join(', '),
+        status: 'scheduled',
+        scheduled_date: dateStr,
+        scheduled_time: timeStr,
+        notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories}`,
+      });
+      return { postId: post.id, platform, date: dateStr };
+    })
+  );
+
+  for (const result of allResults) {
+    if (result.status === 'fulfilled') {
+      created.push(result.value);
+    } else {
+      errors.push({ error: result.reason?.message });
     }
   }
 
