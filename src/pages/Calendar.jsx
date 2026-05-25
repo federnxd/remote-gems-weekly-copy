@@ -9,6 +9,7 @@ import { startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
 import AutoFillCalendarButton from '@/components/calendar/AutoFillCalendarButton';
+import GenerateDayButton from '@/components/calendar/GenerateDayButton';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, parseISO, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
@@ -305,11 +306,17 @@ export default function Calendar() {
                         )}
                       >
                         {/* Day number */}
-                        <div className={cn(
-                          'text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1',
-                          today ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50'
-                        )}>
-                          {format(day, 'd')}
+                        <div className="flex items-center justify-between mb-1">
+                          <div className={cn(
+                            'text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full',
+                            today ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50'
+                          )}>
+                            {format(day, 'd')}
+                          </div>
+                          <GenerateDayButton
+                            date={day}
+                            onPostsCreated={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+                          />
                         </div>
 
                         {/* Posts */}
