@@ -184,6 +184,8 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
 
   const platformRules = platform === 'twitter'
     ? `TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only. No role list, no hashtag block. Lead with the single strongest signal (new role, last vacants, or pay rate).`
+    : platform === 'threads'
+    ? `THREADS CONSTRAINT: Max 300 characters total. MUST include the referral link — write the post so the link fits naturally within 300 chars. Short hook + link only. No long role lists.`
     : platform === 'mastodon'
     ? `MASTODON CONSTRAINT: Max 500 chars. Hashtags at the end for discoverability.`
     : platform === 'bluesky'

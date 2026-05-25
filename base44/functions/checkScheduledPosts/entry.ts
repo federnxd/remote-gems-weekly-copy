@@ -121,10 +121,27 @@ async function publishBluesky(text) {
 async function publishThreads(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('THREADS_USER_ID');
+  const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
+  
+  // Ensure referral link is always included — truncate content before the link if needed
+  let postText = text;
+  if (postText.length > 300) {
+    // Find where the referral link appears
+    const linkIndex = postText.indexOf(REFERRAL_LINK);
+    if (linkIndex > 0) {
+      // Keep everything up to the link, ensuring link fits
+      const maxContentLength = 300 - REFERRAL_LINK.length - 2; // -2 for space
+      postText = postText.slice(0, maxContentLength) + ' ' + REFERRAL_LINK;
+    } else {
+      // No link found — truncate and append
+      postText = postText.slice(0, 297) + '...';
+    }
+  }
+  
   const createRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ media_type: 'TEXT', text: text.slice(0, 500), access_token: accessToken }),
+    body: JSON.stringify({ media_type: 'TEXT', text: postText, access_token: accessToken }),
   });
   if (!createRes.ok) throw new Error(`Threads create: ${await createRes.text()}`);
   const { id: containerId } = await createRes.json();
