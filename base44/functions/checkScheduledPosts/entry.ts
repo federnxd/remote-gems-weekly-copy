@@ -68,23 +68,11 @@ async function publishTwitter(text) {
 async function publishFacebook(text) {
   const pageAccessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
   const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
-  const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
-  
-  // Facebook allows up to 63,206 chars but keep it readable (~500 chars)
-  // Ensure referral link is always included
-  let postText = text;
-  if (postText.length > 500) {
-    const linkIndex = postText.indexOf(REFERRAL_LINK);
-    if (linkIndex > 0) {
-      const maxContentLength = 500 - REFERRAL_LINK.length - 2;
-      postText = postText.slice(0, maxContentLength) + ' ' + REFERRAL_LINK;
-    }
-  }
   
   const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: postText, access_token: pageAccessToken }),
+    body: JSON.stringify({ message: text, access_token: pageAccessToken }),
   });
   const resText = await res.text();
   if (!res.ok) throw new Error(`Facebook API: ${resText}`);
@@ -111,7 +99,6 @@ async function publishMastodon(text) {
 async function publishBluesky(text) {
   const handle = Deno.env.get('BLUESKY_HANDLE');
   const appPassword = Deno.env.get('BLUESKY_APP_PASSWORD');
-  const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
   
   const sessionRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
     method: 'POST',
@@ -121,25 +108,13 @@ async function publishBluesky(text) {
   if (!sessionRes.ok) throw new Error(`Bluesky auth: ${await sessionRes.text()}`);
   const { accessJwt, did } = await sessionRes.json();
   
-  // Ensure referral link is always included — truncate content before the link if needed
-  let postText = text;
-  if (postText.length > 300) {
-    const linkIndex = postText.indexOf(REFERRAL_LINK);
-    if (linkIndex > 0) {
-      const maxContentLength = 300 - REFERRAL_LINK.length - 2;
-      postText = postText.slice(0, maxContentLength) + ' ' + REFERRAL_LINK;
-    } else {
-      postText = postText.slice(0, 297) + '...';
-    }
-  }
-  
   const postRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessJwt}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       repo: did,
       collection: 'app.bsky.feed.post',
-      record: { $type: 'app.bsky.feed.post', text: postText, createdAt: new Date().toISOString() },
+      record: { $type: 'app.bsky.feed.post', text: text, createdAt: new Date().toISOString() },
     }),
   });
   if (!postRes.ok) throw new Error(`Bluesky post: ${await postRes.text()}`);
@@ -150,27 +125,11 @@ async function publishBluesky(text) {
 async function publishThreads(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('THREADS_USER_ID');
-  const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
-  
-  // Ensure referral link is always included — truncate content before the link if needed
-  let postText = text;
-  if (postText.length > 300) {
-    // Find where the referral link appears
-    const linkIndex = postText.indexOf(REFERRAL_LINK);
-    if (linkIndex > 0) {
-      // Keep everything up to the link, ensuring link fits
-      const maxContentLength = 300 - REFERRAL_LINK.length - 2; // -2 for space
-      postText = postText.slice(0, maxContentLength) + ' ' + REFERRAL_LINK;
-    } else {
-      // No link found — truncate and append
-      postText = postText.slice(0, 297) + '...';
-    }
-  }
   
   const createRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ media_type: 'TEXT', text: postText, access_token: accessToken }),
+    body: JSON.stringify({ media_type: 'TEXT', text: text, access_token: accessToken }),
   });
   if (!createRes.ok) throw new Error(`Threads create: ${await createRes.text()}`);
   const { id: containerId } = await createRes.json();
@@ -179,7 +138,7 @@ async function publishThreads(text) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ creation_id: containerId, access_token: accessToken }),
   });
-  if (!publishRes.ok) throw new Error(`Threads publish: ${await publishRes.text()}`);
+  if (!publishRes.ok) throw new Error(`Threads publish: ${await createRes.text()}`);
   const data = await publishRes.json();
   return data.id;
 }
@@ -187,18 +146,6 @@ async function publishThreads(text) {
 async function publishInstagram(text) {
   const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
   const userId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
-  const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
-  
-  // Instagram caption limit is 2,200 chars, but keep it readable (~500 chars)
-  // Ensure referral link is always included
-  let postText = text;
-  if (postText.length > 500) {
-    const linkIndex = postText.indexOf(REFERRAL_LINK);
-    if (linkIndex > 0) {
-      const maxContentLength = 500 - REFERRAL_LINK.length - 2;
-      postText = postText.slice(0, maxContentLength) + ' ' + REFERRAL_LINK;
-    }
-  }
   
   // Instagram requires creating a media container first, then publishing
   const createRes = await fetch(`https://graph.facebook.com/v19.0/${userId}/media`, {
@@ -206,7 +153,7 @@ async function publishInstagram(text) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       media_type: 'TEXT',
-      text: postText,
+      text: text,
       access_token: accessToken,
     }),
   });
