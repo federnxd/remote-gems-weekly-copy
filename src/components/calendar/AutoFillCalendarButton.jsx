@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Wand2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Wand2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, addWeeks, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 
@@ -233,7 +233,6 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
 
   const handleGenerate = async () => {
     setStep('generating');
-    setProgress(0);
     const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
     setTotalTasks(total);
 
@@ -242,19 +241,21 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
       const monday = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
       const mondayStr = format(monday, 'yyyy-MM-dd');
 
-      const result = await base44.functions.invoke('autoFillWeek', {
+      const response = await base44.functions.invoke('autoFillWeek', {
         manual: true,
         target_monday: mondayStr,
       });
 
-      const created = result?.data?.totalCreated ?? result?.totalCreated ?? 0;
+      // SDK v3: response.data holds the payload
+      const payload = response?.data ?? response ?? {};
+      const created = payload?.totalCreated ?? 0;
       setGeneratedCount(created);
       setProgress(total);
       setStep('done');
       toast.success(`${created} posts added to your calendar!`);
       onPostsCreated?.();
     } catch (err) {
-      toast.error('Generation failed: ' + (err?.message || 'Unknown error'));
+      toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
       setStep('preview');
     }
   };
@@ -323,25 +324,18 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
           )}
 
           {step === 'generating' && (
-            <div className="space-y-5 py-4">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="font-semibold">Generating your posts…</p>
-                <p className="text-sm text-muted-foreground">{progress} of {totalTasks} complete</p>
+            <div className="space-y-5 py-6">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <div>
+                  <p className="font-semibold">Generating your posts…</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Creating ~{totalTasks} posts across all platforms. This takes a few minutes — please keep this window open.
+                  </p>
+                </div>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ width: totalTasks > 0 ? `${(progress / totalTasks) * 100}%` : '0%' }}
-                />
-              </div>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {slots.map((slot, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded text-muted-foreground">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-muted shrink-0" />
-                    {slot.day} — {slot.label}
-                  </div>
-                ))}
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div className="bg-primary h-2 rounded-full animate-pulse w-full" />
               </div>
             </div>
           )}
