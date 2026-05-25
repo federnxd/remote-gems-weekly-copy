@@ -186,10 +186,14 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
     ? `TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only. No role list, no hashtag block. Lead with the single strongest signal (new role, last vacants, or pay rate).`
     : platform === 'threads'
     ? `THREADS CONSTRAINT: Max 300 characters total. MUST include the referral link — write the post so the link fits naturally within 300 chars. Short hook + link only. No long role lists.`
+    : platform === 'bluesky'
+    ? `BLUESKY CONSTRAINT: Max 300 characters total. MUST include the referral link — write the post so the link fits. Short, authentic, no corporate tone.`
+    : platform === 'facebook'
+    ? `FACEBOOK CONSTRAINT: Keep it under 500 characters for optimal engagement. MUST include the referral link. Friendly, community-focused, conversational. Use emojis naturally.`
+    : platform === 'instagram'
+    ? `INSTAGRAM CONSTRAINT: Keep it under 500 characters for readability. MUST include the referral link. Visual-first language, use line breaks and emojis. Call to action at the end.`
     : platform === 'mastodon'
     ? `MASTODON CONSTRAINT: Max 500 chars. Hashtags at the end for discoverability.`
-    : platform === 'bluesky'
-    ? `BLUESKY CONSTRAINT: Max 300 chars. Authentic, no corporate tone.`
     : platform === 'reddit'
     ? `REDDIT CONSTRAINT: Open with a real observation, question, or finding — never a pitch. Community-first. No hashtags. Sound like a member who genuinely found something useful.`
     : platform === 'discord'
