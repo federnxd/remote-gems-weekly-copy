@@ -1,5 +1,49 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+const STRATEGY_PLAYBOOK = {
+  social_proof: {
+    label: 'Social Proof',
+    goal: 'Show real outcomes — certifications, hires, real people who made it. Build credibility through results, not promises.',
+    hook_examples: [
+      'Over 300 professionals got certified through this program this year alone.',
+      'The people who get hired here aren\'t lucky — they\'re prepared. Here\'s the actual process.',
+      'AI labs are hiring across 40+ fields right now. The demand is real and I\'ve seen it firsthand.',
+    ],
+    structure: 'Proof hook (stat, outcome, observation) → Why this works / what makes people succeed → Who qualifies → Process (30 min interview → cert → hire) → Roles (3–5) → Referral link → 🛑 spam → CTA',
+    tone: 'Confident but grounded. Facts over hype.',
+  },
+  carousel_text: {
+    label: 'Carousel / List',
+    goal: 'Scannable, numbered or bulleted. Each point delivers value on its own. Made for people scrolling fast.',
+    hook_examples: [
+      '5 things I wish I knew before applying to remote AI training roles:',
+      'What makes a strong candidate for AI expert roles (from someone who\'s reviewed hundreds):',
+      '3 reasons why domain experts are the most in-demand people in AI right now:',
+    ],
+    structure: 'List hook → 3–7 numbered/bulleted points (each standalone value) → Pivot to open roles → Referral link → 🛑 spam → CTA',
+    tone: 'Clear, concise, educational. Think "save this post."',
+  },
+  urgency: {
+    label: 'Weekend Urgency',
+    goal: 'Genuine helpful nudge — NOT fake panic. Weekend momentum, roles filling, it\'s a good time.',
+    hook_examples: [
+      'If applying for something this weekend has been on your mind — this might be the one.',
+      'Some of these roles (marked 🔥) have multiple openings filling fast. Not panic — just honest.',
+      'It\'s Saturday. Prime time to do the one thing you said you\'d do this week.',
+    ],
+    structure: 'Gentle urgency hook → Why now makes sense (specific, real reason) → 🔥 high-demand roles called out → Process reminder → Referral link → 🛑 spam → CTA',
+    tone: 'Friendly nudge. Never manufactured. Never "LAST CHANCE!!!"',
+  },
+};
+
+const BRAND_CONTEXT = `
+BRAND PHILOSOPHY (LinkedIn only — use to add depth):
+- AI training is fundamentally reshaping the economy — it's an entirely new labor sector.
+- For AI models to become smarter, they need humans to add context and meaning to what they learn.
+- The more advanced AI becomes, the MORE it needs exceptional human experts.
+- This is human empowerment, not job displacement — a new economy where expertise becomes the world's most valuable commodity.
+`;
+
 /**
  * Runs on Wednesdays, Fridays, and Saturdays (scheduled automation).
  * Generates job-focused recruitment posts for all non-LinkedIn platforms.
@@ -30,15 +74,16 @@ const PLATFORM_TONES = {
 };
 
 const DAY_STRATEGY = {
-  3: { strategy: 'social_proof',  styleNote: 'Social proof angle: write as someone who has seen peers successfully land remote AI roles. Reference real outcomes (certifications, getting hired, flexible income) without naming any company. Warm and genuine — feels like a trusted recommendation from a colleague, not an ad.' },
-  5: { strategy: 'carousel_text', styleNote: 'List/carousel style: scannable, numbered or bulleted format. Each point delivers standalone value. Could be "X things to know before applying for remote AI roles" or "What makes a strong candidate for these positions" — then feature the roles naturally. End with a clear CTA.' },
-  6: { strategy: 'urgency',       styleNote: 'Weekend angle: some roles are filling up, end of week is a natural checkpoint. Tone is a genuine helpful nudge — "if you\'ve been considering this, now\'s a good time." NOT manufactured panic.' },
+  3: { strategy: 'social_proof' },
+  5: { strategy: 'carousel_text' },
+  6: { strategy: 'urgency' },
 };
 
-function buildPrompt(roles, platform, dayLabel, styleNote, plannerContext = '') {
+function buildPrompt(roles, platform, dayLabel, strategy, plannerContext = '') {
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
+    if (r.is_high_demand) line += ' 🔥';
     if (r.pay_rate) line += ` (${r.pay_rate})`;
     return line;
   }).join('\n');
@@ -46,48 +91,67 @@ function buildPrompt(roles, platform, dayLabel, styleNote, plannerContext = '') 
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+  const isLinkedIn = platform === 'linkedin';
+
+  const play = STRATEGY_PLAYBOOK[strategy] || STRATEGY_PLAYBOOK['social_proof'];
 
   const platformRules = platform === 'twitter'
-    ? 'TWITTER: Max 280 characters total. One punchy hook + referral link. Nothing else.'
+    ? 'TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only.'
     : platform === 'mastodon'
-    ? 'MASTODON: Max 500 chars. End with hashtags for discoverability.'
+    ? 'MASTODON CONSTRAINT: Max 500 chars. Hashtags at end.'
     : platform === 'bluesky'
-    ? 'BLUESKY: Max 300 chars. Authentic, no corporate feel.'
+    ? 'BLUESKY CONSTRAINT: Max 300 chars. Authentic, no corporate feel.'
     : platform === 'reddit'
-    ? 'REDDIT: Open with a real observation or question, not a pitch. Community-first. No hashtags. Sound like a member, not a marketer.'
+    ? 'REDDIT CONSTRAINT: Open with real observation or question. Community-first. No hashtags. Sound like a member, not a marketer.'
     : platform === 'discord'
-    ? 'DISCORD: Short, casual, conversational. Start with a reaction or quick thought. Emojis. Feel like a real person in a chat.'
+    ? 'DISCORD CONSTRAINT: Short, casual, chat-like. Start with a reaction or quick thought. Emojis.'
     : '';
 
-  return `You are writing a ${dayLabel} social media post on behalf of a remote professional sharing a job opportunity. Write in first person. Sound fully human — not a bot, not a recruiter.
+  const linkedInPersona = isLinkedIn ? `
+PERSONA (LinkedIn only): You work at micro1 since October 2025 as Audio Expert, Reviewer since March 2026. First person, genuine. You can name micro1.
+${BRAND_CONTEXT}` : `
+PERSONA: A remote professional sharing a useful opportunity. First person, genuine, peer-to-peer.
+CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", etc.`;
+
+  return `You are writing a ${dayLabel} social media post. Sound fully human — specific, varied, not a bot.
+${linkedInPersona}
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
-STRATEGY FOR TODAY: ${styleNote}
-REFERRAL LINK (embed once, naturally): ${REFERRAL_LINK}
 MONTH/YEAR: ${currentMonth} ${currentYear}
 
-ROLES AVAILABLE (pick 3–6 to feature, don't dump the full list):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRATEGY: ${play.label.toUpperCase()}
+GOAL: ${play.goal}
+
+EXAMPLE HOOKS (use the energy, NOT the exact words):
+${play.hook_examples.map(h => `• "${h}"`).join('\n')}
+
+RECOMMENDED STRUCTURE: ${play.structure}
+TONE: ${play.tone}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REFERRAL LINK (embed once, naturally): ${REFERRAL_LINK}
+
+ROLES (pick 3–6 most relevant — don't dump the whole list):
 ${roleList}
 
-WHAT TO WRITE:
-- Open with a hook that matches today's strategy. Make it feel fresh — NEVER use a template opener like "📍 [Month] - Remote Opportunities".
-- Apply the strategy throughout — the strategy is the soul of the post, not a decoration.
-- Weave in 3–6 roles naturally. Not just a dumped list.
-- Include once: referral link, 🛑 spam folder warning, referral bonus perk (if it fits naturally).
-- End with a real CTA or open question (except Twitter).
-- 5–8 hashtags at the end (except Reddit/Discord).
+MANDATORY ELEMENTS (work in naturally):
+- Referral link once
+- 🛑 Check spam folder after applying 🛑
+- ~30 min interview → certification → possible hire
+- Referral bonus: once certified, you can refer others too (if fits naturally)
+- 5–8 hashtags at the end (except Reddit/Discord/Twitter)
 
 ABSOLUTE RULES:
-- NEVER mention "micro1" or any company name. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.
-- NEVER use the same opening formula twice. Every post must feel genuinely different.
-- NO personal story about working at micro1 — that's LinkedIn only.
+- NEVER use a template opener like "📍 [Month] - Remote Opportunities at..."
+- Every post must feel DISTINCT — different hook, angle, energy.
 - NO "earn money", "make money", "easy income", "side hustle".
 - NO fake urgency or hype.
-${platformRules}
+${platformRules ? '\n' + platformRules : ''}
 
 Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.
-${plannerContext ? '\n\nINTERNAL STRATEGY GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
+${plannerContext ? '\n\nINTERNAL PLANNER GUIDANCE (shape decisions, NEVER surface in post):\n' + plannerContext : ''}`;
 }
 
 Deno.serve(async (req) => {
@@ -128,7 +192,7 @@ Deno.serve(async (req) => {
   for (const platform of NON_LINKEDIN_PLATFORMS) {
     try {
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(roles, platform, dayLabel, strategyConfig.styleNote, plannerContext),
+        prompt: buildPrompt(roles, platform, dayLabel, strategyConfig.strategy, plannerContext),
       });
 
       // Use planner-recommended posting time if available
