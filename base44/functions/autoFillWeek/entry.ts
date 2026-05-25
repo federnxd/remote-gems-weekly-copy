@@ -128,21 +128,48 @@ const DAY_STRATEGIES = [
 ];
 
 function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') {
+  // ── Role signal analysis ─────────────────────────────────────────────────
+  const newRolesList    = roles.filter(r => r.is_new);
+  const highDemandList  = roles.filter(r => r.is_high_demand);
+  const lastVacantList  = roles.filter(r => r.openings > 0 && r.openings <= 3);
+  const paidRoles       = roles.filter(r => r.pay_rate);
+
+  // Build annotated role list — every signal visible to the LLM
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
-    if (r.is_new) line += ' 🆕';
-    if (r.is_high_demand) line += ' 🔥';
-    if (r.pay_rate) line += ` (${r.pay_rate})`;
-    if (r.required_skills) line += ` | skills: ${r.required_skills}`;
-    if (r.openings > 0) line += ` [${r.openings} opening${r.openings > 1 ? 's' : ''}]`;
+    if (r.is_new)         line += ' 🆕 NEWLY ADDED';
+    if (r.is_high_demand) line += ' 🔥 HIGH DEMAND';
+    if (r.openings > 0)   line += ` [${r.openings} opening${r.openings > 1 ? 's' : ''} left]`;
+    if (r.pay_rate)        line += ` | pay: ${r.pay_rate}`;
+    if (r.required_skills) line += ` | skills needed: ${r.required_skills}`;
     return line;
   }).join('\n');
 
-  // For urgency/niche posts: include vacancy counts as explicit context
+  // ── Conversion intelligence block — reason about which signals drive clicks ──
+  const signalInsights = [];
+  if (newRolesList.length > 0)
+    signalInsights.push(`🆕 ${newRolesList.length} roles are NEWLY ADDED this week — freshness is a powerful hook. People act on "just opened" faster than "always open".`);
+  if (highDemandList.length > 0)
+    signalInsights.push(`🔥 ${highDemandList.length} roles are HIGH DEMAND — more openings, actively hiring. Mentioning this builds social proof and creates natural urgency without hype.`);
+  if (lastVacantList.length > 0)
+    signalInsights.push(`⚠️ ${lastVacantList.length} roles have only 1–3 openings left (last vacants). These are the MOST powerful urgency triggers — real scarcity, not manufactured. Use them as the primary reason to act now.`);
+  if (paidRoles.length > 0)
+    signalInsights.push(`💰 ${paidRoles.length} roles show explicit pay rates (${paidRoles.slice(0,3).map(r=>r.pay_rate).join(', ')}${paidRoles.length>3?'…':''}). Pay transparency massively increases click-through — mention it where it fits.`);
+
+  const conversionBlock = signalInsights.length > 0
+    ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONVERSION INTELLIGENCE — reason about these signals to maximize referral clicks:
+${signalInsights.join('\n')}
+
+YOUR JOB: Use these signals strategically. The goal is not just to inform — it is to drive as many qualified people as possible to click the referral link. Every signal (🆕 new, 🔥 demand, last vacants, pay rate) is ammunition for a different reader's psychology. Use the right one for this strategy and audience.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    : '';
+
+  // ── For urgency/niche: also surface vacancy counts inline ──
   const vacancyContext = (strategy === 'urgency' || strategy === 'niche_community')
     ? (() => {
-        const withOpenings = roles.filter(r => r.openings > 0).map(r => `${r.title} (${r.openings})`).join(', ');
-        return withOpenings ? `\nVACANCY DATA (use naturally for honest urgency): ${withOpenings}` : '';
+        const withOpenings = roles.filter(r => r.openings > 0).map(r => `${r.title} (${r.openings} left)`).join(', ');
+        return withOpenings ? `\nVACANCY SNAPSHOT (weave in naturally — don't list robotically): ${withOpenings}` : '';
       })()
     : '';
 
@@ -156,15 +183,19 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
   const play = STRATEGY_PLAYBOOK[strategy] || STRATEGY_PLAYBOOK['targeted_role'];
 
   const platformRules = platform === 'twitter'
-    ? `TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only. No role list, no hashtag block.`
+    ? `TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only. No role list, no hashtag block. Lead with the single strongest signal (new role, last vacants, or pay rate).`
     : platform === 'mastodon'
     ? `MASTODON CONSTRAINT: Max 500 chars. Hashtags at the end for discoverability.`
     : platform === 'bluesky'
     ? `BLUESKY CONSTRAINT: Max 300 chars. Authentic, no corporate tone.`
     : platform === 'reddit'
-    ? `REDDIT CONSTRAINT: Open with a real observation, question, or finding — never a pitch. Community-first. No hashtags. Sound like a member, not a marketer.`
+    ? `REDDIT CONSTRAINT: Open with a real observation, question, or finding — never a pitch. Community-first. No hashtags. Sound like a member who genuinely found something useful.`
     : platform === 'discord'
     ? `DISCORD CONSTRAINT: Ultra-casual, short, chat-like. Start with a reaction or quick thought. Emojis where natural. Feel like a real person in a server.`
+    : platform === 'indiehackers' || platform === 'wellfound'
+    ? `${platform.toUpperCase()} AUDIENCE: Builder/founder mindset. Lead with the mission angle — AI training as a new economy. Pay rates and high-demand signals resonate strongly here.`
+    : platform === 'weworkremotely' || platform === 'remoteok' || platform === 'remotive' || platform === 'flexjobs'
+    ? `${platform.toUpperCase()} AUDIENCE: Remote-work seekers. Lead with flexibility + pay transparency. Last vacants and new roles are strong hooks for this audience.`
     : '';
 
   const linkedInPersona = isLinkedIn ? `
@@ -176,14 +207,15 @@ PERSONA: A remote professional sharing a useful opportunity they found. First pe
 CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.
 CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates). Just share the opportunity.`;
 
-  return `You are writing a ${dayName} social media post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
+  return `You are writing a ${dayName} social media post optimized to drive maximum referral link clicks. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 ${linkedInPersona}
 
-⚠️ CRITICAL RULE: The referral link contains a domain name — you MUST NOT read, mention, or infer any company name from the URL. The company behind this opportunity MUST be referred to ONLY as "leading AI companies", "top AI labs", or similar generic terms. NEVER say "micro1". NEVER say any company name. This rule overrides everything else.
+⚠️ CRITICAL RULE: The referral link contains a domain name — you MUST NOT read, mention, or infer any company name from the URL. Refer to the company ONLY as "leading AI companies", "top AI labs", or similar. NEVER say "micro1". NEVER say any company name. This rule overrides everything else.
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
 MONTH/YEAR: ${currentMonth} ${currentYear}
+${conversionBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STRATEGY: ${play.label.toUpperCase()}
@@ -196,22 +228,22 @@ RECOMMENDED STRUCTURE: ${play.structure}
 TONE: ${play.tone}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-REFERRAL LINK (embed once, naturally): ${REFERRAL_LINK}
+REFERRAL LINK (embed once, naturally — this is the single most important element): ${REFERRAL_LINK}
 
-ROLES AVAILABLE (pre-selected for this strategy — use 3–6, don't dump the full list):
+ROLES (pre-selected for this strategy — pick 3–6, lead with the most compelling signals):
 ${roleList}${vacancyContext}
 
-MANDATORY ELEMENTS (work these in naturally, don't just bolt them on):
-- Referral link (once)
+MANDATORY ELEMENTS (work in naturally):
+- Referral link (once, prominently)
 - 🛑 Check spam folder after applying 🛑
 - ~30 min interview → certification → possible hire
-- Referral bonus (if it fits naturally): once certified, you can refer others too
+- Once certified, you can refer others too (if it fits naturally)
 
 ABSOLUTE RULES:
-- NEVER use a repeated/template opener. NEVER start with "📍 [Month] - Remote Opportunities at...". 
-- Each post must feel DISTINCT. Different hook, different angle, different energy than last time.
+- NEVER use the template opener "📍 [Month] - Remote Opportunities at...". 
+- Each post must feel DISTINCT. Different hook, angle, energy.
 - NO "earn money", "make money", "easy income", "side hustle", "get paid fast".
-- NO fake urgency or manufactured hype.
+- NO fake urgency — but DO use real signals (last vacants, new roles, pay rates) as genuine reasons to act.
 - Emojis only where they add meaning.
 - 5–8 hashtags at the end (except Reddit/Discord/Twitter).
 ${platformRules ? '\n' + platformRules : ''}
