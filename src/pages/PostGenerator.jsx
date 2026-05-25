@@ -10,7 +10,6 @@ import PlatformSelector from '@/components/generator/PlatformSelector';
 import PersonaManager from '@/components/generator/PersonaManager';
 import PlatformRecommender from '@/components/generator/PlatformRecommender';
 import WhereToPostChecklist from '@/components/generator/WhereToPostChecklist';
-import { PLATFORMS } from '@/components/generator/PlatformSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -139,60 +138,190 @@ export default function PostGenerator() {
     })
     .join('\n');
 
-  const buildPrompt = (strat, rolesList, platformInstruction, isNewRolesSpotlight = false) => `${CEO_CONTEXT}
+  const STRATEGY_PLAYBOOK = {
+    targeted_role: {
+      label: 'Targeted Role',
+      goal: 'Speak DIRECTLY to a specific professional. Use their job title, their language, their pain points.',
+      hook_examples: [
+        'Senior backend engineers: what if your expertise could train the next generation of AI models?',
+        'Linguists — your skills are more valuable to AI labs than you think.',
+        'If you\'re a data scientist tired of fighting for compute resources, this is worth 3 minutes.',
+      ],
+      structure: 'Hook targeting the role → What this role does in AI training → Process: ~30 min interview → cert → hire → Roles list → Referral link → 🛑 spam warning → CTA',
+      tone: 'Direct, peer-to-peer, professional.',
+    },
+    storytelling: {
+      label: 'Storytelling',
+      goal: 'A short human story that makes the opportunity feel real. NOT a pitch.',
+      hook_examples: [
+        'Six months ago I almost passed on this. Glad I didn\'t.',
+        'A friend of mine applied thinking it was too good to be true. She\'s now certified.',
+        'I\'ve referred 12 people this year. 4 got hired. Here\'s what I learned.',
+      ],
+      structure: 'Story hook (1–3 lines) → What happened → Bridge to the opportunity → Process info → Referral link → Roles (2–4) → CTA',
+      tone: 'Warm, personal, honest. Reads like a message from a trusted contact.',
+    },
+    social_proof: {
+      label: 'Social Proof',
+      goal: 'Show real outcomes. Build credibility through results, not hype.',
+      hook_examples: [
+        'Over 300 professionals got certified through this program this year alone.',
+        'The people who get hired here aren\'t lucky — they\'re prepared.',
+        'AI labs are hiring across 40+ fields right now. The demand is real.',
+      ],
+      structure: 'Proof hook → Why this works → Who qualifies → Process → Roles (3–5) → Referral link → 🛑 spam → CTA',
+      tone: 'Confident but grounded. Facts over hype.',
+    },
+    urgency: {
+      label: 'Urgency',
+      goal: 'Genuine helpful nudge — NOT fake panic. Roles filling, good timing.',
+      hook_examples: [
+        'If applying for something this week has been on your mind — this might be the one.',
+        'Some of these roles have multiple openings filling fast. Honest, not panic.',
+        'These are fresh — just added this week. Good time to move.',
+      ],
+      structure: 'Gentle urgency hook → Why now makes sense → 🔥 or 🆕 roles called out → Process reminder → Referral link → 🛑 spam → CTA',
+      tone: 'Friendly nudge. Never manufactured panic.',
+    },
+    carousel_text: {
+      label: 'Carousel / List',
+      goal: 'Scannable, numbered or bulleted. Each point delivers value on its own.',
+      hook_examples: [
+        '5 things I wish I knew before applying to remote AI training roles:',
+        'What makes a strong candidate for AI expert roles:',
+        '3 reasons domain experts are the most in-demand people in AI right now:',
+      ],
+      structure: 'List hook → 3–7 numbered/bulleted points (each standalone value) → Pivot to open roles → Referral link → 🛑 spam → CTA',
+      tone: 'Clear, concise, educational.',
+    },
+    niche_community: {
+      label: 'Niche Community',
+      goal: 'Speak EXCLUSIVELY to one professional tribe. Insider language.',
+      hook_examples: [
+        'Fellow translators: AI needs you more than most people realize.',
+        'If you\'ve spent years mastering audio production — AI labs are literally paying for that expertise.',
+        'The ML community already knows this — your domain skills have a new market.',
+      ],
+      structure: 'Tribe-specific hook → Why THIS community matters to AI → Specific matching roles → Process → Referral link → 🛑 spam → Niche hashtags',
+      tone: 'Insider, authentic, zero corporate tone.',
+    },
+    new_roles_spotlight: {
+      label: 'New Roles Spotlight',
+      goal: 'Highlight freshly added roles. Urgency from freshness, not fake panic.',
+      hook_examples: [
+        'New roles just dropped — and a few of these are rare.',
+        'If you\'ve been waiting for the right opening — some just went live.',
+        'Fresh listings this week. Worth a look if any match your field.',
+      ],
+      structure: 'Freshness hook → 🆕 roles list → Why apply now → Process → Referral link → 🛑 spam → CTA',
+      tone: 'Timely, helpful, genuine.',
+    },
+  };
 
-NOTE: The above context is provided as optional background reference. Use it only where it genuinely strengthens the post — do not force it into every piece of content.
+  const PLATFORM_TONES = {
+    linkedin: 'Professional, insightful, story-driven. Industry language. Up to 1300 chars ideal.',
+    twitter: 'Punchy, hook immediately. MAX 280 characters total. One hook + link. Nothing else.',
+    facebook: 'Friendly, community-focused, conversational. Emojis welcome.',
+    instagram: 'Visual-first, warm, inspiring. Line breaks and emojis. CTA at end.',
+    mastodon: 'Open, community-driven, authentic. No algorithm. Hashtags at end. Max 500 chars.',
+    bluesky: 'Conversational, tech-savvy, authentic. Max 300 chars. No corporate speak.',
+    threads: 'Casual, conversational, Instagram-like. Friendly and approachable.',
+    reddit: 'No-BS, community-first. Open with real observation. NEVER sound like an ad. No hashtags.',
+    discord: 'Ultra-casual, short, chat-like. Emojis. Real person in a server — not a recruiter.',
+    indiehackers: 'Founder-friendly. Emphasize mission, growth potential, builder culture.',
+    weworkremotely: 'Remote-first. Emphasize async, global team, flexible work. Concise.',
+    wellfound: 'Startup-oriented. Mission, growth stage, impact.',
+    remotive: 'Community-driven. Remote lifestyle, company values, tech-forward.',
+    flexjobs: 'Professional, serious. Career growth, legitimacy.',
+    remoteok: 'Digital nomad audience. Location freedom, pay transparency, remote perks.',
+  };
 
-You are writing a LinkedIn referral post on behalf of a professional who works at micro1 as an Audio Expert Reviewer. The post must attract experienced professionals to apply through their referral link. Write in first person, personal and credible — as if a real professional is genuinely recommending this opportunity to their network.
+  const buildPrompt = (strat, rolesList, platforms, isNewRolesSpotlight = false) => {
+    const effectiveStrat = isNewRolesSpotlight ? 'new_roles_spotlight' : strat;
+    const play = STRATEGY_PLAYBOOK[effectiveStrat] || STRATEGY_PLAYBOOK['targeted_role'];
+    const primaryPlatform = platforms[0] || 'linkedin';
+    const isLinkedIn = primaryPlatform === 'linkedin';
+    const tone = PLATFORM_TONES[primaryPlatform] || 'Professional and engaging.';
 
-STRATEGY: ${strat === 'new_roles_spotlight' ? 'targeted_role' : strat.replace(/_/g, ' ')}${isNewRolesSpotlight ? '\nFOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just opened up, encourage urgent action, and highlight that spots may fill fast.' : ''}
-REFERRAL LINK: ${referralLink}
-TARGET ROLES: ${rolesList.join(', ')}
-${(strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings ? `VACANCY DATA (use naturally for urgency/FOMO — mention specific open counts to drive action, e.g. "only 2 spots left for X"): ${rolesWithOpenings}` : ''}
-${rolesEnrichedContext ? `ROLE DETAILS (use where relevant — mention pay rates to attract applicants, reference required skills to speak directly to the right audience. Only include details that naturally strengthen the post.):
-${rolesEnrichedContext}` : ''}
-${personalNote ? `PERSONAL NOTE TO INCLUDE: ${personalNote}` : ''}${platformInstruction}
+    const rolesEnriched = roles
+      .filter(r => rolesList.includes(r.title) && (r.required_skills || r.pay_rate || r.is_new || r.is_high_demand))
+      .map(r => {
+        let line = `- ${r.title}`;
+        if (r.is_new) line += ' 🆕';
+        if (r.is_high_demand) line += ' 🔥';
+        if (r.pay_rate) line += ` (${r.pay_rate})`;
+        if (r.required_skills) line += ` | skills: ${r.required_skills}`;
+        return line;
+      }).join('\n') || rolesList.map(t => `- ${t}`).join('\n');
 
-SIGNATURE STRUCTURE — FOLLOW THIS FORMAT EXACTLY:
+    const rolesOpeningsContext = (strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings
+      ? `\nVACANCY DATA (use naturally — specific open counts for urgency): ${rolesWithOpenings}` : '';
 
-1. HEADLINE (first 2 lines — CRITICAL: must be fully visible without "See more"):
-   Use this format as the opening:
-   📍 [Month] - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ [REFERRAL LINK]
+    const multiPlatformNote = platforms.length > 1
+      ? `\nSECONDARY PLATFORMS (same post will be adapted for): ${platforms.slice(1).join(', ')} — optimize primarily for ${primaryPlatform}.`
+      : '';
 
-2. PERSONAL INTRO (1 short paragraph):
-   - Written in first person
-   - Mention working at micro1 since October 2025 as Audio Expert, and as Reviewer since March 2026
-   - Genuine, warm, and credible — mention reliable pay, flexible remote hours, supportive team
-   - Keep it authentic, not salesy
+    const platformConstraints = primaryPlatform === 'twitter'
+      ? '\nTWITTER HARD LIMIT: 280 characters TOTAL. One punchy hook + referral link. Nothing else — no roles list, no hashtags.'
+      : primaryPlatform === 'mastodon'
+      ? '\nMASTODON LIMIT: 500 chars max. Hashtags at end.'
+      : primaryPlatform === 'bluesky'
+      ? '\nBLUESKY LIMIT: 300 chars max. No corporate tone.'
+      : primaryPlatform === 'reddit'
+      ? '\nREDDIT: Open with a real observation or question — never a pitch. No hashtags. Sound like a community member, not a marketer.'
+      : primaryPlatform === 'discord'
+      ? '\nDISCORD: Ultra-short, chat-like. Start with a reaction. Emojis. Real person energy.'
+      : '';
 
-3. WHO SHOULD APPLY (1 short paragraph with 👉):
-   - Professionals with solid expertise and good English
-   - Mention the interview process briefly: ~30 min interview → certification → possibility of being hired
-   - Include the spam folder reminder: ( 🛑 Always check your spam folder just in case!!! 🛑 )
+    const persona = isLinkedIn
+      ? `PERSONA: You work at micro1 since October 2025 as Audio Expert, promoted to Reviewer in March 2026. Write in first person, genuine and warm. You CAN mention micro1 by name. Use the brand philosophy below for depth:
+- AI training is reshaping the economy — an entirely new labor sector.
+- The more advanced AI becomes, the MORE it needs exceptional human experts.
+- micro1 works with top AI labs and cutting-edge tech companies globally.
+- "Humans first" — contributors are always prioritized.`
+      : `PERSONA: A remote professional sharing a useful opportunity they genuinely found valuable. First person, peer-to-peer.
+CRITICAL: NEVER name micro1 or any specific company. Say "top AI companies", "leading AI labs", "AI-driven platforms" etc.
+CRITICAL: Do NOT use your personal story (Audio Expert, Reviewer, October 2025, etc.) — that is for LinkedIn only.`;
 
-4. ROLES LIST:
-   - Introduce with: "micro1 is hiring experts across many fields — here's a sample relevant to this post:"
-   - List the TARGET ROLES provided, using a clean bullet format with dashes
-   - End with: "...and many more!"
+    return `You are writing a social media post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 
-5. REFERRAL PERK (1 line):
-   - Mention that once certified, you get your own referral link to earn bonuses
+${persona}
 
-6. CLOSING (1-2 lines):
-   - Invite sharing and DMs for questions
-   - Keep it friendly and open
+PLATFORM: ${primaryPlatform.toUpperCase()}
+PLATFORM TONE: ${tone}${multiPlatformNote}
 
-7. HASHTAGS: 6-8 relevant professional hashtags
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRATEGY: ${play.label.toUpperCase()}
+GOAL: ${play.goal}
 
-STRICT TONE RULES:
-- NO "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast"
-- NO fake urgency or hype
-- Write as a real, trustworthy professional — not an advertiser
-- Compensation: mention "reliable pay" or "competitive compensation" naturally, once
-- Emojis: use purposefully for structure and warmth (👉 📍 ➡️ 🙌 👍 🛑), not for hype
+EXAMPLE HOOKS (use the energy, NOT the exact words — write your own unique hook):
+${play.hook_examples.map(h => `• "${h}"`).join('\n')}
 
-Generate ONLY the post content, no explanations or preamble.`;
+RECOMMENDED STRUCTURE: ${play.structure}
+TONE: ${play.tone}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REFERRAL LINK (embed once, naturally): ${referralLink}
+
+ROLES (pick 3–6 most relevant — don't dump the full list):
+${rolesEnriched}${rolesOpeningsContext}
+${personalNote ? `\nPERSONAL NOTE TO WEAVE IN: ${personalNote}` : ''}
+
+MANDATORY ELEMENTS (work in naturally, don't bolt on):
+- Referral link (once)
+- 🛑 Check spam folder after applying 🛑
+- ~30 min interview → certification → possible hire
+- Once certified, you can refer others too (if it fits naturally)
+- 5–8 hashtags at end (except Reddit, Discord, Twitter)
+
+ABSOLUTE RULES:
+- NEVER open with "📍 [Month] - Remote Opportunities at..." — that template is banned.
+- Every generation must feel DISTINCT — different hook, angle, energy.
+- NO "earn money", "make money", "easy income", "side hustle", "get paid fast".
+- NO fake urgency or manufactured hype.${platformConstraints}
+
+Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
+  };
 
   const handleGenerateNewRoles = async () => {
     // Filter only NEW-labeled roles that match the current target audience selection
@@ -264,24 +393,15 @@ Generate ONLY the post content, no explanations or preamble.`;
       ? newAudienceRoles
       : (selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title));
 
-    const platformTones = selectedPlatforms
-      .map(id => PLATFORMS.find(p => p.id === id))
-      .filter(Boolean)
-      .map(p => `- ${p.label}: ${p.tone}`)
-      .join('\n');
-    const platformInstruction = selectedPlatforms.length > 0
-      ? `\nPLATFORM TARGETING:\nThis post will be published on: ${selectedPlatforms.map(id => PLATFORMS.find(p => p.id === id)?.label).filter(Boolean).join(', ')}.\nAdapt the tone and format accordingly:\n${platformTones}\nIf multiple platforms are selected, optimize for the PRIMARY platform (first listed) but keep it adaptable.`
-      : '';
-
     if (abMode) {
       const [resultA, resultB] = await Promise.all([
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction, strategy === 'new_roles_spotlight') }),
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, platformInstruction, strategyB === 'new_roles_spotlight') }),
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, selectedPlatforms, strategy === 'new_roles_spotlight') }),
+        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, selectedPlatforms, strategyB === 'new_roles_spotlight') }),
       ]);
       setGeneratedContent(resultA);
       setContentB(resultB);
     } else {
-      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, platformInstruction, strategy === 'new_roles_spotlight') });
+      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, selectedPlatforms, strategy === 'new_roles_spotlight') });
       setGeneratedContent(result);
     }
     setIsGenerating(false);
