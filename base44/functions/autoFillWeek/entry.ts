@@ -504,38 +504,20 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Process sequentially with retry to avoid rate limits and ensure character compliance
+  // Process sequentially with delay to avoid rate limits - ONE call per post, no retries
   for (const { dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform } of dayJobs) {
     try {
       const limit = CHAR_LIMITS[platform] || 500;
-      let content = null;
-      let attempts = 0;
-      const maxAttempts = 2;
       
-      while (!content && attempts < maxAttempts) {
-        attempts++;
-        try {
-          content = await db.integrations.Core.InvokeLLM({
-            prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️⚠️⚠️ ABSOLUTE MAX: ${limit} characters TOTAL (including spaces). The referral link is 130 characters. You have ${limit - 130} characters for everything else. COUNT BEFORE OUTPUT. If over ${limit}, DELETE sentences until it fits. This is a HARD LIMIT - posts over ${limit} chars will be rejected. ⚠️⚠️⚠️`,
-          });
-          
-          if (content.length > limit) {
-            content = null; // Retry
-          }
-        } catch (llmErr) {
-          if (llmErr.message?.includes('Rate limit')) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            content = null;
-          } else {
-            throw llmErr;
-          }
-        }
-      }
+      // Wait to avoid rate limiting (3 second delay between calls)
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      if (!content) {
-        errors.push({ error: `Failed to generate post within ${limit} chars after ${maxAttempts} attempts`, platform, date: dateStr });
-        continue;
-      }
+      const content = await db.integrations.Core.InvokeLLM({
+        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nSTRICT CHARACTER LIMIT: ${limit} characters MAX total. The link is 130 chars, so you have ${limit - 130} chars for text. Be concise.`,
+      });
+      
+      // Truncate if needed instead of failing
+      const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
       
       const defaultHour = 8 + Math.floor(platform.length / 3);
       const plannerTime = plannerPostingTimes[platform];
@@ -543,13 +525,13 @@ Deno.serve(async (req) => {
       const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
       const post = await db.entities.GeneratedPost.create({
         title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
-        content,
+        content: finalContent,
         strategy,
         target_roles: dayRoles.map(r => r.title).join(', '),
         status: 'scheduled',
         scheduled_date: dateStr,
         scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED] platform:${platform} chars:${content.length}`,
+        notes: `[AUTO_GENERATED] platform:${platform} chars:${finalContent.length}`,
       });
       created.push({ postId: post.id, platform, date: dateStr });
     } catch (error) {
