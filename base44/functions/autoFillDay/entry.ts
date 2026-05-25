@@ -381,8 +381,13 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Generate job referral posts for all platforms
-  const platformsToFill = ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
+  // Generate job referral posts
+  // On thought leadership days (Tue/Thu/Sun), job posts ONLY for LinkedIn
+  // Other days: job posts for all platforms
+  const isThoughtLeadershipDay = THOUGHT_LEADERSHIP_DAYS.includes(dayOffset);
+  const platformsToFill = isThoughtLeadershipDay
+    ? ALL_PLATFORMS.filter(p => p === 'linkedin' && !existingKeys.has(`${dateStr}::${p}`))
+    : ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
 
   for (const platform of platformsToFill) {
     try {
@@ -441,7 +446,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Generate thought leadership post if it's Tue/Thu/Sun
+  // Generate thought leadership posts if it's Tue/Thu/Sun
+  // These go to all platforms EXCEPT LinkedIn (which gets job referral post)
   if (THOUGHT_LEADERSHIP_DAYS.includes(dayOffset)) {
     const theme = TOPIC_THEMES[dayOffset % TOPIC_THEMES.length];
 
