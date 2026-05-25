@@ -210,6 +210,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const [selectedWeekDate, setSelectedWeekDate] = useState(new Date());
   const counterRef = React.useRef(null);
   const isGenerating = step === 'generating';
+  const isCallingRef = React.useRef(false);
 
   const updateWeek = (fromDate) => {
     const nextSlots = getWeekSlotDates(fromDate);
@@ -234,7 +235,8 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   };
 
   const handleGenerate = async () => {
-    if (isGenerating) return;
+    if (isGenerating || isCallingRef.current) return;
+    isCallingRef.current = true;
     const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
     setTotalTasks(total);
     setDisplayCount(0);
@@ -276,6 +278,8 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
       clearInterval(counterRef.current);
       toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
       setStep('preview');
+    } finally {
+      isCallingRef.current = false;
     }
   };
 
