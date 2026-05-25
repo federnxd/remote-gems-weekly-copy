@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -204,10 +204,11 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState('preview');
   const [slots, setSlots] = useState([]);
-  const [progress, setProgress] = useState(0);
   const [totalTasks, setTotalTasks] = useState(0);
   const [generatedCount, setGeneratedCount] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
   const [selectedWeekDate, setSelectedWeekDate] = useState(new Date());
+  const counterRef = React.useRef(null);
   const isGenerating = step === 'generating';
 
   const updateWeek = (fromDate) => {
@@ -233,13 +234,28 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   };
 
   const handleGenerate = async () => {
-    if (isGenerating) return; // prevent double-click
-    setStep('generating');
+    if (isGenerating) return;
     const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
     setTotalTasks(total);
+    setDisplayCount(0);
+    setStep('generating');
+
+    // Animate counter from 0 → total over the estimated generation time
+    // Each post takes ~2–3s on average; we pace the counter slightly slower so
+    // it doesn't reach 100% before the backend finishes.
+    const estimatedMs = total * 2400;
+    const intervalMs = 120; // tick every 120ms
+    const incrementPerTick = total / (estimatedMs / intervalMs);
+    let current = 0;
+
+    counterRef.current = setInterval(() => {
+      current += incrementPerTick;
+      // Cap at total - 1 so we never show "done" before the real response
+      const display = Math.min(Math.floor(current), total - 1);
+      setDisplayCount(display);
+    }, intervalMs);
 
     try {
-      // Delegate to backend to avoid browser timeout on 90+ LLM calls
       const monday = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
       const mondayStr = format(monday, 'yyyy-MM-dd');
 
@@ -248,15 +264,16 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
         target_monday: mondayStr,
       });
 
-      // SDK v3: response.data holds the payload
+      clearInterval(counterRef.current);
       const payload = response?.data ?? response ?? {};
       const created = payload?.totalCreated ?? 0;
       setGeneratedCount(created);
-      setProgress(total);
+      setDisplayCount(created); // snap to real number
       setStep('done');
       toast.success(`${created} posts added to your calendar!`);
       onPostsCreated?.();
     } catch (err) {
+      clearInterval(counterRef.current);
       toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
       setStep('preview');
     }
@@ -326,18 +343,33 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
           )}
 
           {step === 'generating' && (
-            <div className="space-y-5 py-6">
+            <div className="space-y-6 py-6">
               <div className="flex flex-col items-center gap-4 text-center">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
                 <div>
                   <p className="font-semibold">Generating your posts…</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Creating ~{totalTasks} posts across all platforms. This takes a few minutes — please keep this window open.
+                    Please keep this window open while all platforms are filled.
                   </p>
                 </div>
               </div>
+
+              {/* Live counter */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="text-5xl font-bold tabular-nums text-primary transition-all">
+                  {displayCount}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  of <span className="font-semibold text-foreground">{totalTasks}</span> posts scheduled
+                </div>
+              </div>
+
+              {/* Progress bar */}
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                <div className="bg-primary h-2 rounded-full animate-pulse w-full" />
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-100"
+                  style={{ width: `${totalTasks > 0 ? (displayCount / totalTasks) * 100 : 0}%` }}
+                />
               </div>
             </div>
           )}
