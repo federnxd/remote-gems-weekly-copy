@@ -125,18 +125,28 @@ ${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN
 }
 
 function getMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  // Use Argentina timezone to determine the correct local day
+  const argStr = new Date(date).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const [year, month, day] = argStr.split('-').map(Number);
+  const local = new Date(year, month - 1, day); // local midnight, no timezone shift
+  const dow = local.getDay(); // 0=Sun,1=Mon,...
+  const diff = dow === 0 ? -6 : 1 - dow; // go back to Monday
+  local.setDate(local.getDate() + diff);
+  return local;
 }
 
 function addDays(date, days) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
+}
+
+function toDateStr(date) {
+  // Format as YYYY-MM-DD in local time (no UTC shift)
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 Deno.serve(async (req) => {
@@ -210,7 +220,7 @@ Deno.serve(async (req) => {
   const existingPosts = await db.entities.GeneratedPost.filter({ status: 'scheduled' });
   const existingKeys = new Set(
     existingPosts
-      .filter(p => p.scheduled_date >= monday.toISOString().split('T')[0] && p.scheduled_date <= weekEnd.toISOString().split('T')[0])
+      .filter(p => p.scheduled_date >= toDateStr(monday) && p.scheduled_date <= toDateStr(weekEnd))
       .map(p => {
         const noteMatch = p.notes && p.notes.match(/platform:(\S+)/);
         const platform = noteMatch ? noteMatch[1] : null;
@@ -222,7 +232,7 @@ Deno.serve(async (req) => {
   // Process each day sequentially, but all platforms in parallel per day
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const currentDate = addDays(monday, dayOffset);
-    const dateStr = currentDate.toISOString().split('T')[0];
+    const dateStr = toDateStr(currentDate);
     const strategy = effectiveDayStrategies[dayOffset];
     const dayRoles = dayOffset === 0 ? mondaySpotlightRoles : allRoles;
 
@@ -274,8 +284,8 @@ Deno.serve(async (req) => {
   }
 
   return Response.json({
-    message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${monday.toISOString().split('T')[0]}`,
-    targetWeek: monday.toISOString().split('T')[0],
+    message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${toDateStr(monday)}`,
+    targetWeek: toDateStr(monday),
     totalCreated: created.length,
     usedPlannerStrategies: plannerStrategies.length > 0,
     newRolesOnMonday: newRoles.length,
