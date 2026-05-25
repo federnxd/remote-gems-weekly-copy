@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
     scheduledTime: '09:00',
     titlePrefix: `Monthly All-Roles — ${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
     highlightNew: false,
+    isMonthlyLinkedIn: true,
   });
 
   return Response.json({

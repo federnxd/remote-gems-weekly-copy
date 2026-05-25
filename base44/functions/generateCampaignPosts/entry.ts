@@ -108,7 +108,7 @@ const PLATFORM_TONES = {
   discord: 'Ultra-casual, direct, community-insider tone. Short messages. Use emojis. Feel like a real person, not a recruiter.',
 };
 
-function buildPostPrompt(roles, platform, referralLink, highlightNew) {
+function buildPostPrompt(roles, platform, referralLink, highlightNew, isMonthlyLinkedIn = false, plannerContext = '') {
   const roleList = roles.map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
@@ -122,32 +122,88 @@ function buildPostPrompt(roles, platform, referralLink, highlightNew) {
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
   const isLinkedIn = platform === 'linkedin';
 
-  // Pick strategy based on context
-  const strategyKey = highlightNew ? 'urgency' : (isLinkedIn ? 'storytelling' : 'targeted_role');
+  // Strategy selection:
+  // - Monthly LinkedIn: uses the signature template with micro1 branding
+  // - New roles: urgency (freshness hook)
+  // - Everything else: strategy-playbook driven, no template
+  const strategyKey = highlightNew ? 'urgency' : 'targeted_role';
   const play = STRATEGY_PLAYBOOK[strategyKey];
 
-  const linkedInPersona = isLinkedIn ? `
-PERSONA (LinkedIn only): You work at micro1 since October 2025 as Audio Expert, Reviewer since March 2026. First person, genuine, warm. You can name micro1.
-${BRAND_CONTEXT}` : `
-PERSONA: A remote professional sharing a useful opportunity. First person, genuine, peer-to-peer.
-CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", etc.`;
-
   const platformRules = platform === 'twitter'
-    ? 'TWITTER CONSTRAINT: Max 280 characters. Hook + link only.'
+    ? 'TWITTER HARD LIMIT: Max 280 characters TOTAL. One punchy hook + referral link only. No roles list, no hashtags.'
+    : platform === 'mastodon'
+    ? 'MASTODON LIMIT: Max 500 chars. Hashtags at end for discoverability.'
+    : platform === 'bluesky'
+    ? 'BLUESKY LIMIT: Max 300 chars. No corporate tone.'
     : platform === 'reddit'
-    ? 'REDDIT CONSTRAINT: Open with real observation or question. Community-first. No hashtags.'
+    ? 'REDDIT: Open with a real observation or question — never a pitch. Community-first. No hashtags. Sound like a member, not a marketer.'
     : platform === 'discord'
-    ? 'DISCORD CONSTRAINT: Short, casual, chat-like. Emojis. Real person energy.'
+    ? 'DISCORD: Ultra-short, chat-like. Emojis. Feel like a real person in a server, not a recruiter.'
     : platform === 'instagram'
-    ? 'INSTAGRAM CONSTRAINT: Line breaks, emojis, CTA at end. Save-worthy format.'
+    ? 'INSTAGRAM: Line breaks between ideas. Emojis where meaningful. CTA at end. Save-worthy format.'
     : '';
 
+  // ── MONTHLY LINKEDIN: the ONE place we use the branded template ──
+  if (isMonthlyLinkedIn && isLinkedIn) {
+    return `You are writing the monthly LinkedIn referral post on behalf of a professional at micro1.
+This is the ONE monthly branded post — use the signature format below exactly.
+
+PERSONA: You work at micro1 since October 2025 as Audio Expert, promoted to Reviewer in March 2026. First person, genuine, warm.
+${BRAND_CONTEXT}
+
+SIGNATURE FORMAT (follow this structure exactly):
+
+1. HEADLINE (must be visible without "See more"):
+   📍 ${currentMonth} ${currentYear} - Remote Opportunities at Leading AI Company micro1 🤖
+   ➡️ ${referralLink}
+
+2. PERSONAL INTRO (1 short paragraph):
+   - First person, working at micro1 since October 2025 as Audio Expert, Reviewer since March 2026
+   - Genuine, warm — reliable pay, flexible remote, supportive team
+   - Not salesy
+
+3. WHO SHOULD APPLY:
+   - Professionals with solid expertise and good English
+   - ~30 min interview → certification → possible hire
+   - 🛑 Always check your spam folder just in case!!! 🛑
+
+4. ROLES LIST:
+   - Intro: "micro1 is hiring experts across many fields — here's a sample relevant to this post:"
+   - List the roles below with dashes
+   - End with: "...and many more!"
+
+5. REFERRAL PERK: Once certified, you get your own referral link to earn bonuses.
+
+6. CLOSING: Invite sharing and DMs. Friendly and open.
+
+7. HASHTAGS: 6–8 relevant professional hashtags
+
+ROLES:
+${roleList}
+
+STRICT RULES:
+- NO "earn money", "make money", "easy income", "side hustle", "get paid fast"
+- NO fake urgency
+- Emojis for structure only (👉 📍 ➡️ 🙌 🛑)
+
+Generate ONLY the post content. No labels, no "Post:" prefix.
+${plannerContext ? '\n\nINTERNAL PLANNER GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
+  }
+
+  // ── ALL OTHER POSTS: strategy-driven, no branded template ──
+  const persona = isLinkedIn
+    ? `PERSONA (LinkedIn): You work at micro1 since October 2025, Reviewer since March 2026. First person, genuine. You CAN mention micro1.
+${BRAND_CONTEXT}`
+    : `PERSONA: A remote professional sharing a valuable opportunity. First person, peer-to-peer.
+CRITICAL: NEVER name micro1 or any specific company. Use "top AI companies", "leading AI labs", "AI-driven platforms".
+CRITICAL: Do NOT use your personal story (Audio Expert, Reviewer, October 2025) — that is LinkedIn-only.`;
+
   const focus = highlightNew
-    ? 'These are FRESHLY ADDED roles — new this week. The freshness is part of the hook.'
-    : `${currentMonth} ${currentYear} — current open remote expert roles at top AI companies.`;
+    ? 'These are FRESHLY ADDED roles — new this week. Freshness is the hook.'
+    : `${currentMonth} ${currentYear} — current open remote expert roles at leading AI companies.`;
 
   return `You are writing a social media referral post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
-${linkedInPersona}
+${persona}
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
@@ -157,7 +213,7 @@ FOCUS: ${focus}
 STRATEGY: ${play.label.toUpperCase()}
 GOAL: ${play.goal}
 
-EXAMPLE HOOKS (use the energy, NOT the exact words):
+EXAMPLE HOOKS (use the energy, NOT the exact words — write your own unique hook):
 ${play.hook_examples.map(h => `• "${h}"`).join('\n')}
 
 RECOMMENDED STRUCTURE: ${play.structure}
@@ -173,17 +229,18 @@ MANDATORY ELEMENTS (work in naturally):
 - Referral link once
 - 🛑 Check spam folder after applying 🛑
 - ~30 min interview → certification → possible hire
-- Referral bonus: once certified, you can refer others too (if fits naturally)
-- 5–8 hashtags at the end (except Reddit/Discord/Twitter)
+- Once certified you can refer others too (if fits naturally)
+- 5–8 hashtags at end (except Reddit/Discord/Twitter)
 
 ABSOLUTE RULES:
-- NEVER use template opener "📍 [Month] - Remote Opportunities at..."
+- NEVER use the template opener "📍 [Month] - Remote Opportunities at..." — that is reserved for the monthly LinkedIn post only.
 - Every post must feel DISTINCT — different hook, angle, energy.
 - NO "earn money", "make money", "easy income", "side hustle", "get paid fast".
-- NO fake urgency or hype. NO company name on non-LinkedIn.
+- NO fake urgency or hype.
 ${platformRules ? '\n' + platformRules : ''}
 
-Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
+Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.
+${plannerContext ? '\n\nINTERNAL PLANNER GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
 }
 
 Deno.serve(async (req) => {
@@ -206,11 +263,19 @@ Deno.serve(async (req) => {
     referralLink = REFERRAL_LINK,
     titlePrefix = 'Auto Campaign',
     highlightNew = false,
+    isMonthlyLinkedIn = false,
   } = body;
 
   if (!roles.length || !platforms.length) {
     return Response.json({ error: 'roles and platforms are required' }, { status: 400 });
   }
+
+  // Fetch planner context to inform content decisions
+  let plannerContext = '';
+  try {
+    const plannerRes = await db.functions.invoke('getPlannerContext', {});
+    if (plannerRes?.hasData) plannerContext = plannerRes.context || '';
+  } catch { /* continue without */ }
 
   const created = [];
   const errors = [];
@@ -221,7 +286,7 @@ Deno.serve(async (req) => {
 
     try {
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPostPrompt(roles, platform, referralLink, highlightNew),
+        prompt: buildPostPrompt(roles, platform, referralLink, highlightNew, isMonthlyLinkedIn && platform === 'linkedin', plannerContext),
       });
 
       const post = await db.entities.GeneratedPost.create({
