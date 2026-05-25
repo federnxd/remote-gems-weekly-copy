@@ -504,38 +504,51 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Process sequentially with delay to avoid rate limits - ONE call per post, no retries
-  for (const { dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform } of dayJobs) {
-    try {
-      const limit = CHAR_LIMITS[platform] || 500;
-      
-      // Wait to avoid rate limiting (3 second delay between calls)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nSTRICT CHARACTER LIMIT: ${limit} characters MAX total. The link is 130 chars, so you have ${limit - 130} chars for text. Be concise.`,
-      });
-      
-      // Truncate if needed instead of failing
-      const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
-      
-      const defaultHour = 8 + Math.floor(platform.length / 3);
-      const plannerTime = plannerPostingTimes[platform];
-      const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
-      const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
-      const post = await db.entities.GeneratedPost.create({
-        title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
-        content: finalContent,
-        strategy,
-        target_roles: dayRoles.map(r => r.title).join(', '),
-        status: 'scheduled',
-        scheduled_date: dateStr,
-        scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED] platform:${platform} chars:${finalContent.length}`,
-      });
-      created.push({ postId: post.id, platform, date: dateStr });
-    } catch (error) {
-      errors.push({ error: error.message, platform, date: dateStr });
+  // Process in batches of 20 with 2s delay between batches - allows re-running to fill gaps
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < dayJobs.length; i += BATCH_SIZE) {
+    const batch = dayJobs.slice(i, i + BATCH_SIZE);
+    
+    const results = await Promise.allSettled(
+      batch.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
+        const limit = CHAR_LIMITS[platform] || 500;
+        
+        const content = await db.integrations.Core.InvokeLLM({
+          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nSTRICT CHARACTER LIMIT: ${limit} characters MAX total. The link is 130 chars, so you have ${limit - 130} chars for text. Be concise.`,
+        });
+        
+        // Truncate if needed instead of failing
+        const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
+        
+        const defaultHour = 8 + Math.floor(platform.length / 3);
+        const plannerTime = plannerPostingTimes[platform];
+        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+        const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
+        const post = await db.entities.GeneratedPost.create({
+          title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
+          content: finalContent,
+          strategy,
+          target_roles: dayRoles.map(r => r.title).join(', '),
+          status: 'scheduled',
+          scheduled_date: dateStr,
+          scheduled_time: timeStr,
+          notes: `[AUTO_GENERATED] platform:${platform} chars:${finalContent.length}`,
+        });
+        return { postId: post.id, platform, date: dateStr };
+      })
+    );
+    
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        created.push(result.value);
+      } else {
+        errors.push({ error: result.reason?.message || 'Unknown error' });
+      }
+    }
+    
+    // 2 second delay between batches to avoid rate limits
+    if (i + BATCH_SIZE < dayJobs.length) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
