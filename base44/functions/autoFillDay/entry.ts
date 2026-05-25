@@ -393,9 +393,10 @@ Deno.serve(async (req) => {
 
       let content = await db.integrations.Core.InvokeLLM({ prompt: initialPrompt });
 
-      // Validation loop - regenerate until valid
+      // Validation loop - regenerate until valid (max 10 attempts)
       let regenCount = 1;
-      while (!content.includes(REFERRAL_LINK) || content.length > limit) {
+      const maxRegenAttempts = 10;
+      while ((!content.includes(REFERRAL_LINK) || content.length > limit) && regenCount < maxRegenAttempts) {
         regenCount++;
         const missingLink = !content.includes(REFERRAL_LINK);
         const overLimit = content.length > limit;
@@ -407,6 +408,17 @@ Deno.serve(async (req) => {
         const strictPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL - REGENERATE (attempt ${regenCount}):\n${errorParts.join('\n')}\n\nRULES:\n1. Write text (max ${limit - REFERRAL_LINK.length - 20} chars)\n2. Add link: ${REFERRAL_LINK}\n3. Count EVERY character before outputting\n4. Output ONLY the final post`;
 
         content = await db.integrations.Core.InvokeLLM({ prompt: strictPrompt });
+      }
+
+      // If still invalid after max attempts, truncate and force link
+      if (!content.includes(REFERRAL_LINK)) {
+        content = content + '\n\n' + REFERRAL_LINK;
+      }
+      if (content.length > limit) {
+        // Keep link intact, truncate text before it
+        const textBefore = content.split(REFERRAL_LINK)[0] || '';
+        const truncated = textBefore.slice(0, limit - REFERRAL_LINK.length - 5) + '\n\n' + REFERRAL_LINK;
+        content = truncated;
       }
 
       const defaultHour = 8 + Math.floor(platform.length / 3);
@@ -459,14 +471,20 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Final validation - keep regenerating until valid
-        while (content.length > limit) {
+        // Final validation - max 5 more attempts
+        let extraAttempts = 0;
+        while (content.length > limit && extraAttempts < 5) {
+          extraAttempts++;
           const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CRITICAL: Still over ${limit} chars (was ${content.length}). REGENERATE from scratch. Be extremely concise. Count before outputting.`;
           content = await db.integrations.Core.InvokeLLM({
             prompt: regenPrompt,
             add_context_from_internet: true,
             model: 'gemini_3_flash',
           });
+        }
+        // If still over limit, truncate
+        if (content.length > limit) {
+          content = content.slice(0, limit);
         }
 
         const defaultHour = 11;

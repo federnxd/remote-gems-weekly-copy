@@ -66,8 +66,16 @@ export default function GenerateDayButton({ date, onPostsCreated }) {
     setDisplayCount(0);
     setStep('generating');
 
-    const estimatedMs = total * 2400;
-    const intervalMs = 120;
+    // Timeout after 5 minutes
+    const timeoutId = setTimeout(() => {
+      clearInterval(counterRef.current);
+      toast.error('Generation timed out. Please try again.');
+      setStep('preview');
+      isCallingRef.current = false;
+    }, 300000);
+
+    const estimatedMs = total * 3000;
+    const intervalMs = 150;
     const incrementPerTick = total / (estimatedMs / intervalMs);
     let current = 0;
 
@@ -84,6 +92,7 @@ export default function GenerateDayButton({ date, onPostsCreated }) {
         target_date: dateStr,
       });
 
+      clearTimeout(timeoutId);
       clearInterval(counterRef.current);
       const payload = response?.data ?? response ?? {};
       const created = payload?.totalCreated ?? 0;
@@ -93,6 +102,7 @@ export default function GenerateDayButton({ date, onPostsCreated }) {
       toast.success(`${created} posts added for ${format(date, 'MMM d')}`);
       onPostsCreated?.();
     } catch (err) {
+      clearTimeout(timeoutId);
       clearInterval(counterRef.current);
       toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
       setStep('preview');
