@@ -205,32 +205,46 @@ Deno.serve(async (req) => {
         ]
       : DAY_STRATEGIES;
 
-  // For each day of the week
+  // Fetch existing scheduled posts for this week to skip already-filled days/platforms
+  const weekEnd = addDays(monday, 6);
+  const existingPosts = await db.entities.GeneratedPost.filter({ status: 'scheduled' });
+  const existingKeys = new Set(
+    existingPosts
+      .filter(p => p.scheduled_date >= monday.toISOString().split('T')[0] && p.scheduled_date <= weekEnd.toISOString().split('T')[0])
+      .map(p => {
+        const noteMatch = p.notes && p.notes.match(/platform:(\S+)/);
+        const platform = noteMatch ? noteMatch[1] : null;
+        return platform ? `${p.scheduled_date}::${platform}` : null;
+      })
+      .filter(Boolean)
+  );
+
+  // Process each day sequentially, but all platforms in parallel per day
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const currentDate = addDays(monday, dayOffset);
     const dateStr = currentDate.toISOString().split('T')[0];
     const strategy = effectiveDayStrategies[dayOffset];
-
-    // Monday: spotlight new/high-demand roles, fallback to all
     const dayRoles = dayOffset === 0 ? mondaySpotlightRoles : allRoles;
 
-    // For each platform
-    for (const platform of ALL_PLATFORMS) {
-      try {
-        // Monday prompt gets a special new-roles intro instruction
-        const mondayExtra = dayOffset === 0
-          ? newRoles.length > 0
-            ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Highlight them prominently as "fresh opportunities" at the top of the roles list.`
-            : highDemandRoles.length > 0
-              ? `\n\nSPECIAL MONDAY INSTRUCTION: These are HIGH DEMAND roles (marked 🔥) with many open positions urgently needed. Highlight the urgency and volume of openings naturally without hype.`
-              : ''
-          : '';
+    const mondayExtra = dayOffset === 0
+      ? newRoles.length > 0
+        ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Highlight them prominently as "fresh opportunities" at the top of the roles list.`
+        : highDemandRoles.length > 0
+          ? `\n\nSPECIAL MONDAY INSTRUCTION: These are HIGH DEMAND roles (marked 🔥) with many open positions urgently needed. Highlight the urgency and volume of openings naturally without hype.`
+          : ''
+      : '';
 
+    // Filter out platforms already filled for this day
+    const platformsToFill = ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
+    if (platformsToFill.length === 0) continue;
+
+    // Generate all platforms for this day IN PARALLEL
+    const dayResults = await Promise.allSettled(
+      platformsToFill.map(async (platform) => {
         const content = await db.integrations.Core.InvokeLLM({
           prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + mondayExtra,
         });
 
-        // Use planner-recommended time or stagger throughout the day
         const defaultHour = 8 + Math.floor(platform.length / 3);
         const plannerTime = plannerPostingTimes[platform];
         const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
@@ -246,9 +260,15 @@ Deno.serve(async (req) => {
           notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}${dayOffset === 0 && newRoles.length > 0 ? ' new_roles_monday' : dayOffset === 0 && highDemandRoles.length > 0 ? ' high_demand_monday' : ''}`,
         });
 
-        created.push({ postId: post.id, platform, date: dateStr });
-      } catch (err) {
-        errors.push({ platform, date: dateStr, error: err.message });
+        return { postId: post.id, platform, date: dateStr };
+      })
+    );
+
+    for (const result of dayResults) {
+      if (result.status === 'fulfilled') {
+        created.push(result.value);
+      } else {
+        errors.push({ date: dateStr, error: result.reason?.message });
       }
     }
   }
