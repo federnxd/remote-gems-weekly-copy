@@ -133,8 +133,18 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
     if (r.is_new) line += ' 🆕';
     if (r.is_high_demand) line += ' 🔥';
     if (r.pay_rate) line += ` (${r.pay_rate})`;
+    if (r.required_skills) line += ` | skills: ${r.required_skills}`;
+    if (r.openings > 0) line += ` [${r.openings} opening${r.openings > 1 ? 's' : ''}]`;
     return line;
   }).join('\n');
+
+  // For urgency/niche posts: include vacancy counts as explicit context
+  const vacancyContext = (strategy === 'urgency' || strategy === 'niche_community')
+    ? (() => {
+        const withOpenings = roles.filter(r => r.openings > 0).map(r => `${r.title} (${r.openings})`).join(', ');
+        return withOpenings ? `\nVACANCY DATA (use naturally for honest urgency): ${withOpenings}` : '';
+      })()
+    : '';
 
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
@@ -188,8 +198,8 @@ TONE: ${play.tone}
 
 REFERRAL LINK (embed once, naturally): ${REFERRAL_LINK}
 
-ROLES AVAILABLE (pick 3–6 most relevant to this strategy — don't dump the whole list):
-${roleList}
+ROLES AVAILABLE (pre-selected for this strategy — use 3–6, don't dump the full list):
+${roleList}${vacancyContext}
 
 MANDATORY ELEMENTS (work these in naturally, don't just bolt them on):
 - Referral link (once)
@@ -277,12 +287,87 @@ Deno.serve(async (req) => {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
 
-  // Separate new and high-demand roles for Monday spotlight
+  // Categorize roles by type
   const newRoles = roles.filter(r => r.is_new);
   const highDemandRoles = roles.filter(r => r.is_high_demand);
-  // Monday spotlight: new roles first, then high-demand, fallback to all
-  const mondaySpotlightRoles = newRoles.length > 0 ? newRoles : highDemandRoles.length > 0 ? highDemandRoles : roles;
+  // Roles with very few openings (last vacants) — openings > 0 and <= 3, or explicitly high_demand
+  const lastVacantRoles = roles.filter(r => (r.openings > 0 && r.openings <= 3) || r.is_high_demand);
   const allRoles = roles;
+
+  // Group roles by category for segmented targeting
+  const rolesByCategory = {};
+  for (const role of roles) {
+    const cat = role.category || 'other';
+    if (!rolesByCategory[cat]) rolesByCategory[cat] = [];
+    rolesByCategory[cat].push(role);
+  }
+  // Get categories that have at least 2 roles
+  const richCategories = Object.entries(rolesByCategory)
+    .filter(([, arr]) => arr.length >= 2)
+    .map(([cat]) => cat);
+
+  /**
+   * Select the best roles for a given strategy and day offset.
+   * This mirrors the PostGenerator's segmentation logic.
+   */
+  function selectRolesForStrategy(strategy, dayOffset) {
+    switch (strategy) {
+      case 'urgency': {
+        // Saturday urgency: ONLY last-vacant (low openings) or high-demand roles
+        const pool = lastVacantRoles.length >= 3 ? lastVacantRoles : highDemandRoles.length >= 2 ? highDemandRoles : roles;
+        return pool.slice(0, 8);
+      }
+      case 'targeted_role': {
+        // Monday: spotlight new roles. Other days: rotate through segments
+        if (dayOffset === 0) {
+          return newRoles.length > 0 ? newRoles : highDemandRoles.length > 0 ? highDemandRoles : roles;
+        }
+        // Pick a category segment to target based on the day (rotate)
+        if (richCategories.length > 0) {
+          const cat = richCategories[dayOffset % richCategories.length];
+          return rolesByCategory[cat].slice(0, 8);
+        }
+        return roles.slice(0, 8);
+      }
+      case 'niche_community': {
+        // Pick ONE specific community — rotate through categories by day
+        if (richCategories.length > 0) {
+          const cat = richCategories[(dayOffset + 2) % richCategories.length];
+          return rolesByCategory[cat].slice(0, 6);
+        }
+        return roles.slice(0, 6);
+      }
+      case 'social_proof': {
+        // Mix of high-demand roles across multiple categories for credibility
+        const mixed = [
+          ...highDemandRoles.slice(0, 3),
+          ...roles.filter(r => !r.is_high_demand).slice(0, 5),
+        ];
+        return mixed.length >= 3 ? mixed : roles.slice(0, 8);
+      }
+      case 'storytelling': {
+        // Pick roles from ONE relatable category — engineering or language tend to resonate
+        const storyCategories = ['engineering', 'language', 'content', 'science', 'design'];
+        for (const cat of storyCategories) {
+          if (rolesByCategory[cat] && rolesByCategory[cat].length >= 2) {
+            return rolesByCategory[cat].slice(0, 6);
+          }
+        }
+        return roles.slice(0, 6);
+      }
+      case 'carousel_text': {
+        // Diverse roles from MULTIPLE categories — showcase breadth
+        const diverse = [];
+        for (const cat of richCategories.slice(0, 5)) {
+          diverse.push(rolesByCategory[cat][0]);
+          if (rolesByCategory[cat][1]) diverse.push(rolesByCategory[cat][1]);
+        }
+        return diverse.length >= 4 ? diverse.slice(0, 10) : roles.slice(0, 10);
+      }
+      default:
+        return roles.slice(0, 8);
+    }
+  }
 
   // Fetch planner context (includes recommended strategies and posting times)
   let plannerContext = '';
@@ -334,15 +419,32 @@ Deno.serve(async (req) => {
     const currentDate = addDays(monday, dayOffset);
     const dateStr = toDateStr(currentDate);
     const strategy = effectiveDayStrategies[dayOffset];
-    const dayRoles = dayOffset === 0 ? mondaySpotlightRoles : allRoles;
 
-    const mondayExtra = dayOffset === 0
-      ? newRoles.length > 0
-        ? `\n\nSPECIAL INSTRUCTION FOR TODAY: Some roles are marked 🆕 (newly added). Naturally highlight them as fresh openings — don't bury them in the list.`
-        : highDemandRoles.length > 0
-          ? `\n\nSPECIAL INSTRUCTION FOR TODAY: Roles marked 🔥 have high demand and many openings. Weave that in naturally — not as hype, just as honest context about what's in demand right now.`
-          : ''
-      : '';
+    // Smart role selection based on strategy type
+    const dayRoles = selectRolesForStrategy(strategy, dayOffset);
+
+    // Strategy-specific extra instructions injected into the prompt
+    let strategyExtra = '';
+    if (strategy === 'urgency') {
+      const urgentTitles = dayRoles.filter(r => r.is_high_demand || (r.openings > 0 && r.openings <= 3));
+      if (urgentTitles.length > 0) {
+        strategyExtra = `\n\nSPECIAL INSTRUCTION: These roles have LIMITED VACANTS or HIGH DEMAND: ${urgentTitles.map(r => r.title + (r.openings ? ` (${r.openings} opening${r.openings > 1 ? 's' : ''})` : '')).join(', ')}. Use genuine urgency — low openings = real reason to apply soon. NOT manufactured panic.`;
+      }
+    } else if (strategy === 'targeted_role' && dayOffset === 0 && newRoles.length > 0) {
+      strategyExtra = `\n\nSPECIAL INSTRUCTION: These roles are freshly added this week (🆕). Make freshness the hook — these just opened up.`;
+    } else if (strategy === 'targeted_role' && dayOffset === 0 && highDemandRoles.length > 0) {
+      strategyExtra = `\n\nSPECIAL INSTRUCTION: Roles marked 🔥 have high demand. Weave that in naturally — honest context, not hype.`;
+    } else if (strategy === 'niche_community') {
+      const cats = [...new Set(dayRoles.map(r => r.category).filter(Boolean))];
+      if (cats.length > 0) {
+        strategyExtra = `\n\nSPECIAL INSTRUCTION: Write EXCLUSIVELY for the ${cats[0]} professional community. Use insider language. This post should feel like it was written by and for someone in that field.`;
+      }
+    } else if (strategy === 'storytelling') {
+      const cats = [...new Set(dayRoles.map(r => r.category).filter(Boolean))];
+      if (cats.length > 0) {
+        strategyExtra = `\n\nSPECIAL INSTRUCTION: The story should resonate with ${cats[0]} professionals. Make the protagonist someone from that background.`;
+      }
+    }
 
     // Filter out platforms already filled for this day
     const platformsToFill = ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
@@ -356,11 +458,12 @@ Deno.serve(async (req) => {
       const batchResults = await Promise.allSettled(
         batch.map(async (platform) => {
           const content = await db.integrations.Core.InvokeLLM({
-            prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + mondayExtra,
+            prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
           });
           const defaultHour = 8 + Math.floor(platform.length / 3);
           const plannerTime = plannerPostingTimes[platform];
           const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+          const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
           const post = await db.entities.GeneratedPost.create({
             title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
             content,
@@ -369,7 +472,7 @@ Deno.serve(async (req) => {
             status: 'scheduled',
             scheduled_date: dateStr,
             scheduled_time: timeStr,
-            notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset}${dayOffset === 0 && newRoles.length > 0 ? ' new_roles_monday' : dayOffset === 0 && highDemandRoles.length > 0 ? ' high_demand_monday' : ''}`,
+            notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories}`,
           });
           return { postId: post.id, platform, date: dateStr };
         })
