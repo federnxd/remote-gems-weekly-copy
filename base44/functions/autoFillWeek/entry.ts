@@ -183,21 +183,21 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
   const play = STRATEGY_PLAYBOOK[strategy] || STRATEGY_PLAYBOOK['targeted_role'];
 
   const platformRules = platform === 'twitter'
-    ? `TWITTER CONSTRAINT: Max 280 characters total. One punchy hook + referral link only. No role list, no hashtag block. Lead with the single strongest signal (new role, last vacants, or pay rate).`
+    ? `CHARACTER LIMIT: MAX 280 characters TOTAL (including link). This is a HARD limit. Write ONLY: hook (1 line) + referral link. NO role lists. NO hashtags. If it exceeds 280 chars, it WILL BE REJECTED.`
     : platform === 'threads'
-    ? `THREADS CONSTRAINT: Max 300 characters total. MUST include the referral link — write the post so the link fits naturally within 300 chars. Short hook + link only. No long role lists.`
+    ? `CHARACTER LIMIT: MAX 300 characters TOTAL (including link). This is a HARD limit. Write ONLY: hook (1-2 lines) + referral link. NO long role lists. If it exceeds 300 chars, it WILL BE REJECTED.`
     : platform === 'bluesky'
-    ? `BLUESKY CONSTRAINT: Max 300 characters total. MUST include the referral link — write the post so the link fits. Short, authentic, no corporate tone.`
+    ? `CHARACTER LIMIT: MAX 300 characters TOTAL (including link). This is a HARD limit. Short, authentic. If it exceeds 300 chars, it WILL BE REJECTED.`
     : platform === 'facebook'
-    ? `FACEBOOK CONSTRAINT: Keep it under 500 characters for optimal engagement. MUST include the referral link. Friendly, community-focused, conversational. Use emojis naturally.`
+    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. Friendly, conversational. If it exceeds 500 chars, it WILL BE REJECTED.`
     : platform === 'instagram'
-    ? `INSTAGRAM CONSTRAINT: Keep it under 500 characters for readability. MUST include the referral link. Visual-first language, use line breaks and emojis. Call to action at the end.`
+    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. Use line breaks and emojis. If it exceeds 500 chars, it WILL BE REJECTED.`
     : platform === 'mastodon'
-    ? `MASTODON CONSTRAINT: Max 500 chars. Hashtags at the end for discoverability.`
+    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. If it exceeds 500 chars, it WILL BE REJECTED.`
     : platform === 'reddit'
-    ? `REDDIT CONSTRAINT: Open with a real observation, question, or finding — never a pitch. Community-first. No hashtags. Sound like a member who genuinely found something useful.`
+    ? `CHARACTER LIMIT: MAX 500 characters TOTAL. This is a HARD limit. Community-first, no pitch. If it exceeds 500 chars, it WILL BE REJECTED.`
     : platform === 'discord'
-    ? `DISCORD CONSTRAINT: Ultra-casual, short, chat-like. Start with a reaction or quick thought. Emojis where natural. Feel like a real person in a server.`
+    ? `CHARACTER LIMIT: MAX 300 characters TOTAL. This is a HARD limit. Ultra-casual, chat-like. If it exceeds 300 chars, it WILL BE REJECTED.`
     : platform === 'indiehackers' || platform === 'wellfound'
     ? `${platform.toUpperCase()} AUDIENCE: Builder/founder mindset. Lead with the mission angle — AI training as a new economy. Pay rates and high-demand signals resonate strongly here.`
     : platform === 'weworkremotely' || platform === 'remoteok' || platform === 'remotive' || platform === 'flexjobs'
@@ -252,6 +252,7 @@ ABSOLUTE RULES:
 - NO fake urgency — but DO use real signals (last vacants, new roles, pay rates) as genuine reasons to act.
 - Emojis only where they add meaning.
 - 5–8 hashtags at the end (except Reddit/Discord/Twitter).
+- CHARACTER LIMITS ARE HARD LIMITS — count characters BEFORE outputting. The referral link alone is ~130 chars. Plan accordingly.
 ${platformRules ? '\n' + platformRules : ''}
 
 Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.
@@ -491,12 +492,33 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Character limits per platform (HARD limits)
+  const CHAR_LIMITS = {
+    twitter: 280,
+    threads: 300,
+    bluesky: 300,
+    facebook: 500,
+    instagram: 500,
+    mastodon: 500,
+    reddit: 500,
+    discord: 300,
+  };
+
   // Run ALL jobs in parallel — each LLM call is independent
   const allResults = await Promise.allSettled(
     dayJobs.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
+      const limit = CHAR_LIMITS[platform] || 500;
+      
+      // Generate with strict character limit enforcement
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
+        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nFINAL CHECK: Count your characters BEFORE outputting. Your post must be UNDER ${limit} characters TOTAL (including the referral link which is ~130 chars). If it's over ${limit} chars, REWRITE IT SHORTER.`,
       });
+      
+      // Validate character count - reject if over limit
+      if (content.length > limit) {
+        throw new Error(`Post exceeds ${limit} char limit: ${content.length} chars`);
+      }
+      
       const defaultHour = 8 + Math.floor(platform.length / 3);
       const plannerTime = plannerPostingTimes[platform];
       const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
@@ -509,7 +531,7 @@ Deno.serve(async (req) => {
         status: 'scheduled',
         scheduled_date: dateStr,
         scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories}`,
+        notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories} chars:${content.length}`,
       });
       return { postId: post.id, platform, date: dateStr };
     })
