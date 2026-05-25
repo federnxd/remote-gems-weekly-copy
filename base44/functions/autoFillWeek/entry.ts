@@ -565,20 +565,54 @@ Deno.serve(async (req) => {
     const results = await Promise.allSettled(
       batch.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
         const limit = CHAR_LIMITS[platform] || 500;
+        const maxTextLength = limit - REFERRAL_LINK.length - 50; // Reserve 50 chars buffer
         
-        const content = await db.integrations.Core.InvokeLLM({
-          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
-        });
+        // First prompt explicitly states the text budget (not total chars)
+        const initialPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CHARACTER BUDGET: You have MAX ${maxTextLength} characters for your text. The referral link takes ${REFERRAL_LINK.length} chars. Total post = text + link = max ${limit} chars. Write your text FIRST, then add the link. Count your text characters BEFORE adding the link.`;
         
-        // Validate character count - if over limit, regenerate with stricter instructions
-        let finalContent = content;
-        if (content.length > limit) {
-          const regenPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED LIMIT. REGENERATE: Your post was ${content.length} chars but the limit is ${limit} chars (link is ${REFERRAL_LINK.length} chars). You have only ${limit - REFERRAL_LINK.length} chars for text. Be extremely concise. Write LESS content - fewer roles, shorter sentences. Count characters before outputting.`;
-          finalContent = await db.integrations.Core.InvokeLLM({ prompt: regenPrompt });
-          // If still over limit, truncate as last resort (should rarely happen)
-          if (finalContent.length > limit) {
-            finalContent = finalContent.slice(0, limit);
+        let content = await db.integrations.Core.InvokeLLM({ prompt: initialPrompt });
+        
+        // Validation loop: check link presence AND character limit
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+          attempts++;
+          
+          // Check if link is present
+          const hasLink = content.includes(REFERRAL_LINK);
+          const isOverLimit = content.length > limit;
+          
+          if (hasLink && !isOverLimit) {
+            break; // Valid post
           }
+          
+          // Build error-specific regeneration prompt
+          let errorInstructions = [];
+          if (!hasLink) {
+            errorInstructions.push(`❌ MISSING LINK: Your post MUST include the referral link: ${REFERRAL_LINK}`);
+          }
+          if (isOverLimit) {
+            const textOnly = content.replace(REFERRAL_LINK, '').trim();
+            errorInstructions.push(`❌ OVER LIMIT: Text is ${textOnly.length} chars but you only have ${maxTextLength} chars. Cut ${textOnly.length - maxTextLength} characters.`);
+          }
+          
+          const regenPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ REGENERATION REQUIRED - PREVIOUS ATTEMPT FAILED:\n${errorInstructions.join('\n')}\n\nCRITICAL RULES:\n1. Write text FIRST (max ${maxTextLength} chars)\n2. Add the referral link EXACTLY as shown: ${REFERRAL_LINK}\n3. Total must be ≤ ${limit} chars\n4. Count characters BEFORE outputting\n\nGenerate the complete post NOW with the link included.`;
+          
+          content = await db.integrations.Core.InvokeLLM({ prompt: regenPrompt });
+        }
+        
+        // Final validation - if still invalid after max attempts, force fix
+        let finalContent = content;
+        if (!finalContent.includes(REFERRAL_LINK)) {
+          // Append link if missing (should never happen but safety net)
+          finalContent = finalContent.trim() + '\n\n' + REFERRAL_LINK;
+        }
+        if (finalContent.length > limit) {
+          // Truncate text portion, keep link intact
+          const textPortion = finalContent.replace(REFERRAL_LINK, '').trim();
+          const truncatedText = textPortion.slice(0, limit - REFERRAL_LINK.length - 2);
+          finalContent = truncatedText + '\n\n' + REFERRAL_LINK;
         }
         
         const defaultHour = 8 + Math.floor(platform.length / 3);
@@ -632,25 +666,33 @@ Deno.serve(async (req) => {
   for (const { dayOffset, dateStr, platform, theme } of thoughtLeadershipJobs) {
     try {
       const limit = CHAR_LIMITS[platform] || 500;
-      const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CHARACTER LIMIT: ${limit} characters MAX. Count before writing.`,
+      
+      const initialPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CHARACTER LIMIT: ${limit} characters MAX. Count before writing.`;
+      
+      let content = await db.integrations.Core.InvokeLLM({
+        prompt: initialPrompt,
         add_context_from_internet: true,
         model: 'gemini_3_flash',
       });
       
       // Validate character count - regenerate if over limit
-      let finalContent = content;
-      if (content.length > limit) {
+      let attempts = 0;
+      const maxAttempts = 2;
+      
+      while (content.length > limit && attempts < maxAttempts) {
+        attempts++;
         const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED ${limit} CHARS (was ${content.length}). REGENERATE: Be much more concise. Shorter sentences, fewer details. Count characters before outputting.`;
-        finalContent = await db.integrations.Core.InvokeLLM({
+        content = await db.integrations.Core.InvokeLLM({
           prompt: regenPrompt,
           add_context_from_internet: true,
           model: 'gemini_3_flash',
         });
-        // If still over limit, truncate as last resort
-        if (finalContent.length > limit) {
-          finalContent = finalContent.slice(0, limit);
-        }
+      }
+      
+      let finalContent = content;
+      // If still over limit, truncate
+      if (finalContent.length > limit) {
+        finalContent = finalContent.slice(0, limit);
       }
       
       const defaultHour = 11; // Thought leadership posts at 11am
