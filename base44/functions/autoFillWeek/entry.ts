@@ -555,14 +555,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  for (const result of allResults) {
-    if (result.status === 'fulfilled') {
-      created.push(result.value);
-    } else {
-      errors.push({ error: result.reason?.message });
-    }
-  }
-
   return Response.json({
     message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${toDateStr(monday)}`,
     targetWeek: toDateStr(monday),
