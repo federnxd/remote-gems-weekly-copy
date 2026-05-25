@@ -234,22 +234,23 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
 
   const play = STRATEGY_PLAYBOOK[strategy] || STRATEGY_PLAYBOOK['targeted_role'];
 
+  const linkLength = REFERRAL_LINK.length;
   const platformRules = platform === 'twitter'
-    ? `CHARACTER LIMIT: MAX 280 characters TOTAL (including link). This is a HARD limit. Write ONLY: hook (1 line) + referral link. NO role lists. NO hashtags. If it exceeds 280 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 280 characters TOTAL. The link is ${linkLength} chars, leaving you only ${280 - linkLength} chars for everything else. Write: 1 punchy hook line + the link. NOTHING else. NO role lists, NO hashtags, NO extra text. Count characters BEFORE writing. This is CRITICAL.`
     : platform === 'threads'
-    ? `CHARACTER LIMIT: MAX 300 characters TOTAL (including link). This is a HARD limit. Write ONLY: hook (1-2 lines) + referral link. NO long role lists. If it exceeds 300 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars, leaving ${300 - linkLength} chars for text. Write: 1-2 short lines + link ONLY. No long lists. Count before writing.`
     : platform === 'bluesky'
-    ? `CHARACTER LIMIT: MAX 300 characters TOTAL (including link). This is a HARD limit. Short, authentic. If it exceeds 300 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars. Keep it short and authentic. Count characters before writing.`
     : platform === 'facebook'
-    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. Friendly, conversational. If it exceeds 500 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars, leaving ${500 - linkLength} for text. Friendly and conversational. Count before writing.`
     : platform === 'instagram'
-    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. Use line breaks and emojis. If it exceeds 500 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars. Use line breaks and emojis wisely. Count before writing.`
     : platform === 'mastodon'
-    ? `CHARACTER LIMIT: MAX 500 characters TOTAL (including link). This is a HARD limit. If it exceeds 500 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars. Count characters before writing.`
     : platform === 'reddit'
-    ? `CHARACTER LIMIT: MAX 500 characters TOTAL. This is a HARD limit. Community-first, no pitch. If it exceeds 500 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Community-first, no pitch. Count before writing.`
     : platform === 'discord'
-    ? `CHARACTER LIMIT: MAX 300 characters TOTAL. This is a HARD limit. Ultra-casual, chat-like. If it exceeds 300 chars, it WILL BE REJECTED.`
+    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars, leaving ${300 - linkLength} for text. Ultra-casual, chat-like. Count before writing.`
     : platform === 'indiehackers' || platform === 'wellfound'
     ? `${platform.toUpperCase()} AUDIENCE: Builder/founder mindset. Lead with the mission angle — AI training as a new economy. Pay rates and high-demand signals resonate strongly here.`
     : platform === 'weworkremotely' || platform === 'remoteok' || platform === 'remotive' || platform === 'flexjobs'
@@ -566,10 +567,19 @@ Deno.serve(async (req) => {
         const limit = CHAR_LIMITS[platform] || 500;
         
         const content = await db.integrations.Core.InvokeLLM({
-          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nSTRICT CHARACTER LIMIT: ${limit} characters MAX total. The link is 130 chars, so you have ${limit - 130} chars for text. Be concise.`,
+          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra,
         });
         
-        const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
+        // Validate character count - if over limit, regenerate with stricter instructions
+        let finalContent = content;
+        if (content.length > limit) {
+          const regenPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED LIMIT. REGENERATE: Your post was ${content.length} chars but the limit is ${limit} chars (link is ${REFERRAL_LINK.length} chars). You have only ${limit - REFERRAL_LINK.length} chars for text. Be extremely concise. Write LESS content - fewer roles, shorter sentences. Count characters before outputting.`;
+          finalContent = await db.integrations.Core.InvokeLLM({ prompt: regenPrompt });
+          // If still over limit, truncate as last resort (should rarely happen)
+          if (finalContent.length > limit) {
+            finalContent = finalContent.slice(0, limit);
+          }
+        }
         
         const defaultHour = 8 + Math.floor(platform.length / 3);
         const plannerTime = plannerPostingTimes[platform];
@@ -621,14 +631,27 @@ Deno.serve(async (req) => {
   // Process thought leadership posts
   for (const { dayOffset, dateStr, platform, theme } of thoughtLeadershipJobs) {
     try {
+      const limit = CHAR_LIMITS[platform] || 500;
       const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext),
+        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CHARACTER LIMIT: ${limit} characters MAX. Count before writing.`,
         add_context_from_internet: true,
         model: 'gemini_3_flash',
       });
       
-      const limit = CHAR_LIMITS[platform] || 500;
-      const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
+      // Validate character count - regenerate if over limit
+      let finalContent = content;
+      if (content.length > limit) {
+        const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED ${limit} CHARS (was ${content.length}). REGENERATE: Be much more concise. Shorter sentences, fewer details. Count characters before outputting.`;
+        finalContent = await db.integrations.Core.InvokeLLM({
+          prompt: regenPrompt,
+          add_context_from_internet: true,
+          model: 'gemini_3_flash',
+        });
+        // If still over limit, truncate as last resort
+        if (finalContent.length > limit) {
+          finalContent = finalContent.slice(0, limit);
+        }
+      }
       
       const defaultHour = 11; // Thought leadership posts at 11am
       const plannerTime = plannerPostingTimes[platform];
