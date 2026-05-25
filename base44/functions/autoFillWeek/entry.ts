@@ -484,10 +484,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    const platformsToFill = ALL_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
-    if (platformsToFill.length === 0) continue;
-
-    for (const platform of platformsToFill) {
+    // Only generate LinkedIn posts to avoid timeout (other platforms handled by weeklyJobPosts)
+    const platform = 'linkedin';
+    if (!existingKeys.has(`${dateStr}::${platform}`)) {
       dayJobs.push({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform });
     }
   }
