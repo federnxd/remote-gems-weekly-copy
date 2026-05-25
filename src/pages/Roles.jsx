@@ -67,6 +67,7 @@ const categoryColors = {
 
 export default function Roles() {
   const [search, setSearch] = useState('');
+  const [filterTag, setFilterTag] = useState('all'); // 'all' | 'new' | 'high_demand'
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncText, setSyncText] = useState('');
@@ -210,14 +211,26 @@ export default function Roles() {
 
   const filtered = roles
     .filter(r => r.title.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0));
+    .filter(r => {
+      if (filterTag === 'new') return r.is_new;
+      if (filterTag === 'high_demand') return r.is_high_demand;
+      return true;
+    })
+    .sort((a, b) => {
+      // High demand + new first, then high demand, then new, then rest
+      const scoreB = (b.is_high_demand ? 2 : 0) + (b.is_new ? 1 : 0);
+      const scoreA = (a.is_high_demand ? 2 : 0) + (a.is_new ? 1 : 0);
+      return scoreB - scoreA;
+    });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Open Roles</h1>
-          <p className="text-sm text-muted-foreground">{roles.length} active positions</p>
+          <p className="text-sm text-muted-foreground">
+            {roles.filter(r => r.is_active !== false).length} active · {roles.filter(r => r.is_high_demand).length} high demand · {roles.filter(r => r.is_new).length} new
+          </p>
         </div>
         <div className="flex gap-2">
         {/* Sync Dialog */}
@@ -290,14 +303,35 @@ export default function Roles() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input 
-          value={search} 
-          onChange={(e) => setSearch(e.target.value)} 
-          placeholder="Search roles..." 
-          className="pl-10"
-        />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            placeholder="Search roles..." 
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-1.5">
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'high_demand', label: '🔥 High Demand' },
+            { key: 'new', label: '🆕 New' },
+          ].map(f => (
+            <Button
+              key={f.key}
+              variant={filterTag === f.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterTag(f.key)}
+              className="text-xs whitespace-nowrap"
+            >
+              {f.label}
+              {f.key === 'high_demand' && <span className="ml-1 font-bold text-orange-500">{roles.filter(r => r.is_high_demand).length}</span>}
+              {f.key === 'new' && <span className="ml-1 font-bold text-amber-600">{roles.filter(r => r.is_new).length}</span>}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
