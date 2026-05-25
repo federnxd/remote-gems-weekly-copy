@@ -281,7 +281,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={openDialog} className="gap-2">
+      <Button variant="outline" size="sm" onClick={openDialog} disabled={isGenerating} className="gap-2">
         <Wand2 className="w-4 h-4" />
         Auto-fill Week
       </Button>
@@ -336,7 +336,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
                 <Button className="flex-1 gap-2" onClick={handleGenerate} disabled={isGenerating}>
-                  <Wand2 className="w-4 h-4" /> Generate All
+                  {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Wand2 className="w-4 h-4" /> Generate All</>}
                 </Button>
               </div>
             </div>
