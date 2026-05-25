@@ -504,37 +504,55 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Process jobs one at a time to avoid rate limits and timeouts
-  for (const { dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform } of dayJobs) {
-    try {
-      const limit = CHAR_LIMITS[platform] || 500;
-      
-      const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL: MAX ${limit} characters TOTAL. Referral link is ~130 chars. Count BEFORE outputting. If over ${limit}, CUT content to fit.`,
-      });
-      
-      if (content.length > limit) {
-        errors.push({ error: `Post exceeds ${limit} char limit: ${content.length} chars`, platform, date: dateStr });
-        continue;
+  // Process in parallel batches of 10 to balance speed and rate limits
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < dayJobs.length; i += BATCH_SIZE) {
+    const batch = dayJobs.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
+        const limit = CHAR_LIMITS[platform] || 500;
+        
+        const content = await db.integrations.Core.InvokeLLM({
+          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL: MAX ${limit} characters TOTAL. Referral link is ~130 chars. Count BEFORE outputting. If over ${limit}, CUT content to fit.`,
+        });
+        
+        if (content.length > limit) {
+          return { type: 'error', error: `Post exceeds ${limit} char limit: ${content.length} chars`, platform, date: dateStr };
+        }
+        
+        const defaultHour = 8 + Math.floor(platform.length / 3);
+        const plannerTime = plannerPostingTimes[platform];
+        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+        const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
+        const post = await db.entities.GeneratedPost.create({
+          title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
+          content,
+          strategy,
+          target_roles: dayRoles.map(r => r.title).join(', '),
+          status: 'scheduled',
+          scheduled_date: dateStr,
+          scheduled_time: timeStr,
+          notes: `[AUTO_GENERATED] platform:${platform} chars:${content.length}`,
+        });
+        return { type: 'success', postId: post.id, platform, date: dateStr };
+      })
+    );
+    
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        if (result.value.type === 'success') {
+          created.push(result.value);
+        } else {
+          errors.push(result.value);
+        }
+      } else {
+        errors.push({ error: result.reason?.message || 'Unknown error', platform: 'unknown', date: 'unknown' });
       }
-      
-      const defaultHour = 8 + Math.floor(platform.length / 3);
-      const plannerTime = plannerPostingTimes[platform];
-      const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
-      const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
-      const post = await db.entities.GeneratedPost.create({
-        title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
-        content,
-        strategy,
-        target_roles: dayRoles.map(r => r.title).join(', '),
-        status: 'scheduled',
-        scheduled_date: dateStr,
-        scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED] platform:${platform} chars:${content.length}`,
-      });
-      created.push({ postId: post.id, platform, date: dateStr });
-    } catch (error) {
-      errors.push({ error: error.message, platform, date: dateStr });
+    }
+    
+    // Small delay between batches
+    if (i + BATCH_SIZE < dayJobs.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
