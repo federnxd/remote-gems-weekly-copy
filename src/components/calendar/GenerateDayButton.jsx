@@ -17,14 +17,34 @@ const NON_LINKEDIN_PLATFORMS = [
 
 const ALL_PLATFORMS = ['linkedin', ...NON_LINKEDIN_PLATFORMS];
 
+// Matches autoFillWeek backend logic exactly
+// DAY_STRATEGIES: job referral post strategy for each day (0=Sun, 1=Mon, ..., 6=Sat)
+const DAY_STRATEGIES = [
+  'targeted_role',      // Sunday (0) - job referral
+  'targeted_role',      // Monday (1) - job referral
+  'storytelling',       // Tuesday (2) - job referral
+  'social_proof',       // Wednesday (3) - job referral
+  'urgency',            // Thursday (4) - job referral
+  'carousel_text',      // Friday (5) - job referral
+  'niche_community',    // Saturday (6) - job referral
+];
+
+// Thought leadership days: 1=Tue, 3=Thu, 6=Sun (backend uses dayOffset where 0=Mon)
+// But frontend dayOfWeek uses 0=Sun convention, so convert:
+// Backend dayOffset 1 (Tue) = frontend dayOfWeek 2
+// Backend dayOffset 3 (Thu) = frontend dayOfWeek 4
+// Backend dayOffset 6 (Sun) = frontend dayOfWeek 0
+const THOUGHT_LEADERSHIP_DAYS = [0, 2, 4]; // Sun, Tue, Thu (frontend 0=Sun convention)
+
+// Schedule shows what gets generated each day
 const WEEKLY_SCHEDULE = [
-  { dayOfWeek: 1, day: 'Monday',    time: '08:00', type: 'job',           strategy: 'targeted_role',  label: 'All roles (LinkedIn + all)', platforms: ALL_PLATFORMS },
-  { dayOfWeek: 2, day: 'Tuesday',   time: '11:00', type: 'thought',       strategy: 'storytelling',   label: 'Thought leadership', platforms: NON_LINKEDIN_PLATFORMS },
-  { dayOfWeek: 3, day: 'Wednesday', time: '08:00', type: 'job',           strategy: 'social_proof',   label: 'Social proof / story', platforms: NON_LINKEDIN_PLATFORMS },
-  { dayOfWeek: 4, day: 'Thursday',  time: '11:00', type: 'thought',       strategy: 'storytelling',   label: 'Thought leadership', platforms: NON_LINKEDIN_PLATFORMS },
-  { dayOfWeek: 5, day: 'Friday',    time: '08:00', type: 'job',           strategy: 'carousel_text',  label: 'Carousel / list', platforms: NON_LINKEDIN_PLATFORMS },
-  { dayOfWeek: 6, day: 'Saturday',  time: '10:00', type: 'job',           strategy: 'urgency',        label: 'Weekend urgency', platforms: NON_LINKEDIN_PLATFORMS },
-  { dayOfWeek: 0, day: 'Sunday',    time: '11:00', type: 'thought',       strategy: 'storytelling',   label: 'Thought leadership', platforms: NON_LINKEDIN_PLATFORMS },
+  { dayOfWeek: 0, day: 'Sunday',    time: '11:00', type: 'both',          strategy: 'targeted_role',  label: 'Job referral + Thought leadership', platforms: ALL_PLATFORMS },
+  { dayOfWeek: 1, day: 'Monday',    time: '08:00', type: 'job',           strategy: 'targeted_role',  label: 'Job referral (all roles)', platforms: ALL_PLATFORMS },
+  { dayOfWeek: 2, day: 'Tuesday',   time: '11:00', type: 'both',          strategy: 'storytelling',   label: 'Job referral + Thought leadership', platforms: ALL_PLATFORMS },
+  { dayOfWeek: 3, day: 'Wednesday', time: '08:00', type: 'job',           strategy: 'social_proof',   label: 'Job referral', platforms: NON_LINKEDIN_PLATFORMS },
+  { dayOfWeek: 4, day: 'Thursday',  time: '11:00', type: 'both',          strategy: 'urgency',        label: 'Job referral + Thought leadership', platforms: ALL_PLATFORMS },
+  { dayOfWeek: 5, day: 'Friday',    time: '08:00', type: 'job',           strategy: 'carousel_text',  label: 'Job referral', platforms: NON_LINKEDIN_PLATFORMS },
+  { dayOfWeek: 6, day: 'Saturday',  time: '10:00', type: 'job',           strategy: 'niche_community',label: 'Job referral', platforms: NON_LINKEDIN_PLATFORMS },
 ];
 
 const strategyBadgeColor = {
@@ -143,11 +163,13 @@ export default function GenerateDayButton({ date, onPostsCreated }) {
 
               <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
                 <Badge className={`text-[10px] ${strategyBadgeColor[slot.strategy] || ''}`}>
-                  {slot.type === 'thought' ? 'thought leader' : slot.strategy.replace(/_/g, ' ')}
+                  {slot.strategy.replace(/_/g, ' ')}
                 </Badge>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{slot.label}</p>
-                  <p className="text-xs text-muted-foreground">{slot.platforms.length} platforms</p>
+                  <p className="text-xs text-muted-foreground">
+                    {slot.type === 'both' ? 'Job referral + Thought leadership' : slot.type === 'thought' ? 'Thought leadership only' : 'Job referral only'} • {slot.platforms.length} platforms
+                  </p>
                 </div>
               </div>
 
