@@ -208,6 +208,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const [totalTasks, setTotalTasks] = useState(0);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [selectedWeekDate, setSelectedWeekDate] = useState(new Date());
+  const isGenerating = step === 'generating';
 
   const updateWeek = (fromDate) => {
     const nextSlots = getWeekSlotDates(fromDate);
@@ -215,11 +216,11 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   };
 
   const openDialog = async () => {
+    if (isGenerating) return;
     const today = new Date();
     setSelectedWeekDate(today);
     updateWeek(today);
     setStep('preview');
-    setProgress(0);
     setGeneratedCount(0);
     setTotalTasks(0);
     setOpen(true);
@@ -232,6 +233,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   };
 
   const handleGenerate = async () => {
+    if (isGenerating) return; // prevent double-click
     setStep('generating');
     const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
     setTotalTasks(total);
@@ -316,7 +318,7 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
 
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button className="flex-1 gap-2" onClick={handleGenerate}>
+                <Button className="flex-1 gap-2" onClick={handleGenerate} disabled={isGenerating}>
                   <Wand2 className="w-4 h-4" /> Generate All
                 </Button>
               </div>
