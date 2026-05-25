@@ -98,6 +98,23 @@ const ALL_PLATFORMS = [
   'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
 
+const NON_LINKEDIN_PLATFORMS = [
+  'twitter', 'instagram', 'mastodon', 'bluesky', 'threads',
+  'weworkremotely', 'wellfound', 'remotive', 'flexjobs', 'remoteok', 'reddit', 'discord',
+];
+
+const THOUGHT_LEADERSHIP_DAYS = [1, 3, 6]; // Tuesday, Thursday, Sunday (0=Sun)
+
+const TOPIC_THEMES = [
+  { theme: 'AI job displacement vs. job creation', angle: 'Use current 2024-2025 data (WEF, McKinsey, OECD) showing AI creates new roles while automating tasks. Discuss net effect and skills that matter now.' },
+  { theme: 'The rise of remote AI-assisted work', angle: 'Real stats on remote work adoption post-2023, how AI tools (Copilot, Claude, ChatGPT) integrate into remote workflows. What changed in last 12 months.' },
+  { theme: 'Human-in-the-loop AI training as a profession', angle: 'Explain RLHF, growing demand for domain experts to review/label AI outputs, why this is legitimate growing field.' },
+  { theme: 'Remote work in 2025: state of the market', angle: 'Current data: remote hiring by industry, remote vs office salaries globally, which sectors are most remote-friendly.' },
+  { theme: 'AI literacy as the most in-demand skill', angle: 'Data from LinkedIn, Indeed, WEF showing AI skills are fastest growing. What companies pay for, how to develop these skills.' },
+  { theme: 'The gig economy meets AI: new opportunity landscape', angle: 'How platforms use AI to match gig workers. Data on freelance market size, growth of AI-adjacent gig roles, what pays best.' },
+  { theme: 'Robots, AI agents, and human experts behind them', angle: 'How humanoid robots and autonomous AI agents require vast human expert data. What this means for specialized employment.' },
+];
+
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
 
 const PLATFORM_TONES = {
@@ -127,21 +144,65 @@ const DAY_STRATEGIES = [
   'targeted_role',      // Sunday
 ];
 
-function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') {
-  // ── Role signal analysis ─────────────────────────────────────────────────
-  const newRolesList    = roles.filter(r => r.is_new);
-  const highDemandList  = roles.filter(r => r.is_high_demand);
-  const lastVacantList  = roles.filter(r => r.openings > 0 && r.openings <= 3);
-  const paidRoles       = roles.filter(r => r.pay_rate);
+function buildThoughtLeadershipPrompt(platform, theme, angle, dayOffset, plannerContext = '') {
+  const tone = PLATFORM_TONES[platform] || 'Informative, engaging, professional.';
+  const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+  const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][dayOffset];
 
-  // Build annotated role list — every signal visible to the LLM
-  const roleList = roles.slice(0, 20).map(r => {
+  const platformRules = platform === 'twitter'
+    ? 'Max 280 chars. One punchy stat/insight as hook. 1–2 hashtags.'
+    : platform === 'reddit'
+    ? 'Open with real observation/question. Invite discussion. No hashtags. Zero marketing feel.'
+    : platform === 'discord'
+    ? 'Super short. Start with stat/question. Ultra-casual. Real person starting convo.'
+    : platform === 'instagram'
+    ? 'Line breaks between ideas. Emojis where meaningful. Save-worthy, educational.'
+    : '';
+
+  return `You are writing a thought leadership post for ${platform.toUpperCase()}. You are a remote professional working in the AI industry. First person, insightful, credible, genuinely curious. This is NOT a job ad.
+
+TODAY: ${currentDate} (${dayName})
+PLATFORM: ${platform.toUpperCase()}
+PLATFORM TONE: ${tone}
+
+TOPIC: ${theme}
+ANGLE: ${angle}
+
+WHAT TO WRITE:
+- Educational post about the topic — something people want to read and share.
+- Use real 2024–2025 data (WEF, McKinsey, LinkedIn, OECD, Statista — cite naturally in text).
+- Connect to personal experience working remotely in AI — but do NOT name any specific company.
+- End with genuine open question or discussion prompt (except Twitter).
+- 5–8 relevant hashtags at end (except Reddit/Discord).
+
+STRICT RULES:
+- NO job postings, referral links, or "we're hiring".
+- NO mention of "micro1" or any company name.
+- NO fake urgency, NO corporate speak, NO "earn money" language.
+- Stats woven naturally — not dumped as bullet list.
+- Sound like thoughtful human, not brand account.
+${platformRules ? '\nPLATFORM-SPECIFIC: ' + platformRules : ''}
+
+Generate ONLY the post content. No labels, no "Post:" prefix.
+${plannerContext ? '\n\nINTERNAL STRATEGY GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
+}
+
+function buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext = '') {
+  // ── Role signal analysis (use the pre-filtered dayRoles for this strategy/day)
+  const newRolesList    = dayRoles.filter(r => r.is_new);
+  const highDemandList  = dayRoles.filter(r => r.is_high_demand);
+  const lastVacantList  = dayRoles.filter(r => r.openings > 0 && r.openings <= 3);
+  const paidRoles       = dayRoles.filter(r => r.pay_rate);
+
+  // Build strategy-specific annotated role list
+  const roleList = dayRoles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
-    if (r.is_new)         line += ' 🆕 NEWLY ADDED';
-    if (r.is_high_demand) line += ' 🔥 HIGH DEMAND';
-    if (r.openings > 0)   line += ` [${r.openings} opening${r.openings > 1 ? 's' : ''} left]`;
-    if (r.pay_rate)        line += ` | pay: ${r.pay_rate}`;
-    if (r.required_skills) line += ` | skills needed: ${r.required_skills}`;
+    // Only show signals relevant to THIS strategy
+    if (r.is_new && strategy === 'targeted_role' && dayOffset === 0) line += ' 🆕';
+    if (r.is_high_demand && (strategy === 'urgency' || strategy === 'social_proof')) line += ' 🔥';
+    if (r.openings > 0 && strategy === 'urgency') line += ` [${r.openings} left]`;
+    if (r.pay_rate && (strategy === 'social_proof' || strategy === 'urgency')) line += ` | ${r.pay_rate}`;
+    if (r.required_skills && strategy === 'targeted_role') line += ` | ${r.required_skills}`;
     return line;
   }).join('\n');
 
@@ -165,19 +226,10 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     : '';
 
-  // ── For urgency/niche: also surface vacancy counts inline ──
-  const vacancyContext = (strategy === 'urgency' || strategy === 'niche_community')
-    ? (() => {
-        const withOpenings = roles.filter(r => r.openings > 0).map(r => `${r.title} (${r.openings} left)`).join(', ');
-        return withOpenings ? `\nVACANCY SNAPSHOT (weave in naturally — don't list robotically): ${withOpenings}` : '';
-      })()
-    : '';
-
   const tone = PLATFORM_TONES[platform] || 'Professional and engaging.';
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
-  const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const dayName = DAY_NAMES[dayOfWeek];
+  const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][dayOffset];
   const isLinkedIn = platform === 'linkedin';
 
   const play = STRATEGY_PLAYBOOK[strategy] || STRATEGY_PLAYBOOK['targeted_role'];
@@ -213,7 +265,7 @@ PERSONA: A remote professional sharing a useful opportunity they found. First pe
 CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.
 CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates). Just share the opportunity.`;
 
-  return `You are writing a ${dayName} social media post optimized to drive maximum referral link clicks. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
+  return `You are writing a ${dayName} job referral post optimized to drive maximum referral link clicks. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 ${linkedInPersona}
 
 ⚠️ CRITICAL RULE: The referral link contains a domain name — you MUST NOT read, mention, or infer any company name from the URL. Refer to the company ONLY as "leading AI companies", "top AI labs", or similar. NEVER say "micro1". NEVER say any company name. This rule overrides everything else.
@@ -237,7 +289,7 @@ TONE: ${play.tone}
 REFERRAL LINK (embed once, naturally — this is the single most important element): ${REFERRAL_LINK}
 
 ROLES (pre-selected for this strategy — pick 3–6, lead with the most compelling signals):
-${roleList}${vacancyContext}
+${roleList}
 
 MANDATORY ELEMENTS (work in naturally):
 - Referral link (once, prominently)
@@ -504,7 +556,7 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Process in batches of 20 with 2s delay between batches - allows re-running to fill gaps
+  // Process job referral posts in batches
   const BATCH_SIZE = 20;
   for (let i = 0; i < dayJobs.length; i += BATCH_SIZE) {
     const batch = dayJobs.slice(i, i + BATCH_SIZE);
@@ -517,13 +569,11 @@ Deno.serve(async (req) => {
           prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nSTRICT CHARACTER LIMIT: ${limit} characters MAX total. The link is 130 chars, so you have ${limit - 130} chars for text. Be concise.`,
         });
         
-        // Truncate if needed instead of failing
         const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
         
         const defaultHour = 8 + Math.floor(platform.length / 3);
         const plannerTime = plannerPostingTimes[platform];
         const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
-        const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
         const post = await db.entities.GeneratedPost.create({
           title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
           content: finalContent,
@@ -532,9 +582,9 @@ Deno.serve(async (req) => {
           status: 'scheduled',
           scheduled_date: dateStr,
           scheduled_time: timeStr,
-          notes: `[AUTO_GENERATED] platform:${platform} chars:${finalContent.length}`,
+          notes: `[AUTO_GENERATED] platform:${platform} type:job_referral chars:${finalContent.length}`,
         });
-        return { postId: post.id, platform, date: dateStr };
+        return { postId: post.id, platform, date: dateStr, type: 'job_referral' };
       })
     );
     
@@ -546,16 +596,69 @@ Deno.serve(async (req) => {
       }
     }
     
-    // 2 second delay between batches to avoid rate limits
     if (i + BATCH_SIZE < dayJobs.length) {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
+  // Generate thought leadership posts for Tue/Thu/Sun on non-LinkedIn platforms
+  const thoughtLeadershipJobs = [];
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    if (!THOUGHT_LEADERSHIP_DAYS.includes(dayOffset)) continue;
+    
+    const currentDate = addDays(monday, dayOffset);
+    const dateStr = toDateStr(currentDate);
+    const theme = TOPIC_THEMES[dayOffset % TOPIC_THEMES.length];
+    
+    // Check which platforms need thought leadership posts
+    for (const platform of NON_LINKEDIN_PLATFORMS) {
+      if (!existingKeys.has(`${dateStr}::${platform}`)) {
+        thoughtLeadershipJobs.push({ dayOffset, dateStr, platform, theme });
+      }
+    }
+  }
+
+  // Process thought leadership posts
+  for (const { dayOffset, dateStr, platform, theme } of thoughtLeadershipJobs) {
+    try {
+      const content = await db.integrations.Core.InvokeLLM({
+        prompt: buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext),
+        add_context_from_internet: true,
+        model: 'gemini_3_flash',
+      });
+      
+      const limit = CHAR_LIMITS[platform] || 500;
+      const finalContent = content.length > limit ? content.slice(0, limit - 3) + '...' : content;
+      
+      const defaultHour = 11; // Thought leadership posts at 11am
+      const plannerTime = plannerPostingTimes[platform];
+      const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+      
+      const post = await db.entities.GeneratedPost.create({
+        title: `Thought Leadership — ${platform} — ${dateStr}`,
+        content: finalContent,
+        strategy: 'thought_leadership',
+        target_roles: 'general audience',
+        status: 'scheduled',
+        scheduled_date: dateStr,
+        scheduled_time: timeStr,
+        notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership theme:${theme.theme}`,
+      });
+      created.push({ postId: post.id, platform, date: dateStr, type: 'thought_leadership', theme: theme.theme });
+    } catch (err) {
+      errors.push({ platform, type: 'thought_leadership', error: err.message });
+    }
+  }
+
+  const jobReferralCount = created.filter(p => p.type === 'job_referral').length;
+  const thoughtLeadershipCount = created.filter(p => p.type === 'thought_leadership').length;
+
   return Response.json({
     message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${toDateStr(monday)}`,
     targetWeek: toDateStr(monday),
     totalCreated: created.length,
+    jobReferralPosts: jobReferralCount,
+    thoughtLeadershipPosts: thoughtLeadershipCount,
     usedPlannerStrategies: plannerStrategies.length > 0,
     newRolesOnMonday: newRoles.length,
     errors: errors.length > 0 ? errors : undefined,
