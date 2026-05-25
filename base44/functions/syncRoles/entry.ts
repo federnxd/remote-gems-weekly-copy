@@ -10,20 +10,25 @@ Deno.serve(async (req) => {
     if (!syncText?.trim()) return Response.json({ error: 'No text provided' }, { status: 400 });
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      model: 'gpt_5_mini',
-      prompt: `Extract all job roles from the following text. For each role extract:
-- "title": the job title (string)
-- "is_new": true if the role is labeled or tagged as "NEW" or "🆕" anywhere near it, false otherwise
-- "is_high_demand": true if the words "High Demand", "high demand", "HIGH DEMAND", or "🔥" appear anywhere near or next to the role title. Look carefully — these tags are often on the same line or right after the title. If you see "High Demand" anywhere adjacent to a role, set this to true.
-- "openings": number of open positions (look for patterns like "3 openings", "(5)", "x2", "2 positions"). Use 0 if not found.
-- "required_skills": key skills or requirements mentioned for this role (short comma-separated string, e.g. "Python, 3+ years exp, ML"). Empty string if not found.
-- "pay_rate": any pay/compensation info for this role (e.g. "$25/hr", "$80k-120k", "up to $50/hr"). Empty string if not found.
+      model: 'claude_sonnet_4_6',
+      prompt: `You are a precise data extractor. Extract every job role from the text below.
 
-IMPORTANT: Do NOT miss "High Demand" or "🔥" tags. They may appear inline with the title like: "ML Engineer 🔥 High Demand" or on the same line. Always check the full line for these tags.
+For EACH role, extract these fields:
+- "title": the job title only (no tags, no extra text)
+- "is_new": true ONLY if "NEW", "New", or "🆕" appears on the same line as the role title
+- "is_high_demand": true if "High Demand", "high demand", "HIGH DEMAND", or "🔥" appears ANYWHERE on the same line as the role title. This is the most important field — do NOT miss it. When in doubt, set to true.
+- "openings": integer count of open positions. Look for patterns like "3 openings", "(5)", "x2", "2 positions", "5 spots". Default 0.
+- "required_skills": comma-separated key skills for this role. Empty string if none.
+- "pay_rate": pay/compensation info (e.g. "$25/hr", "$80k"). Empty string if none.
 
-Return a JSON object with a "roles" array.
+CRITICAL RULES:
+1. Process EVERY line that contains a job title — do not skip any.
+2. For is_high_demand: scan the ENTIRE line. If "High Demand" or "🔥" is anywhere on it, set true.
+3. For is_new: scan the ENTIRE line. If "NEW", "New", or "🆕" is anywhere on it, set true.
+4. A role can be BOTH is_new AND is_high_demand simultaneously.
+5. Return ALL roles found, even if there are 50+.
 
-Text:
+Text to parse:
 ${syncText}`,
       response_json_schema: {
         type: 'object',
