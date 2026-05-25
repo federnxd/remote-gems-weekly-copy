@@ -389,11 +389,14 @@ export default function Calendar() {
                   </span>
                 )}
               </div>
-              <div className="bg-muted/50 rounded-lg p-3 text-sm whitespace-pre-wrap max-h-52 overflow-y-auto">
+              <div className="bg-muted/50 rounded-lg p-3 text-sm whitespace-pre-wrap max-h-72 overflow-y-auto">
                 {selectedPost.content}
               </div>
               {selectedPost.target_roles && (
-                <p className="text-xs text-muted-foreground"><strong>Targets:</strong> {selectedPost.target_roles}</p>
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground transition-colors"><strong>Targets</strong> (click to expand)</summary>
+                  <p className="mt-1 leading-relaxed">{selectedPost.target_roles}</p>
+                </details>
               )}
               <div className="flex gap-2">
                 {selectedPost.status !== 'published' && (
@@ -445,9 +448,10 @@ export default function Calendar() {
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
                       {post.target_roles && (
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          <strong>Targets:</strong> {post.target_roles}
-                        </p>
+                        <details className="text-[11px] text-muted-foreground mt-1">
+                          <summary className="cursor-pointer hover:text-foreground"><strong>Targets</strong></summary>
+                          <p className="mt-0.5 leading-relaxed">{post.target_roles}</p>
+                        </details>
                       )}
                     </div>
                     <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
