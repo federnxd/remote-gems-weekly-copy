@@ -119,6 +119,8 @@ CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, date
   return `You are writing a ${dayLabel} social media post. Sound fully human — specific, varied, not a bot.
 ${linkedInPersona}
 
+⚠️ CRITICAL RULE: The referral link contains a domain name — you MUST NOT read, mention, or infer any company name from the URL. Refer to the company ONLY as "leading AI companies", "top AI labs", or similar. NEVER say "micro1". NEVER say any company name.
+
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
 MONTH/YEAR: ${currentMonth} ${currentYear}

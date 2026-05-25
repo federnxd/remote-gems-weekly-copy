@@ -207,6 +207,8 @@ CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, date
   return `You are writing a social media referral post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 ${persona}
 
+⚠️ CRITICAL RULE: The referral link contains a domain name — you MUST NOT read, mention, or infer any company name from the URL. Refer to the company ONLY as "leading AI companies", "top AI labs", or similar. NEVER say "micro1". NEVER say any company name. NEVER tell a personal story (job title, tenure, dates).
+
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
 FOCUS: ${focus}
