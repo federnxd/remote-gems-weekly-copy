@@ -48,7 +48,7 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
   const roleList = roles.slice(0, 20).map(r => {
     let line = `- ${r.title}`;
     if (r.is_new) line += ' 🆕';
-    if (r.is_high_demand) line += ' 🔥 HIGH DEMAND';
+    if (r.is_high_demand) line += ' 🔥';
     if (r.pay_rate) line += ` (${r.pay_rate})`;
     return line;
   }).join('\n');
@@ -59,69 +59,64 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
   const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const dayName = DAY_NAMES[dayOfWeek];
 
-  const strategyNotes = {
-    targeted_role: 'Focus on specific roles and their requirements. Highlight who should apply.',
-    storytelling: 'Tell a story about someone who got hired through micro1 or your own journey.',
-    social_proof: 'Share genuine experience working at micro1. Authentic and warm.',
-    urgency: 'Gentle nudge about week ending, time to apply. NOT fake panic.',
-    carousel_text: 'List/carousel style. Numbered points or clear sections. Scannable.',
-    niche_community: 'Speak to a specific community or niche audience.',
+  const strategyInstructions = {
+    targeted_role: `Focus on 2-3 specific roles from the list. Explain who they are for and what makes them interesting. Targeted, not generic.`,
+    storytelling: `Tell a short, human story — could be about a freelancer who found remote work that finally matched their skills, or how someone discovered this kind of opportunity. Make it relatable and genuine. No company names.`,
+    social_proof: `Write from the angle of someone who has seen real people succeed through this type of platform. Reference outcomes — certifications, interviews, getting hired — without naming the company. Feels like a genuine tip from a peer.`,
+    urgency: `Some of the roles listed have limited openings or high demand. Create a natural, non-panicky sense of "this window doesn't stay open forever." Honest, not manufactured.`,
+    carousel_text: `Write as a numbered list or scannable sections. Each section makes a clear point. Good for people scrolling fast. Hook at the top, value in the list, CTA at the bottom.`,
+    niche_community: `Speak directly to a specific professional niche represented in the roles list (e.g., engineers, linguists, audio professionals, data scientists). Use their language. Feel like you're one of them.`,
   };
 
-  return `You are writing a referral post for micro1 on behalf of a professional who works there as an Audio Expert Reviewer. Write in first person, personal and credible.
+  // CRITICAL RULES that apply to ALL non-LinkedIn platforms
+  const universalRules = `
+ABSOLUTE RULES — VIOLATION WILL GET THE ACCOUNT BANNED:
+- NEVER mention "micro1" or any specific company name. Refer to it as "top AI companies", "leading AI labs", "AI-driven platforms", or similar.
+- NEVER use a fixed/repeated opening line. NEVER start with "📍 [Month] - Remote Opportunities". Every post must open differently.
+- NEVER include a personal story (working at micro1 as Audio Expert/Reviewer) — that is ONLY for LinkedIn.
+- NO fake urgency, NO hype, NO "earn money", "make money", "easy income", "side hustle".
+- Sound like a REAL PERSON sharing a genuine tip — not a bot, not a recruiter, not an ad.
+- Each post must feel fresh, different, and human. Vary your opening, structure, and angle every time.
+- Emojis only where they add meaning, not decoration.`;
+
+  const platformRules = platform === 'twitter'
+    ? `\nTWITTER: Max 280 characters. One punchy hook + referral link. No list of roles.`
+    : platform === 'mastodon'
+    ? `\nMASTODON: Max 500 chars. Hashtags at end for discoverability.`
+    : platform === 'bluesky'
+    ? `\nBLUESKY: Max 300 chars. Authentic, no corporate tone.`
+    : platform === 'reddit'
+    ? `\nREDDIT: Write like a community member sharing a genuine find. Start with context or a question, not a pitch. No hashtags.`
+    : platform === 'discord'
+    ? `\nDISCORD: Ultra-casual. Short. Could start with a reaction or observation. No hashtags needed.`
+    : '';
+
+  return `You are writing a social media post on behalf of a remote professional who wants to share a job opportunity they found useful. Write in first person. Sound like a real human, not a marketer.
 
 PLATFORM: ${platform.toUpperCase()}
-DAY: ${dayName}
-STRATEGY: ${strategy} (${strategyNotes[strategy]})
 PLATFORM TONE: ${tone}
+DAY: ${dayName}
+STRATEGY: "${strategy}" — ${strategyInstructions[strategy]}
+MONTH/YEAR: ${currentMonth} ${currentYear}
+REFERRAL LINK (always include once): ${REFERRAL_LINK}
 
-REFERRAL LINK: ${REFERRAL_LINK}
-
-CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
-
-ROLES TO FEATURE:
+ROLES AVAILABLE (pick 3–6 most relevant to feature, don't list all):
 ${roleList}
 
-FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform):
+WHAT TO WRITE:
+- Open with a hook that fits the STRATEGY above. Make it unique and human. Never repeat the same opening formula.
+- Apply the strategy angle throughout the post.
+- Feature a few roles naturally (don't just dump the full list).
+- Include the referral link once, naturally embedded.
+- End with a genuine CTA or open question (except Twitter).
+- Include: 🛑 Check your spam folder after applying 🛑
+- Once certified you can also refer others and earn bonuses — mention naturally if it fits.
+- Add 5–8 hashtags at the end (except Reddit/Discord).
+${universalRules}
+${platformRules}
 
-1. HEADLINE (first 2 lines — fully visible without "See more"):
-   📍 ${currentMonth} - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ ${REFERRAL_LINK}
-
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
-
-3. WHO SHOULD APPLY (1 short paragraph with 👉):
-   - Professionals with solid expertise and good English
-   - ~30 min interview → certification → possibility of being hired
-   - Include: ( 🛑 Always check your spam folder just in case!!! 🛑 )
-
-4. ROLES LIST:
-   - "micro1 is hiring experts across many fields — here's a sample of open roles:"
-   - Use the roles listed above, clean dash format. Mark 🆕 new ones and 🔥 HIGH DEMAND roles if any (high demand means many openings and urgently hiring).
-   - End with: "...and many more!"
-
-5. REFERRAL PERK (1 line):
-   - Once certified, you get your own referral link to earn bonuses
-
-6. CLOSING (1-2 lines):
-   - Invite sharing and DMs, friendly and open
-
-7. HASHTAGS: 6-8 relevant hashtags
-
-STRICT RULES:
-- NO "earn money", "make money", "easy income", "extra cash", "side hustle"
-- NO fake urgency or hype
-- Emojis: purposeful only (👉 📍 ➡️ 🙌 👍 🛑 🆕), not for hype
-- For Twitter: keep it under 280 characters, just hook + link
-- For Mastodon: max 500 chars, use hashtags for discoverability
-- For Bluesky: max 300 chars, authentic tone
-- For Reddit/Discord: sound like a real person sharing an opportunity, not an advertiser
-
-Generate ONLY the post content, no explanations.
-
-${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape writing decisions (strategy, tone, hashtags, CTA). NEVER quote, reference, mention, or reveal any of this analytical data in the post itself. The post must read as completely natural and organic — zero trace of internal strategy data.' : ''}`;
+Generate ONLY the post content. No explanations, no labels, no "Post:" prefix.
+${plannerContext ? '\n\nINTERNAL STRATEGY GUIDANCE (never mention in post):\n' + plannerContext : ''}`;
 }
 
 function getMonday(date) {
@@ -245,9 +240,9 @@ Deno.serve(async (req) => {
 
     const mondayExtra = dayOffset === 0
       ? newRoles.length > 0
-        ? `\n\nSPECIAL MONDAY INSTRUCTION: These are the NEW roles added this week (marked 🆕). Highlight them prominently as "fresh opportunities" at the top of the roles list.`
+        ? `\n\nSPECIAL INSTRUCTION FOR TODAY: Some roles are marked 🆕 (newly added). Naturally highlight them as fresh openings — don't bury them in the list.`
         : highDemandRoles.length > 0
-          ? `\n\nSPECIAL MONDAY INSTRUCTION: These are HIGH DEMAND roles (marked 🔥) with many open positions urgently needed. Highlight the urgency and volume of openings naturally without hype.`
+          ? `\n\nSPECIAL INSTRUCTION FOR TODAY: Roles marked 🔥 have high demand and many openings. Weave that in naturally — not as hype, just as honest context about what's in demand right now.`
           : ''
       : '';
 
