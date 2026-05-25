@@ -504,38 +504,56 @@ Deno.serve(async (req) => {
     discord: 300,
   };
 
-  // Run ALL jobs in parallel — each LLM call is independent
-  const allResults = await Promise.allSettled(
-    dayJobs.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
-      const limit = CHAR_LIMITS[platform] || 500;
-      
-      // Generate with strict character limit enforcement
-      const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\nFINAL CHECK: Count your characters BEFORE outputting. Your post must be UNDER ${limit} characters TOTAL (including the referral link which is ~130 chars). If it's over ${limit} chars, REWRITE IT SHORTER.`,
-      });
-      
-      // Validate character count - reject if over limit
-      if (content.length > limit) {
-        throw new Error(`Post exceeds ${limit} char limit: ${content.length} chars`);
+  // Run jobs sequentially in batches to avoid rate limits
+  // Process in batches of 5 to avoid rate limiting
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < dayJobs.length; i += BATCH_SIZE) {
+    const batch = dayJobs.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
+        const limit = CHAR_LIMITS[platform] || 500;
+        
+        // Generate with strict character limit enforcement
+        const content = await db.integrations.Core.InvokeLLM({
+          prompt: buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL: Your output MUST be ${limit} characters or less. The referral link is ${REFERRAL_LINK.length} chars. Write ONLY the post content. Count every character BEFORE outputting. If over ${limit}, DELETE content until it fits.`,
+        });
+        
+        // Validate character count - reject if over limit
+        if (content.length > limit) {
+          throw new Error(`Post exceeds ${limit} char limit: ${content.length} chars`);
+        }
+        
+        const defaultHour = 8 + Math.floor(platform.length / 3);
+        const plannerTime = plannerPostingTimes[platform];
+        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+        const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
+        const post = await db.entities.GeneratedPost.create({
+          title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
+          content,
+          strategy,
+          target_roles: dayRoles.map(r => r.title).join(', '),
+          status: 'scheduled',
+          scheduled_date: dateStr,
+          scheduled_time: timeStr,
+          notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories} chars:${content.length}`,
+        });
+        return { postId: post.id, platform, date: dateStr };
+      })
+    );
+    
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        created.push(result.value);
+      } else {
+        errors.push({ error: result.reason?.message });
       }
-      
-      const defaultHour = 8 + Math.floor(platform.length / 3);
-      const plannerTime = plannerPostingTimes[platform];
-      const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
-      const categories = [...new Set(dayRoles.map(r => r.category).filter(Boolean))].join(',');
-      const post = await db.entities.GeneratedPost.create({
-        title: `${strategy.replace('_', ' ')} — ${platform} — ${dateStr}`,
-        content,
-        strategy,
-        target_roles: dayRoles.map(r => r.title).join(', '),
-        status: 'scheduled',
-        scheduled_date: dateStr,
-        scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED_WEEKLY] platform:${platform} day:${dayOffset} segment:${categories} chars:${content.length}`,
-      });
-      return { postId: post.id, platform, date: dateStr };
-    })
-  );
+    }
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + BATCH_SIZE < dayJobs.length) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
 
   for (const result of allResults) {
     if (result.status === 'fulfilled') {
