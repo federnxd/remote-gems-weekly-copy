@@ -156,15 +156,22 @@ Deno.serve(async (req) => {
   let body = {};
   try { body = await req.json(); } catch { /* no body */ }
 
-  // If target_next_week is true (or called on Sunday), generate for NEXT week
+  // Determine anchor Monday:
+  // - If called automatically on Sunday (no explicit override), advance to NEXT Monday
+  // - If called manually (any day), use the CURRENT week's Monday
   const today = new Date();
-  const isSunday = today.getDay() === 0;
-  const targetNextWeek = body.target_next_week === true || isSunday;
+  const todayArgStr = today.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const [ty, tm, td] = todayArgStr.split('-').map(Number);
+  const todayLocal = new Date(ty, tm - 1, td);
+  const isSunday = todayLocal.getDay() === 0;
+
+  // target_next_week=true means automated Sunday trigger → next week
+  // manual call (no flag) → current week always
+  const isAutomatedSundayRun = body.target_next_week === true || (isSunday && body.manual !== true);
 
   let monday = getMonday(today);
-  if (targetNextWeek) {
-    // Advance to next Monday
-    monday = addDays(monday, 7);
+  if (isAutomatedSundayRun) {
+    monday = addDays(monday, 7); // advance to next Monday
   }
 
   // Generate posts for the 7 days (Monday-Sunday) of the target week
