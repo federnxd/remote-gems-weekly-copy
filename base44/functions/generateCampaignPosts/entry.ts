@@ -42,74 +42,64 @@ function buildPostPrompt(roles, platform, referralLink, highlightNew) {
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
   const isLinkedIn = platform === 'linkedin';
 
-  const headline = highlightNew
-    ? `🌟 NEW WEEKLY ROLES at Leading AI Companies — These are the new open roles for the week 🚀\n   ➡️ ${referralLink}`
-    : `📍 ${currentMonth} - Remote Opportunities at Leading AI Companies 🤖\n   ➡️ ${referralLink}`;
+  const focus = highlightNew
+    ? 'These are FRESHLY ADDED roles — new this week. That newness is the hook.'
+    : `${currentMonth} ${currentYear} — current open remote expert roles at top AI companies.`;
 
-  const companyRef = isLinkedIn ? 'micro1' : 'leading AI companies';
-  const rolesIntro = isLinkedIn
-    ? 'micro1 is hiring experts across many fields — here\'s a sample of open roles:'
-    : 'Leading AI companies are hiring experts across many fields — here\'s a sample of open roles:';
+  const linkedInPersona = isLinkedIn ? `
+PERSONA (LinkedIn only): You work at micro1 since October 2025 as an Audio Expert, Reviewer since March 2026. First person, genuine, warm. Mention reliable pay, flexible remote hours, supportive team — naturally, not as a pitch. You can name micro1 on LinkedIn.` : `
+PERSONA: A remote professional sharing a useful opportunity they came across. First person, genuine, peer-to-peer. NEVER name micro1 or any specific company — say "top AI companies", "leading AI labs", "AI-driven platforms", etc.`;
 
-  const section2 = isLinkedIn && !highlightNew ? `
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
-   - NOT salesy` : `
-2. BRIEF CONTEXT (1 short paragraph):
-   - Frame the opportunity naturally — ${highlightNew ? 'these are freshly added roles, hot off the press' : `remote expert roles at ${companyRef} are open now`}
-   - Do NOT mention any specific company name
-   - Keep it genuine, not promotional`;
+  const platformRules = platform === 'twitter'
+    ? '\nTWITTER: Max 280 characters. Hook + link only. Nothing else.'
+    : platform === 'reddit'
+    ? '\nREDDIT: Open with a real observation or question. Community-first, no pitch energy. No hashtags.'
+    : platform === 'discord'
+    ? '\nDISCORD: Short, casual, chat-like. Emojis. Feel like a real person in a server, not a recruiter.'
+    : platform === 'instagram'
+    ? '\nINSTAGRAM: Line breaks, emojis, CTA at end. Save-worthy format.'
+    : '';
 
-  return `You are writing a referral recruitment post. Write in first person, personal and credible.
+  const strategies = [
+    'Open with a specific role or skill as the hook — speak directly to that professional',
+    'Open with a surprising or counterintuitive insight about remote AI work, then bridge to the opportunity',
+    'Open with a question your target reader is probably asking themselves right now',
+    'Open with a short human anecdote or observation, then pivot to the opportunity',
+    'Open with a concise value statement — what this opportunity actually gives someone',
+  ];
+  // Rotate strategy based on platform name length (simple deterministic variation)
+  const strategyHint = strategies[platform.length % strategies.length];
+
+  return `You are writing a referral post. Write in first person. Sound fully human — varied, creative, genuine.
+${linkedInPersona}
 
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
+FOCUS: ${focus}
+OPENING STRATEGY FOR THIS POST: ${strategyHint}
 
-REFERRAL LINK: ${referralLink}
+REFERRAL LINK (embed once, naturally): ${referralLink}
 
-CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
-
-${highlightNew ? 'FOCUS: These are NEWLY ADDED roles — emphasize that they are fresh opportunities just added this week.' : 'FOCUS: Monthly round-up of current open remote expert roles.'}
-
-ROLES TO FEATURE:
+ROLES (pick 3–6 to feature, don't dump the whole list):
 ${roleList}
 
-FOLLOW THIS EXACT STRUCTURE (adapt length/tone for the platform, but keep all sections):
+WHAT TO INCLUDE:
+- A hook that uses today's opening strategy — fresh, never templated
+- 3–6 roles woven in naturally (not just a list dump)
+- Who should apply: solid expertise + good English, ~30 min interview → certification → possible hire
+- 🛑 spam folder warning once
+- Referral bonus perk (once, naturally)
+- A genuine CTA or open question at the end
+- 5–8 hashtags (except Reddit/Discord)
 
-1. HEADLINE (first 2 lines — must be fully visible without "See more"):
-   ${headline}
-${section2}
-
-3. WHO SHOULD APPLY (1 short paragraph with 👉):
-   - Professionals with solid expertise and good English
-   - Mention: ~30 min interview → certification → possibility of being hired
-   - Include: ( 🛑 Always check your spam folder just in case!!! 🛑 )
-
-4. ROLES LIST:
-   - Intro: "${rolesIntro}"
-   ${highlightNew ? '- Note which ones are newly added (🆕)' : ''}
-   - Use the roles listed above, clean dash bullet format
-   - End with: "...and many more!"
-
-5. REFERRAL PERK (1 line):
-   - Once certified, you get your own referral link to earn bonuses
-
-6. CLOSING (1-2 lines):
-   - Invite sharing and DMs, friendly and open
-
-7. HASHTAGS: 6-8 relevant hashtags
-
-STRICT RULES:
-- NO "earn money", "make money", "easy income", "extra cash", "side hustle", "get paid fast"
+ABSOLUTE RULES:
+- NO fixed opener like "📍 [Month] - Remote Opportunities" — every post must open differently
+- NO "earn money", "make money", "easy income", "side hustle", "get paid fast"
 - NO fake urgency or hype
-- Compensation: mention "reliable pay" or "competitive compensation" naturally, once max
-- Emojis: purposeful only (👉 📍 ➡️ 🌟 🚀 🙌 👍 🛑 🆕), not for hype
-- For Twitter: keep it under 280 characters, just hook + link
-- For Reddit/Discord: sound like a real person sharing an opportunity, not an advertiser
-${!isLinkedIn ? '- CRITICAL: Do NOT mention "micro1" or any specific company name anywhere in the post' : ''}
+- NO company name on non-LinkedIn platforms
+${platformRules}
 
-Generate ONLY the post content, no explanations.`;
+Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
 }
 
 Deno.serve(async (req) => {

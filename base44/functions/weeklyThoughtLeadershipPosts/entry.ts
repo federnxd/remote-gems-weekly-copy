@@ -73,39 +73,42 @@ function buildThoughtLeadershipPrompt(platform, theme, angle, dayLabel, plannerC
   const tone = PLATFORM_TONES[platform] || 'Informative, engaging, professional.';
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
-  return `You are writing a thought leadership post for ${platform.toUpperCase()} on behalf of a professional who works at micro1 as an Audio Expert Reviewer. Write in first person — personal, credible, and genuine. This is NOT a job ad or recruiting post.
+  const platformRules = platform === 'twitter'
+    ? 'Max 280 chars. One punchy stat or insight as the hook. 1–2 hashtags.'
+    : platform === 'reddit'
+    ? 'Open with a real observation or question. Invite genuine discussion. No hashtags. Zero marketing feel.'
+    : platform === 'discord'
+    ? 'Super short. Start with the stat or question. Ultra-casual. Feel like a real person starting a convo.'
+    : platform === 'instagram'
+    ? 'Line breaks between each idea. Emojis where meaningful. Save-worthy, educational format.'
+    : '';
+
+  return `You are writing a thought leadership post for ${platform.toUpperCase()}. You are a remote professional working in the AI industry. Write in first person — insightful, credible, genuinely curious. This is NOT a job ad.
 
 TODAY: ${currentDate} (${dayLabel})
 PLATFORM: ${platform.toUpperCase()}
 PLATFORM TONE: ${tone}
 
-TOPIC THEME: ${theme}
-ANGLE / DATA TO USE: ${angle}
+TOPIC: ${theme}
+ANGLE: ${angle}
 
-INSTRUCTIONS:
-- Write an educational/informative post about the topic above
-- Use real, plausible data points from 2024-2025 (cite sources like WEF, McKinsey, LinkedIn, OECD, Statista naturally in the text — don't just list them)
-- Connect the theme to your personal experience working remotely in the AI industry
-- Do NOT mention job openings, referral links, or micro1 hiring in this post
-- You CAN briefly mention micro1 as your employer if it adds credibility, but DO NOT promote it
-- Make it genuinely useful and interesting — something people would actually share
-- End with an open question or discussion invite (except Twitter: end with hashtags instead)
-- Platform-specific rules:
-  • Twitter: max 280 chars, one punchy stat + link to bigger idea, 2 hashtags max
-  • Instagram: line breaks between each point, emojis, save-worthy format
-  • Reddit: conversational, curious tone, invite genuine discussion, do NOT sound like marketing
-  • Discord: super short, casual, start with the stat or question, feel like a real person
+WHAT TO WRITE:
+- An educational post about the topic — something people actually want to read and share.
+- Use real data points from 2024–2025 (WEF, McKinsey, LinkedIn, OECD, Statista — cite them naturally in the text, not as a list).
+- Connect to personal experience working remotely in AI — but do NOT name any specific company.
+- End with a genuine open question or discussion prompt (except Twitter).
+- 5–8 relevant hashtags at the end (except Reddit/Discord).
 
 STRICT RULES:
-- NO job posts, NO referral links, NO "we're hiring"
-- NO fake urgency or corporate speak
-- NO "earn money" or "make money" language
-- Use real stats naturally woven into the narrative, not just bullet lists of numbers
-- Sound like a thoughtful professional sharing what they genuinely know
+- NO job postings, referral links, or "we're hiring" of any kind.
+- NO mention of "micro1" or any specific company name.
+- NO fake urgency, NO corporate speak, NO "earn money" language.
+- Stats woven naturally into the narrative — not dumped as a bullet list.
+- Sound like a thoughtful human, not a brand account.
+${platformRules ? '\nPLATFORM-SPECIFIC: ' + platformRules : ''}
 
-${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape your writing decisions (platform tone, content angle, hashtag placement). NEVER quote, reference, mention, or reveal any of this analytical data in the post itself. The post must read as a completely natural, organic piece of content.' : ''}
-
-Generate ONLY the post content. No explanations, no labels.`;
+Generate ONLY the post content. No labels, no "Post:" prefix.
+${plannerContext ? '\n\nINTERNAL STRATEGY GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
 }
 
 Deno.serve(async (req) => {

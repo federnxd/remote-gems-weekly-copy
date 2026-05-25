@@ -30,9 +30,9 @@ const PLATFORM_TONES = {
 };
 
 const DAY_STRATEGY = {
-  3: { strategy: 'social_proof',  styleNote: 'Write as a personal story / social proof post. Share your genuine experience working at micro1 and why you\'d recommend it to others. Authentic and warm.' },
-  5: { strategy: 'carousel_text', styleNote: 'Write as a list/carousel-style post. Use numbered points or clear sections to highlight key reasons to join micro1 and featured open roles. Scannable and shareable.' },
-  6: { strategy: 'urgency',       styleNote: 'Write with a mild weekend urgency angle. Mention that the week is ending, now is a great time to apply, positions fill up. NOT fake panic — just a genuine nudge.' },
+  3: { strategy: 'social_proof',  styleNote: 'Social proof angle: write as someone who has seen peers successfully land remote AI roles. Reference real outcomes (certifications, getting hired, flexible income) without naming any company. Warm and genuine — feels like a trusted recommendation from a colleague, not an ad.' },
+  5: { strategy: 'carousel_text', styleNote: 'List/carousel style: scannable, numbered or bulleted format. Each point delivers standalone value. Could be "X things to know before applying for remote AI roles" or "What makes a strong candidate for these positions" — then feature the roles naturally. End with a clear CTA.' },
+  6: { strategy: 'urgency',       styleNote: 'Weekend angle: some roles are filling up, end of week is a natural checkpoint. Tone is a genuine helpful nudge — "if you\'ve been considering this, now\'s a good time." NOT manufactured panic.' },
 };
 
 function buildPrompt(roles, platform, dayLabel, styleNote, plannerContext = '') {
@@ -47,54 +47,47 @@ function buildPrompt(roles, platform, dayLabel, styleNote, plannerContext = '') 
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
   const currentYear = new Date().toLocaleString('en-US', { year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
-  return `You are writing a referral post for micro1 on behalf of a professional who works there as an Audio Expert Reviewer. Write in first person, personal and credible.
+  const platformRules = platform === 'twitter'
+    ? 'TWITTER: Max 280 characters total. One punchy hook + referral link. Nothing else.'
+    : platform === 'mastodon'
+    ? 'MASTODON: Max 500 chars. End with hashtags for discoverability.'
+    : platform === 'bluesky'
+    ? 'BLUESKY: Max 300 chars. Authentic, no corporate feel.'
+    : platform === 'reddit'
+    ? 'REDDIT: Open with a real observation or question, not a pitch. Community-first. No hashtags. Sound like a member, not a marketer.'
+    : platform === 'discord'
+    ? 'DISCORD: Short, casual, conversational. Start with a reaction or quick thought. Emojis. Feel like a real person in a chat.'
+    : '';
+
+  return `You are writing a ${dayLabel} social media post on behalf of a remote professional sharing a job opportunity. Write in first person. Sound fully human — not a bot, not a recruiter.
 
 PLATFORM: ${platform.toUpperCase()}
-DAY: ${dayLabel}
 PLATFORM TONE: ${tone}
-REFERRAL LINK: ${REFERRAL_LINK}
-CURRENT MONTH/YEAR: ${currentMonth} ${currentYear}
+STRATEGY FOR TODAY: ${styleNote}
+REFERRAL LINK (embed once, naturally): ${REFERRAL_LINK}
+MONTH/YEAR: ${currentMonth} ${currentYear}
 
-POST STYLE FOR TODAY: ${styleNote}
-
-ROLES TO FEATURE:
+ROLES AVAILABLE (pick 3–6 to feature, don't dump the full list):
 ${roleList}
 
-FOLLOW THIS EXACT STRUCTURE (adapt for platform tone and today's style):
+WHAT TO WRITE:
+- Open with a hook that matches today's strategy. Make it feel fresh — NEVER use a template opener like "📍 [Month] - Remote Opportunities".
+- Apply the strategy throughout — the strategy is the soul of the post, not a decoration.
+- Weave in 3–6 roles naturally. Not just a dumped list.
+- Include once: referral link, 🛑 spam folder warning, referral bonus perk (if it fits naturally).
+- End with a real CTA or open question (except Twitter).
+- 5–8 hashtags at the end (except Reddit/Discord).
 
-1. HEADLINE (first 2 lines — fully visible without "See more"):
-   📍 ${currentMonth} - Remote Opportunities at Leading AI Company micro1 🤖
-   ➡️ ${REFERRAL_LINK}
+ABSOLUTE RULES:
+- NEVER mention "micro1" or any company name. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.
+- NEVER use the same opening formula twice. Every post must feel genuinely different.
+- NO personal story about working at micro1 — that's LinkedIn only.
+- NO "earn money", "make money", "easy income", "side hustle".
+- NO fake urgency or hype.
+${platformRules}
 
-2. PERSONAL INTRO (1 short paragraph):
-   - First person, mention working at micro1 since October 2025 as Audio Expert, as Reviewer since March 2026
-   - Genuine and warm — mention reliable pay, flexible remote hours, supportive team
-
-3. WHO SHOULD APPLY (1 short paragraph with 👉):
-   - Professionals with solid expertise and good English
-   - ~30 min interview → certification → possibility of being hired
-   - Include: ( 🛑 Always check your spam folder just in case!!! 🛑 )
-
-4. ROLES LIST:
-   - "micro1 is hiring experts across many fields — here's a sample of open roles:"
-   - Use the roles above, clean dash format. Mark 🆕 new ones if any.
-   - End with: "...and many more!"
-
-5. REFERRAL PERK: Once certified, you get your own referral link to earn bonuses.
-
-6. CLOSING: Invite sharing and DMs, friendly and open.
-
-7. HASHTAGS: 6-8 relevant hashtags
-
-STRICT RULES:
-- NO "earn money", "make money", "easy income", "extra cash", "side hustle"
-- NO fake urgency or hype (urgency posts should feel like a genuine helpful reminder)
-- For Twitter: max 280 characters, just hook + link
-- For Reddit/Discord: sound like a real person sharing an opportunity
-
-${plannerContext ? plannerContext + '\n\nINTERNAL GUIDANCE — DO NOT INCLUDE IN POST OUTPUT:\nUse the planner feedback above strictly as internal guidance to shape your writing decisions (tone, angle, hashtag selection, CTA style). NEVER quote, reference, mention, or reveal any of this data in the post itself. The post must read as a natural, organic piece of content with zero trace of analytical data or internal strategy.' : ''}
-
-Generate ONLY the post content, no explanations.`;
+Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.
+${plannerContext ? '\n\nINTERNAL STRATEGY GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
 }
 
 Deno.serve(async (req) => {
