@@ -602,13 +602,12 @@ Deno.serve(async (req) => {
           content = await db.integrations.Core.InvokeLLM({ prompt: regenPrompt });
         }
         
-        // Final validation - regenerate until valid (no truncation)
+        // Final validation - regenerate until valid (no truncation, no skipping)
         let finalContent = content;
-        let safetyAttempts = 0;
-        const maxSafetyAttempts = 5;
+        let regenCount = 1;
         
-        while ((safetyAttempts < maxSafetyAttempts) && (!finalContent.includes(REFERRAL_LINK) || finalContent.length > limit)) {
-          safetyAttempts++;
+        while (!finalContent.includes(REFERRAL_LINK) || finalContent.length > limit) {
+          regenCount++;
           const missingLink = !finalContent.includes(REFERRAL_LINK);
           const overLimit = finalContent.length > limit;
           
@@ -616,16 +615,9 @@ Deno.serve(async (req) => {
           if (missingLink) errorParts.push(`MISSING REFERRAL LINK - must include: ${REFERRAL_LINK}`);
           if (overLimit) errorParts.push(`OVER LIMIT by ${finalContent.length - limit} chars - you have ${limit} chars total including the link`);
           
-          const strictPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL - REGENERATE FROM SCRATCH:\n${errorParts.join('\n')}\n\nRULES:\n1. Write text (max ${limit - REFERRAL_LINK.length - 20} chars)\n2. Add link: ${REFERRAL_LINK}\n3. Count EVERY character before outputting\n4. Output ONLY the final post - nothing else`;
+          const strictPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL - REGENERATE FROM SCRATCH (attempt ${regenCount}):\n${errorParts.join('\n')}\n\nRULES:\n1. Write text (max ${limit - REFERRAL_LINK.length - 20} chars)\n2. Add link: ${REFERRAL_LINK}\n3. Count EVERY character before outputting\n4. Output ONLY the final post - nothing else`;
           
           finalContent = await db.integrations.Core.InvokeLLM({ prompt: strictPrompt });
-        }
-        
-        // If still invalid after all attempts, log error but don't truncate
-        if (!finalContent.includes(REFERRAL_LINK) || finalContent.length > limit) {
-          console.error(`Post generation failed after ${maxSafetyAttempts} attempts for ${platform} on ${dateStr}: length=${finalContent.length}, hasLink=${finalContent.includes(REFERRAL_LINK)}`);
-          // Skip this post rather than save broken content
-          throw new Error(`Failed to generate valid post for ${platform} on ${dateStr}`);
         }
         
         const defaultHour = 8 + Math.floor(platform.length / 3);
