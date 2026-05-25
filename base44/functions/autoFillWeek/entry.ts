@@ -158,10 +158,13 @@ function buildPrompt(roles, platform, dayOfWeek, strategy, plannerContext = '') 
     : '';
 
   const linkedInPersona = isLinkedIn ? `
-PERSONA (LinkedIn only): You work at micro1 since October 2025 as an Audio Expert, promoted to Reviewer in March 2026. First person, genuine, warm. You can name micro1. Use the brand philosophy below to add depth.
-${BRAND_CONTEXT}` : `
+PERSONA: A professional in the AI industry sharing a remote opportunity. First person, genuine and warm.
+${BRAND_CONTEXT}
+IMPORTANT: Do NOT name micro1 or any specific company. Say "leading AI companies", "top AI labs", etc.
+IMPORTANT: Do NOT tell a personal story about yourself (job title, tenure, dates, promotions).` : `
 PERSONA: A remote professional sharing a useful opportunity they found. First person, genuine, peer-to-peer.
-CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.`;
+CRITICAL: NEVER name micro1 or any company. Say "top AI companies", "leading AI labs", "AI-driven platforms", etc.
+CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates). Just share the opportunity.`;
 
   return `You are writing a ${dayName} social media post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 ${linkedInPersona}

@@ -274,14 +274,15 @@ export default function PostGenerator() {
       : '';
 
     const persona = isLinkedIn
-      ? `PERSONA: You work at micro1 since October 2025 as Audio Expert, promoted to Reviewer in March 2026. Write in first person, genuine and warm. You CAN mention micro1 by name. Use the brand philosophy below for depth:
+      ? `PERSONA: A professional in the AI industry sharing a remote opportunity. First person, genuine and warm. You may reference working at an AI company. Use the brand philosophy below for depth:
 - AI training is reshaping the economy — an entirely new labor sector.
 - The more advanced AI becomes, the MORE it needs exceptional human experts.
-- micro1 works with top AI labs and cutting-edge tech companies globally.
-- "Humans first" — contributors are always prioritized.`
+- The company works with top AI labs and cutting-edge tech companies globally.
+- "Humans first" — contributors are always prioritized.
+IMPORTANT: Do NOT name micro1 or any specific company — say "leading AI companies", "top AI labs", etc.`
       : `PERSONA: A remote professional sharing a useful opportunity they genuinely found valuable. First person, peer-to-peer.
 CRITICAL: NEVER name micro1 or any specific company. Say "top AI companies", "leading AI labs", "AI-driven platforms" etc.
-CRITICAL: Do NOT use your personal story (Audio Expert, Reviewer, October 2025, etc.) — that is for LinkedIn only.`;
+CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates, promotions). Just share the opportunity.`;
 
     return `You are writing a social media post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
 

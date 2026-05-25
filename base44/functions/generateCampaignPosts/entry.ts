@@ -190,13 +190,15 @@ Generate ONLY the post content. No labels, no "Post:" prefix.
 ${plannerContext ? '\n\nINTERNAL PLANNER GUIDANCE (never surface in post):\n' + plannerContext : ''}`;
   }
 
-  // ── ALL OTHER POSTS: strategy-driven, no branded template ──
+  // ── ALL OTHER POSTS: strategy-driven, no branded template, no micro1, no personal story ──
   const persona = isLinkedIn
-    ? `PERSONA (LinkedIn): You work at micro1 since October 2025, Reviewer since March 2026. First person, genuine. You CAN mention micro1.
-${BRAND_CONTEXT}`
-    : `PERSONA: A remote professional sharing a valuable opportunity. First person, peer-to-peer.
-CRITICAL: NEVER name micro1 or any specific company. Use "top AI companies", "leading AI labs", "AI-driven platforms".
-CRITICAL: Do NOT use your personal story (Audio Expert, Reviewer, October 2025) — that is LinkedIn-only.`;
+    ? `PERSONA: A professional in the AI industry sharing a remote opportunity. First person, genuine and warm. Use the brand philosophy below for depth:
+${BRAND_CONTEXT}
+IMPORTANT: Do NOT name micro1 or any specific company — say "leading AI companies", "top AI labs", etc.
+IMPORTANT: Do NOT tell a personal story about yourself (job title, tenure, dates, promotions).`
+    : `PERSONA: A remote professional sharing a useful opportunity they genuinely found valuable. First person, peer-to-peer.
+CRITICAL: NEVER name micro1 or any specific company. Say "top AI companies", "leading AI labs", "AI-driven platforms".
+CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates, promotions). Just share the opportunity.`;
 
   const focus = highlightNew
     ? 'These are FRESHLY ADDED roles — new this week. Freshness is the hook.'
