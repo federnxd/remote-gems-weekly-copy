@@ -114,27 +114,43 @@ export default function Roles() {
   const handleSync = async () => {
     if (!syncText.trim()) return;
     setIsSyncing(true);
-    let response;
+    setSyncOpen(false);
+    toast.info('Sincronizando roles… esto puede tardar hasta un minuto. Los roles irán apareciendo.');
+
+    // The backend can take 20–30s for long lists (LLM extraction + batched
+    // writes). The invoke() call may time out before it returns — so instead of
+    // depending on its response, we fire it AND poll the DB every few seconds.
+    // The roles appear as the backend writes them, regardless of the response.
+    const pollInterval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['open-roles'] });
+    }, 3000);
+
+    let payload = null;
     try {
-      response = await base44.functions.invoke('syncRoles', { syncText });
+      const response = await base44.functions.invoke('syncRoles', { syncText });
+      payload = response.data || {};
     } catch (err) {
-      toast.error('Sync failed: ' + (err?.response?.data?.error || err?.message || 'Unknown error'));
-      setIsSyncing(false);
+      // Timeout / network — the backend is likely still finishing. Keep polling
+      // a bit longer so late writes still show up, then stop.
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        queryClient.invalidateQueries({ queryKey: ['open-roles'] });
+        setIsSyncing(false);
+        setSyncText('');
+        toast.success('Sincronización finalizada. Si falta algún rol, vuelve a sincronizar.');
+      }, 8000);
       return;
     }
 
-    const payload = response.data || {};
-    if (payload.error) {
-      toast.error('Sync failed: ' + payload.error);
-      setIsSyncing(false);
-      return;
-    }
-
-    // Backend already created/updated/deactivated the roles. Just refresh.
+    clearInterval(pollInterval);
     queryClient.invalidateQueries({ queryKey: ['open-roles'] });
     setIsSyncing(false);
-    setSyncOpen(false);
     setSyncText('');
+
+    if (payload.error) {
+      toast.error('Sync failed: ' + payload.error);
+      return;
+    }
 
     const added = payload.added ?? 0;
     const deactivated = payload.deactivated ?? 0;
@@ -143,9 +159,9 @@ export default function Roles() {
     if (newRoles.length > 0) {
       setNewRolesDetected(newRoles.map(r => ({ ...r, isNew: true })));
       setPostGenOpen(true);
-      toast.success(`Sync complete: +${added} added, ${deactivated} marked inactive. ${newRoles.length} NEW role(s) detected!`);
+      toast.success(`Sync completo: +${added} añadidos, ${deactivated} inactivos. ¡${newRoles.length} rol(es) NUEVO(s)!`);
     } else {
-      toast.success(`Sync complete: +${added} added, ${deactivated} marked inactive`);
+      toast.success(`Sync completo: +${added} añadidos, ${deactivated} marcados inactivos`);
     }
   };
 
