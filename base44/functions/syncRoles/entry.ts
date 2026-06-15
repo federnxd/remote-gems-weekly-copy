@@ -83,9 +83,11 @@ Deno.serve(async (req) => {
 
     const db = base44.asServiceRole;
 
-    // Split into chunks of ~15 lines and extract them in parallel — keeps each
-    // LLM call short so even 50+ role lists finish quickly.
-    const chunks = chunkLines(syncText, 15);
+    // Split into chunks of ~30 lines and extract them in parallel. Bigger
+    // chunks = fewer LLM calls = far fewer rate-limit (429) hits and a much
+    // faster total runtime (was timing out the browser at ~31s with 15-line
+    // chunks running many parallel LLM calls).
+    const chunks = chunkLines(syncText, 30);
     const chunkResults = await Promise.all(chunks.map(c => extractChunk(db, c)));
 
     // Merge + dedupe by lowercased title (later chunks win on signal flags).
@@ -119,21 +121,29 @@ Deno.serve(async (req) => {
     const toUpdate = existingRoles.filter(r => extractedTitles.has(r.title.toLowerCase()));
     const removed = existingRoles.filter(r => !extractedTitles.has(r.title.toLowerCase()));
 
-    // Build the full list of write operations. We run them in small SEQUENTIAL
-    // batches — firing 50+ writes at once trips the DB rate limit (429) and the
-    // failed writes were why long lists never showed up.
-    const ops = [
-      ...newOnes.map(r => () => db.entities.OpenRole.create({
-        title: r.title,
-        category: categoryGuess(r.title),
-        priority: r.is_high_demand ? 'high' : 'medium',
-        is_active: true,
-        is_new: r.is_new || false,
-        is_high_demand: r.is_high_demand || false,
-        openings: r.openings || 0,
-        required_skills: r.required_skills || '',
-        pay_rate: r.pay_rate || '',
-      })),
+    // New roles: a SINGLE bulkCreate call instead of one create per role. This
+    // is the key fix — firing 80 individual creates tripped the DB rate limit
+    // (429) and made the whole request take 30s+ (timing out the browser).
+    // One bulk write is fast and never rate-limits.
+    if (newOnes.length > 0) {
+      await db.entities.OpenRole.bulkCreate(
+        newOnes.map(r => ({
+          title: r.title,
+          category: categoryGuess(r.title),
+          priority: r.is_high_demand ? 'high' : 'medium',
+          is_active: true,
+          is_new: r.is_new || false,
+          is_high_demand: r.is_high_demand || false,
+          openings: r.openings || 0,
+          required_skills: r.required_skills || '',
+          pay_rate: r.pay_rate || '',
+        }))
+      );
+    }
+
+    // Updates / deactivations have no bulk API, so run them in small sequential
+    // batches to stay under the rate limit.
+    const updateOps = [
       ...toUpdate.map(role => () => {
         const m = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
         return db.entities.OpenRole.update(role.id, {
@@ -149,9 +159,9 @@ Deno.serve(async (req) => {
     ];
 
     const BATCH = 5;
-    for (let i = 0; i < ops.length; i += BATCH) {
-      await Promise.all(ops.slice(i, i + BATCH).map(fn => fn()));
-      if (i + BATCH < ops.length) await new Promise(res => setTimeout(res, 300));
+    for (let i = 0; i < updateOps.length; i += BATCH) {
+      await Promise.all(updateOps.slice(i, i + BATCH).map(fn => fn()));
+      if (i + BATCH < updateOps.length) await new Promise(res => setTimeout(res, 300));
     }
 
     return Response.json({
