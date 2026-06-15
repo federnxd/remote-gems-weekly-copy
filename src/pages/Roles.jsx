@@ -118,69 +118,34 @@ export default function Roles() {
     try {
       response = await base44.functions.invoke('syncRoles', { syncText });
     } catch (err) {
-      toast.error('Sync failed — the request timed out. Try pasting a shorter list or fewer roles at once.');
+      toast.error('Sync failed: ' + (err?.response?.data?.error || err?.message || 'Unknown error'));
       setIsSyncing(false);
       return;
     }
-    const extracted = response.data?.roles || [];
-    const extractedTitles = extracted.map(r => r.title.toLowerCase());
-    const existingTitles = roles.map(r => r.title.toLowerCase());
-    const newOnes = extracted.filter(r => !existingTitles.includes(r.title.toLowerCase()));
-    const removed = roles.filter(r => !extractedTitles.includes(r.title.toLowerCase()));
-    const existing = roles.filter(r => extractedTitles.includes(r.title.toLowerCase()));
 
-    // Run all DB operations in parallel
-    await Promise.all([
-      ...newOnes.map(r => base44.entities.OpenRole.create({
-        title: r.title,
-        category: categoryGuess(r.title),
-        priority: r.is_high_demand ? 'high' : 'medium',
-        is_active: true,
-        is_new: r.is_new || false,
-        is_high_demand: r.is_high_demand || false,
-        openings: r.openings || 0,
-        required_skills: r.required_skills || '',
-        pay_rate: r.pay_rate || '',
-      })),
-      ...existing.map(role => {
-        const matched = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
-        if (!matched) return Promise.resolve();
-        return base44.entities.OpenRole.update(role.id, {
-          openings: matched.openings ?? role.openings,
-          is_new: matched.is_new || false,
-          is_high_demand: matched.is_high_demand || false,
-          required_skills: matched.required_skills || role.required_skills || '',
-          pay_rate: matched.pay_rate || role.pay_rate || '',
-          is_active: true,
-        });
-      }),
-      ...removed.map(role => base44.entities.OpenRole.update(role.id, { is_active: false, is_new: false, is_high_demand: false })),
-    ]);
+    const payload = response.data || {};
+    if (payload.error) {
+      toast.error('Sync failed: ' + payload.error);
+      setIsSyncing(false);
+      return;
+    }
 
+    // Backend already created/updated/deactivated the roles. Just refresh.
     queryClient.invalidateQueries({ queryKey: ['open-roles'] });
     setIsSyncing(false);
     setSyncOpen(false);
     setSyncText('');
 
-    // Detect brand-new roles (didn't exist before) OR newly-labeled ones
-    const brandNew = newOnes.filter(r => r.is_new);
-    const relabeledNew = existing
-      .filter(r => !r.is_new)
-      .filter(r => {
-        const matched = extracted.find(e => e.title.toLowerCase() === r.title.toLowerCase());
-        return matched?.is_new;
-      });
-    const allNewRoles = [...newOnes.map(r => ({ ...r, isNew: true })), ...relabeledNew.map(r => {
-      const matched = extracted.find(e => e.title.toLowerCase() === r.title.toLowerCase());
-      return { ...r, ...matched, isNew: true };
-    })];
+    const added = payload.added ?? 0;
+    const deactivated = payload.deactivated ?? 0;
+    const newRoles = payload.newRoles || [];
 
-    if (allNewRoles.length > 0) {
-      setNewRolesDetected(allNewRoles);
+    if (newRoles.length > 0) {
+      setNewRolesDetected(newRoles.map(r => ({ ...r, isNew: true })));
       setPostGenOpen(true);
-      toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive. ${allNewRoles.length} NEW role(s) detected!`);
+      toast.success(`Sync complete: +${added} added, ${deactivated} marked inactive. ${newRoles.length} NEW role(s) detected!`);
     } else {
-      toast.success(`Sync complete: +${newOnes.length} added, ${removed.length} marked inactive`);
+      toast.success(`Sync complete: +${added} added, ${deactivated} marked inactive`);
     }
   };
 
