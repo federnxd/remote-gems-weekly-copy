@@ -90,7 +90,10 @@ export default function Roles() {
 
   const { data: roles = [], isLoading } = useQuery({
     queryKey: ['open-roles'],
-    queryFn: () => base44.entities.OpenRole.list('-created_date'),
+    queryFn: () => base44.entities.OpenRole.list('-created_date', 1000),
+    // While a sync is running, auto-refetch every 3s so newly written roles
+    // show up live — independent of whether the invoke() response ever returns.
+    refetchInterval: isSyncing ? 3000 : false,
   });
 
   const createMutation = useMutation({
@@ -115,37 +118,30 @@ export default function Roles() {
     if (!syncText.trim()) return;
     setIsSyncing(true);
     setSyncOpen(false);
-    toast.info('Sincronizando roles… esto puede tardar hasta un minuto. Los roles irán apareciendo.');
+    setSyncText('');
+    toast.info('Sincronizando roles… los roles irán apareciendo en la lista en unos segundos.');
 
-    // The backend can take 20–30s for long lists (LLM extraction + batched
-    // writes). The invoke() call may time out before it returns — so instead of
-    // depending on its response, we fire it AND poll the DB every few seconds.
-    // The roles appear as the backend writes them, regardless of the response.
-    const pollInterval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['open-roles'] });
-    }, 3000);
+    // Safety net: stop the auto-refetch after 75s no matter what, in case the
+    // invoke() promise hangs (timeout) and never resolves or rejects.
+    const stopTimer = setTimeout(() => setIsSyncing(false), 75000);
 
     let payload = null;
     try {
+      // While this awaits, the useQuery refetchInterval (active because
+      // isSyncing=true) keeps refreshing the list, so roles appear live as the
+      // backend writes them — even if this call eventually times out.
       const response = await base44.functions.invoke('syncRoles', { syncText });
       payload = response.data || {};
     } catch (err) {
-      // Timeout / network — the backend is likely still finishing. Keep polling
-      // a bit longer so late writes still show up, then stop.
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        queryClient.invalidateQueries({ queryKey: ['open-roles'] });
-        setIsSyncing(false);
-        setSyncText('');
-        toast.success('Sincronización finalizada. Si falta algún rol, vuelve a sincronizar.');
-      }, 8000);
+      // Timeout/network — backend is likely still finishing. The safety timer
+      // will stop the refetch loop; just let the user know.
+      toast.success('Sincronización en curso. Los roles aparecerán en breve; recarga si falta alguno.');
       return;
     }
 
-    clearInterval(pollInterval);
-    queryClient.invalidateQueries({ queryKey: ['open-roles'] });
+    clearTimeout(stopTimer);
     setIsSyncing(false);
-    setSyncText('');
+    queryClient.invalidateQueries({ queryKey: ['open-roles'] });
 
     if (payload.error) {
       toast.error('Sync failed: ' + payload.error);
