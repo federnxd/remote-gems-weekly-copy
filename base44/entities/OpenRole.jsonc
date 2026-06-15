@@ -42,7 +42,7 @@
     "is_high_demand": {
       "type": "boolean",
       "default": false,
-      "description": "Whether this role is marked as High Demand (🔥) in the job listing. Used for priority targeting and urgency posts."
+      "description": "Whether this role is marked as High Demand in the job listing"
     },
     "priority": {
       "type": "string",

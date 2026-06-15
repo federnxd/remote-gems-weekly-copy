@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
     if (!syncText?.trim()) return Response.json({ error: 'No text provided' }, { status: 400 });
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      model: 'claude_sonnet_4_6',
+      model: 'gemini_3_flash',
       prompt: `You are a precise data extractor. Extract every job role from the text below.
 
 For EACH role, extract these fields:

@@ -48,11 +48,6 @@
       "type": "string",
       "description": "Time the post is scheduled (HH:MM format)"
     },
-    "needs_review": {
-      "type": "boolean",
-      "default": false,
-      "description": "If true, scheduled publish is blocked until the post is reviewed (opt-in per-post review gate)."
-    },
     "linkedin_post_id": {
       "type": "string",
       "description": "LinkedIn UGC post URN"
@@ -68,16 +63,6 @@
     "ig_post_id": {
       "type": "string",
       "description": "Instagram media ID"
-    },
-    "media_type": {
-      "type": "string",
-      "enum": ["IMAGE", "VIDEO", "CAROUSEL_ALBUM", "REELS", "TEXT"],
-      "description": "Media type, used for posts imported from Instagram so analytics can compare reels vs images. Defaults blank for text-only platforms; only set for IG-imported posts."
-    },
-    "imported_from": {
-      "type": "string",
-      "enum": ["instagram"],
-      "description": "If this post was discovered by an import (not published through the app), names the platform it was imported from. Lets analytics distinguish app-published vs externally-published posts."
     },
     "threads_post_id": {
       "type": "string",

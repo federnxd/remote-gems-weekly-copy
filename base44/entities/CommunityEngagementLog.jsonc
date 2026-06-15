@@ -14,8 +14,7 @@
         "bluesky",
         "facebook",
         "instagram",
-        "threads",
-        "twitter"
+        "threads"
       ],
       "description": "Platform where engagement occurred"
     },
@@ -26,15 +25,6 @@
     "comments_posted": {
       "type": "number",
       "default": 0
-    },
-    "dms_sent": {
-      "type": "number",
-      "default": 0,
-      "description": "DMs / public replies sent in response to the 'Remote' trigger keyword."
-    },
-    "dm_recipient_ids": {
-      "type": "string",
-      "description": "Comma-separated user IDs we've already DM'd (per-platform). Dedup so each commenter receives the link once."
     },
     "follows_made": {
       "type": "number",
@@ -59,7 +49,6 @@
         "success",
         "partial",
         "skipped",
-        "rate_limited",
         "error"
       ],
       "default": "success"
@@ -67,10 +56,6 @@
     "notes": {
       "type": "string",
       "description": "Additional session notes"
-    },
-    "replied_notification_ids": {
-      "type": "string",
-      "description": "Comma-separated platform notification IDs already replied to (Mastodon/Bluesky dedup). Stored on the most recent log per platform; consulted before deciding to reply."
     }
   },
   "required": [

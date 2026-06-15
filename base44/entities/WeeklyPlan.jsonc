@@ -37,22 +37,6 @@
     "strategy_notes": {
       "type": "string"
     },
-    "active_strategies": {
-      "type": "string",
-      "description": "Comma-separated priority strategies from the latest DataAnalystPlanner report (auto-synced)."
-    },
-    "recommended_hashtags": {
-      "type": "string",
-      "description": "Comma-separated hashtags recommended by the latest planner report (auto-synced)."
-    },
-    "last_planner_sync": {
-      "type": "string",
-      "description": "ISO timestamp of the last time this plan was updated from a DataAnalystPlanner report."
-    },
-    "planner_report_period": {
-      "type": "string",
-      "description": "The period_label of the planner report this plan reflects."
-    },
     "status": {
       "type": "string",
       "enum": [
