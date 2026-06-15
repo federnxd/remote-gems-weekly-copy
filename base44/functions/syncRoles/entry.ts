@@ -119,8 +119,11 @@ Deno.serve(async (req) => {
     const toUpdate = existingRoles.filter(r => extractedTitles.has(r.title.toLowerCase()));
     const removed = existingRoles.filter(r => !extractedTitles.has(r.title.toLowerCase()));
 
-    await Promise.all([
-      ...newOnes.map(r => db.entities.OpenRole.create({
+    // Build the full list of write operations. We run them in small SEQUENTIAL
+    // batches — firing 50+ writes at once trips the DB rate limit (429) and the
+    // failed writes were why long lists never showed up.
+    const ops = [
+      ...newOnes.map(r => () => db.entities.OpenRole.create({
         title: r.title,
         category: categoryGuess(r.title),
         priority: r.is_high_demand ? 'high' : 'medium',
@@ -131,7 +134,7 @@ Deno.serve(async (req) => {
         required_skills: r.required_skills || '',
         pay_rate: r.pay_rate || '',
       })),
-      ...toUpdate.map(role => {
+      ...toUpdate.map(role => () => {
         const m = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
         return db.entities.OpenRole.update(role.id, {
           openings: m.openings ?? role.openings,
@@ -142,8 +145,14 @@ Deno.serve(async (req) => {
           is_active: true,
         });
       }),
-      ...removed.map(role => db.entities.OpenRole.update(role.id, { is_active: false, is_new: false, is_high_demand: false })),
-    ]);
+      ...removed.map(role => () => db.entities.OpenRole.update(role.id, { is_active: false, is_new: false, is_high_demand: false })),
+    ];
+
+    const BATCH = 5;
+    for (let i = 0; i < ops.length; i += BATCH) {
+      await Promise.all(ops.slice(i, i + BATCH).map(fn => fn()));
+      if (i + BATCH < ops.length) await new Promise(res => setTimeout(res, 300));
+    }
 
     return Response.json({
       roles: extracted,
