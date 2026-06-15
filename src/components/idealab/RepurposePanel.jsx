@@ -15,6 +15,7 @@ const FORMAT_META = [
     bg: 'bg-sky-50',
     border: 'border-sky-200',
     strategy: 'carousel_text',
+    platform: 'twitter',
     description: 'Short punchy thread (5–7 tweets)',
   },
   {
@@ -25,6 +26,7 @@ const FORMAT_META = [
     bg: 'bg-violet-50',
     border: 'border-violet-200',
     strategy: 'storytelling',
+    platform: null, // not a social-publish target — copy/use elsewhere
     description: '300–400 word conversational article',
   },
   {
@@ -35,6 +37,7 @@ const FORMAT_META = [
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     strategy: 'social_proof',
+    platform: null, // not a social-publish target — copy/use elsewhere
     description: 'Punchy email-ready paragraph',
   },
 ];
@@ -104,7 +107,7 @@ export default function RepurposePanel({ topPosts }) {
         content,
         strategy: format.strategy,
         status: 'draft',
-        notes: `Repurposed from post: "${selectedPost?.title}" via IdeaLab`,
+        notes: `${format.platform ? `platform:${format.platform} type:job_referral ` : ''}[IdeaLab repurpose] from: "${selectedPost?.title}"`,
       }),
     onSuccess: (_, { format }) => {
       setSavedKeys(prev => new Set([...prev, format.key]));
@@ -136,7 +139,7 @@ STRATEGY: ${selectedPost.strategy?.replace(/_/g, ' ')}
 ORIGINAL CONTENT:
 ${selectedPost.content}
 
-Generate all 3 formats. Keep the micro1 referral link wherever appropriate: https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e
+Generate all 3 formats. Keep the micro1 referral link wherever appropriate: https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral
 
 Return a JSON object with this exact structure:
 {

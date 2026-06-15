@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import StrategySelector from '@/components/generator/StrategySelector';
-import HashtagSuggester from '@/components/generator/HashtagSuggester';
 import RoleSelector from '@/components/generator/RoleSelector';
 import SegmentSelector, { SEGMENTS } from '@/components/generator/SegmentSelector';
-import PostPreview from '@/components/generator/PostPreview';
+import PlatformPostCard from '@/components/generator/PlatformPostCard';
 import PlatformSelector from '@/components/generator/PlatformSelector';
 import PersonaManager from '@/components/generator/PersonaManager';
 import PlatformRecommender from '@/components/generator/PlatformRecommender';
@@ -14,33 +13,40 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import ABComparePreview from '@/components/generator/ABComparePreview';
+import { Card } from '@/components/ui/card';
 import { Loader2, Sparkles, CalendarClock, GitCompare, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { CEO_CONTEXT } from '@/lib/ceo-context';
+import { parsePayMax } from '@/lib/pay-utils';
 
 export default function PostGenerator() {
   const [strategy, setStrategy] = useState('');
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [activeSegments, setActiveSegments] = useState([]);
+  // Stackable filter chips that narrow the role pool intersection-style.
+  // Independent of segment selection and of the strategy — they always apply.
+  const [filterHighDemand, setFilterHighDemand] = useState(false);
+  const [filterNew, setFilterNew] = useState(false);
+  const [filterHasOpenings, setFilterHasOpenings] = useState(false);
   const [referralLink, setReferralLink] = useState('https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral');
+  const [customCta, setCustomCta] = useState(''); // optional override for link-restrictive platforms
+  const [isRegeneratingCta, setIsRegeneratingCta] = useState(false);
   const [personalNote, setPersonalNote] = useState('');
-  const [generatedContent, setGeneratedContent] = useState('');
+  // Per-platform generated posts. Each: { platform, content, postId|null, error|null }
+  const [posts, setPosts] = useState([]);
+  const [postsB, setPostsB] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(null);
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [needsReview, setNeedsReview] = useState(false);
   const [campaignId, setCampaignId] = useState('');
-  const [savedPostId, setSavedPostId] = useState(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['linkedin']);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [abMode, setAbMode] = useState(false);
   const [strategyB, setStrategyB] = useState('');
-  const [contentB, setContentB] = useState('');
-  const [savedPostIdB, setSavedPostIdB] = useState(null);
   const [isGeneratingNewRoles, setIsGeneratingNewRoles] = useState(false);
   const queryClient = useQueryClient();
 
@@ -54,23 +60,47 @@ export default function PostGenerator() {
     queryFn: () => base44.entities.Campaign.filter({ status: 'active' }),
   });
 
-  const saveMutation = useMutation({
-    mutationFn: (data) => base44.entities.GeneratedPost.create(data),
-    onSuccess: (post) => {
-      setSavedPostId(post.id);
-      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
-      toast.success('Post saved!');
-    },
-  });
+  const regenerateCta = async () => {
+    setIsRegeneratingCta(true);
+    try {
+      const targetPlatform = selectedPlatforms.find(p => !['linkedin','mastodon','bluesky'].includes(p)) || 'instagram';
+      const res = await base44.functions.invoke('generatePost', {
+        ctaMode: 'suggest',
+        platforms: [targetPlatform],
+      });
+      const payload = res?.data ?? res ?? {};
+      if (payload.cta) {
+        setCustomCta(payload.cta);
+      } else {
+        toast.error('Could not generate a CTA — try again.');
+      }
+    } catch (err) {
+      toast.error('CTA generation failed: ' + (err?.message || 'error'));
+    }
+    setIsRegeneratingCta(false);
+  };
 
-  const saveMutationB = useMutation({
-    mutationFn: (data) => base44.entities.GeneratedPost.create(data),
-    onSuccess: (post) => {
-      setSavedPostIdB(post.id);
-      queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
-      toast.success('Variant B saved!');
-    },
-  });
+  // Save one platform's post, tagging notes with platform: so the scheduler
+  // routes it to the right place (this was previously missing).
+  const savePost = async ({ platform, content, strat, asScheduled }) => {
+    const isThought = strat === 'thought_leadership';
+    const created = await base44.entities.GeneratedPost.create({
+      title: isThought
+        ? `thought leadership — ${platform}`
+        : `${strat.replace(/_/g, ' ')} — ${platform} — ${selectedRoles.slice(0, 2).join(', ') || 'all roles'}`,
+      content,
+      strategy: strat,
+      campaign_id: campaignId || undefined,
+      target_roles: isThought ? '' : selectedRoles.join(', '),
+      status: asScheduled && scheduledDate ? 'scheduled' : 'draft',
+      scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : undefined,
+      scheduled_time: scheduledDate ? scheduledTime : undefined,
+      needs_review: needsReview || undefined,
+      notes: `platform:${platform} type:${isThought ? 'thought_leadership' : 'job_referral'}`,
+    });
+    queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+    return created;
+  };
 
   const toggleRole = (title) => {
     setSelectedRoles(prev => 
@@ -122,207 +152,6 @@ export default function PostGenerator() {
     }
   };
 
-  // Build enriched role data for prompt context
-  const rolesWithOpenings = roles
-    .filter(r => r.openings > 0)
-    .map(r => `${r.title} (${r.openings} ${r.openings === 1 ? 'opening' : 'openings'})`)
-    .join(', ');
-
-  const rolesEnrichedContext = roles
-    .filter(r => r.required_skills || r.pay_rate)
-    .map(r => {
-      const parts = [r.title];
-      if (r.pay_rate) parts.push(`pay: ${r.pay_rate}`);
-      if (r.required_skills) parts.push(`skills: ${r.required_skills}`);
-      return parts.join(' | ');
-    })
-    .join('\n');
-
-  const STRATEGY_PLAYBOOK = {
-    targeted_role: {
-      label: 'Targeted Role',
-      goal: 'Speak DIRECTLY to a specific professional. Use their job title, their language, their pain points.',
-      hook_examples: [
-        'Senior backend engineers: what if your expertise could train the next generation of AI models?',
-        'Linguists — your skills are more valuable to AI labs than you think.',
-        'If you\'re a data scientist tired of fighting for compute resources, this is worth 3 minutes.',
-      ],
-      structure: 'Hook targeting the role → What this role does in AI training → Process: ~30 min interview → cert → hire → Roles list → Referral link → 🛑 spam warning → CTA',
-      tone: 'Direct, peer-to-peer, professional.',
-    },
-    storytelling: {
-      label: 'Storytelling',
-      goal: 'A short human story that makes the opportunity feel real. NOT a pitch.',
-      hook_examples: [
-        'Six months ago I almost passed on this. Glad I didn\'t.',
-        'A friend of mine applied thinking it was too good to be true. She\'s now certified.',
-        'I\'ve referred 12 people this year. 4 got hired. Here\'s what I learned.',
-      ],
-      structure: 'Story hook (1–3 lines) → What happened → Bridge to the opportunity → Process info → Referral link → Roles (2–4) → CTA',
-      tone: 'Warm, personal, honest. Reads like a message from a trusted contact.',
-    },
-    social_proof: {
-      label: 'Social Proof',
-      goal: 'Show real outcomes. Build credibility through results, not hype.',
-      hook_examples: [
-        'Over 300 professionals got certified through this program this year alone.',
-        'The people who get hired here aren\'t lucky — they\'re prepared.',
-        'AI labs are hiring across 40+ fields right now. The demand is real.',
-      ],
-      structure: 'Proof hook → Why this works → Who qualifies → Process → Roles (3–5) → Referral link → 🛑 spam → CTA',
-      tone: 'Confident but grounded. Facts over hype.',
-    },
-    urgency: {
-      label: 'Urgency',
-      goal: 'Genuine helpful nudge — NOT fake panic. Roles filling, good timing.',
-      hook_examples: [
-        'If applying for something this week has been on your mind — this might be the one.',
-        'Some of these roles have multiple openings filling fast. Honest, not panic.',
-        'These are fresh — just added this week. Good time to move.',
-      ],
-      structure: 'Gentle urgency hook → Why now makes sense → 🔥 or 🆕 roles called out → Process reminder → Referral link → 🛑 spam → CTA',
-      tone: 'Friendly nudge. Never manufactured panic.',
-    },
-    carousel_text: {
-      label: 'Carousel / List',
-      goal: 'Scannable, numbered or bulleted. Each point delivers value on its own.',
-      hook_examples: [
-        '5 things I wish I knew before applying to remote AI training roles:',
-        'What makes a strong candidate for AI expert roles:',
-        '3 reasons domain experts are the most in-demand people in AI right now:',
-      ],
-      structure: 'List hook → 3–7 numbered/bulleted points (each standalone value) → Pivot to open roles → Referral link → 🛑 spam → CTA',
-      tone: 'Clear, concise, educational.',
-    },
-    niche_community: {
-      label: 'Niche Community',
-      goal: 'Speak EXCLUSIVELY to one professional tribe. Insider language.',
-      hook_examples: [
-        'Fellow translators: AI needs you more than most people realize.',
-        'If you\'ve spent years mastering audio production — AI labs are literally paying for that expertise.',
-        'The ML community already knows this — your domain skills have a new market.',
-      ],
-      structure: 'Tribe-specific hook → Why THIS community matters to AI → Specific matching roles → Process → Referral link → 🛑 spam → Niche hashtags',
-      tone: 'Insider, authentic, zero corporate tone.',
-    },
-    new_roles_spotlight: {
-      label: 'New Roles Spotlight',
-      goal: 'Highlight freshly added roles. Urgency from freshness, not fake panic.',
-      hook_examples: [
-        'New roles just dropped — and a few of these are rare.',
-        'If you\'ve been waiting for the right opening — some just went live.',
-        'Fresh listings this week. Worth a look if any match your field.',
-      ],
-      structure: 'Freshness hook → 🆕 roles list → Why apply now → Process → Referral link → 🛑 spam → CTA',
-      tone: 'Timely, helpful, genuine.',
-    },
-  };
-
-  const PLATFORM_TONES = {
-    linkedin: 'Professional, insightful, story-driven. Industry language. Up to 1300 chars ideal.',
-    twitter: 'Punchy, hook immediately. MAX 280 characters total. One hook + link. Nothing else.',
-    facebook: 'Friendly, community-focused, conversational. Emojis welcome.',
-    instagram: 'Visual-first, warm, inspiring. Line breaks and emojis. CTA at end.',
-    mastodon: 'Open, community-driven, authentic. No algorithm. Hashtags at end. Max 500 chars.',
-    bluesky: 'Conversational, tech-savvy, authentic. Max 300 chars. No corporate speak.',
-    threads: 'Casual, conversational, Instagram-like. Friendly and approachable.',
-    reddit: 'No-BS, community-first. Open with real observation. NEVER sound like an ad. No hashtags.',
-    discord: 'Ultra-casual, short, chat-like. Emojis. Real person in a server — not a recruiter.',
-    indiehackers: 'Founder-friendly. Emphasize mission, growth potential, builder culture.',
-    weworkremotely: 'Remote-first. Emphasize async, global team, flexible work. Concise.',
-    wellfound: 'Startup-oriented. Mission, growth stage, impact.',
-    remotive: 'Community-driven. Remote lifestyle, company values, tech-forward.',
-    flexjobs: 'Professional, serious. Career growth, legitimacy.',
-    remoteok: 'Digital nomad audience. Location freedom, pay transparency, remote perks.',
-  };
-
-  const buildPrompt = (strat, rolesList, platforms, isNewRolesSpotlight = false) => {
-    const effectiveStrat = isNewRolesSpotlight ? 'new_roles_spotlight' : strat;
-    const play = STRATEGY_PLAYBOOK[effectiveStrat] || STRATEGY_PLAYBOOK['targeted_role'];
-    const primaryPlatform = platforms[0] || 'linkedin';
-    const isLinkedIn = primaryPlatform === 'linkedin';
-    const tone = PLATFORM_TONES[primaryPlatform] || 'Professional and engaging.';
-
-    const rolesEnriched = roles
-      .filter(r => rolesList.includes(r.title) && (r.required_skills || r.pay_rate || r.is_new || r.is_high_demand))
-      .map(r => {
-        let line = `- ${r.title}`;
-        if (r.is_new) line += ' 🆕';
-        if (r.is_high_demand) line += ' 🔥';
-        if (r.pay_rate) line += ` (${r.pay_rate})`;
-        if (r.required_skills) line += ` | skills: ${r.required_skills}`;
-        return line;
-      }).join('\n') || rolesList.map(t => `- ${t}`).join('\n');
-
-    const rolesOpeningsContext = (strat === 'urgency' || strat === 'niche_community') && rolesWithOpenings
-      ? `\nVACANCY DATA (use naturally — specific open counts for urgency): ${rolesWithOpenings}` : '';
-
-    const multiPlatformNote = platforms.length > 1
-      ? `\nSECONDARY PLATFORMS (same post will be adapted for): ${platforms.slice(1).join(', ')} — optimize primarily for ${primaryPlatform}.`
-      : '';
-
-    const platformConstraints = primaryPlatform === 'twitter'
-      ? '\nTWITTER HARD LIMIT: 280 characters TOTAL. One punchy hook + referral link. Nothing else — no roles list, no hashtags.'
-      : primaryPlatform === 'mastodon'
-      ? '\nMASTODON LIMIT: 500 chars max. Hashtags at end.'
-      : primaryPlatform === 'bluesky'
-      ? '\nBLUESKY LIMIT: 300 chars max. No corporate tone.'
-      : primaryPlatform === 'reddit'
-      ? '\nREDDIT: Open with a real observation or question — never a pitch. No hashtags. Sound like a community member, not a marketer.'
-      : primaryPlatform === 'discord'
-      ? '\nDISCORD: Ultra-short, chat-like. Start with a reaction. Emojis. Real person energy.'
-      : '';
-
-    const persona = isLinkedIn
-      ? `PERSONA: A professional in the AI industry sharing a remote opportunity. First person, genuine and warm. You may reference working at an AI company. Use the brand philosophy below for depth:
-- AI training is reshaping the economy — an entirely new labor sector.
-- The more advanced AI becomes, the MORE it needs exceptional human experts.
-- The company works with top AI labs and cutting-edge tech companies globally.
-- "Humans first" — contributors are always prioritized.
-IMPORTANT: Do NOT name micro1 or any specific company — say "leading AI companies", "top AI labs", etc.`
-      : `PERSONA: A remote professional sharing a useful opportunity they genuinely found valuable. First person, peer-to-peer.
-CRITICAL: NEVER name micro1 or any specific company. Say "top AI companies", "leading AI labs", "AI-driven platforms" etc.
-CRITICAL: Do NOT tell any personal story about yourself (job title, tenure, dates, promotions). Just share the opportunity.`;
-
-    return `You are writing a social media post. Sound fully human — specific, varied, genuine. NOT a bot, NOT a recruiter template.
-
-${persona}
-
-PLATFORM: ${primaryPlatform.toUpperCase()}
-PLATFORM TONE: ${tone}${multiPlatformNote}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRATEGY: ${play.label.toUpperCase()}
-GOAL: ${play.goal}
-
-EXAMPLE HOOKS (use the energy, NOT the exact words — write your own unique hook):
-${play.hook_examples.map(h => `• "${h}"`).join('\n')}
-
-RECOMMENDED STRUCTURE: ${play.structure}
-TONE: ${play.tone}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-REFERRAL LINK (embed once, naturally): ${referralLink}
-
-ROLES (pick 3–6 most relevant — don't dump the full list):
-${rolesEnriched}${rolesOpeningsContext}
-${personalNote ? `\nPERSONAL NOTE TO WEAVE IN: ${personalNote}` : ''}
-
-MANDATORY ELEMENTS (work in naturally, don't bolt on):
-- Referral link (once)
-- 🛑 Check spam folder after applying 🛑
-- ~30 min interview → certification → possible hire
-- Once certified, you can refer others too (if it fits naturally)
-- 5–8 hashtags at end (except Reddit, Discord, Twitter)
-
-ABSOLUTE RULES:
-- NEVER open with "📍 [Month] - Remote Opportunities at..." — that template is banned.
-- Every generation must feel DISTINCT — different hook, angle, energy.
-- NO "earn money", "make money", "easy income", "side hustle", "get paid fast".
-- NO fake urgency or manufactured hype.${platformConstraints}
-
-Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
-  };
 
   const handleGenerateNewRoles = async () => {
     // Filter only NEW-labeled roles that match the current target audience selection
@@ -376,60 +205,134 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
   const handleGenerate = async () => {
     if (!strategy) { toast.error('Please select a post strategy'); return; }
     if (abMode && !strategyB) { toast.error('Please select a Strategy B for comparison'); return; }
+    if (!selectedPlatforms.length) { toast.error('Please select at least one platform'); return; }
 
-    setIsGenerating(true);
-
-    // For "new_roles_spotlight", only include NEW-labeled roles from the selected audience
-    const newRolesOnly = roles.filter(r => r.is_new && r.is_active).map(r => r.title);
-    const audiencePool = selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title);
-    const newAudienceRoles = newRolesOnly.filter(t => audiencePool.includes(t));
-
-    if (strategy === 'new_roles_spotlight' && newAudienceRoles.length === 0) {
-      toast.error('No NEW-labeled roles found for the selected target audience.');
-      setIsGenerating(false);
+    // Thought-leadership posts are link-free; only referral strategies need a link.
+    const isThought = (s) => s === 'thought_leadership';
+    const needsLink = !isThought(strategy) || (abMode && !isThought(strategyB));
+    if (needsLink && (!referralLink || !/^https?:\/\//.test(referralLink))) {
+      toast.error('Please enter a valid referral link (must start with http/https)');
       return;
     }
 
-    const rolesList = strategy === 'new_roles_spotlight'
-      ? newAudienceRoles
-      : (selectedRoles.length > 0 ? selectedRoles : roles.map(r => r.title));
+    // ── Compose the role pool with intersection semantics ──────────────────
+    //
+    // Order of operations:
+    //   1. Start from the user's selected roles (or all active roles if none).
+    //   2. Apply the stackable filter chips (high demand, new, has openings).
+    //   3. If the strategy is a spotlight strategy, further filter to its slice.
+    //   4. For top-pay spotlight, also rank by pay and take the top N.
+    //
+    // Spotlight strategies are intersection-style: "🔥 High Demand" within
+    // your selected "Engineering" segment means "high-demand engineering roles",
+    // not "all high-demand roles ignoring your segment".
+    const activeRoles = roles.filter(r => r.is_active !== false);
+    const baseTitles = selectedRoles.length > 0 ? selectedRoles : activeRoles.map(r => r.title);
+    const basePool = activeRoles.filter(r => baseTitles.includes(r.title));
 
+    // Apply stackable chip filters (independent of strategy).
+    const chipFilteredPool = basePool
+      .filter(r => !filterHighDemand || r.is_high_demand)
+      .filter(r => !filterNew || r.is_new)
+      .filter(r => !filterHasOpenings || (Number(r.openings) || 0) > 0);
+
+    // Strategy-specific further-narrowing.
+    const poolForStrategy = (strat) => {
+      if (strat === 'new_roles_spotlight') {
+        return chipFilteredPool.filter(r => r.is_new);
+      }
+      if (strat === 'high_demand_spotlight') {
+        return chipFilteredPool.filter(r => r.is_high_demand);
+      }
+      if (strat === 'top_pay_spotlight') {
+        // Sort by parsed pay descending, take the top 8 with non-zero pay.
+        // 8 keeps the post focused and gives the LLM enough to work with.
+        return chipFilteredPool
+          .map(r => ({ r, pay: parsePayMax(r.pay_rate) }))
+          .filter(x => x.pay > 0)
+          .sort((a, b) => b.pay - a.pay)
+          .slice(0, 8)
+          .map(x => x.r);
+      }
+      return chipFilteredPool;
+    };
+
+    // Guards: spotlight strategies fail loudly if their slice is empty.
+    const guardSpotlight = (strat) => {
+      if (!['new_roles_spotlight','high_demand_spotlight','top_pay_spotlight'].includes(strat)) return null;
+      const pool = poolForStrategy(strat);
+      if (pool.length === 0) {
+        const labels = {
+          new_roles_spotlight: 'No 🆕 New roles match your current selection + filters.',
+          high_demand_spotlight: 'No 🔥 High Demand roles match your current selection + filters.',
+          top_pay_spotlight: 'No roles with parseable pay info match your current selection + filters.',
+        };
+        return labels[strat];
+      }
+      return null;
+    };
+
+    const guardA = guardSpotlight(strategy);
+    if (guardA) { toast.error(guardA); return; }
     if (abMode) {
-      const [resultA, resultB] = await Promise.all([
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, selectedPlatforms, strategy === 'new_roles_spotlight') }),
-        base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategyB, rolesList, selectedPlatforms, strategyB === 'new_roles_spotlight') }),
-      ]);
-      setGeneratedContent(resultA);
-      setContentB(resultB);
-    } else {
-      const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(strategy, rolesList, selectedPlatforms, strategy === 'new_roles_spotlight') });
-      setGeneratedContent(result);
+      const guardB = guardSpotlight(strategyB);
+      if (guardB) { toast.error(guardB + ' (Strategy B)'); return; }
+    }
+
+    const roleTitlesFor = (strat) => poolForStrategy(strat).map(r => r.title);
+
+    setIsGenerating(true);
+    setPosts([]);
+    setPostsB([]);
+
+    const callGen = async (strat) => {
+      const res = await base44.functions.invoke('generatePost', {
+        strategy: strat,
+        platforms: selectedPlatforms,
+        roleTitles: roleTitlesFor(strat),
+        personalNote,
+        referralLink,
+        customCta: customCta.trim() || undefined,
+      });
+      const payload = res?.data ?? res ?? {};
+      // Normalize to per-platform entries with a postId slot for later saving.
+      return (payload.posts || []).map(p => ({ ...p, postId: null }));
+    };
+
+    try {
+      if (abMode) {
+        const [a, b] = await Promise.all([callGen(strategy), callGen(strategyB)]);
+        setPosts(a);
+        setPostsB(b);
+      } else {
+        setPosts(await callGen(strategy));
+      }
+    } catch (err) {
+      toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
     }
     setIsGenerating(false);
   };
 
-  const handleSave = (asScheduled = false) => {
-    saveMutation.mutate({
-      title: `${strategy.replace(/_/g, ' ')} - ${selectedRoles.slice(0, 3).join(', ') || 'All roles'}`,
-      content: generatedContent,
-      strategy,
-      campaign_id: campaignId || undefined,
-      target_roles: selectedRoles.join(', '),
-      status: asScheduled && scheduledDate ? 'scheduled' : 'draft',
-      scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : undefined,
-      scheduled_time: scheduledDate ? scheduledTime : undefined,
-    });
+  // Save a single platform's post (variant A or B). Updates that entry with its postId.
+  const handleSavePost = async (variant, platform, asScheduled = false) => {
+    const list = variant === 'B' ? postsB : posts;
+    const setList = variant === 'B' ? setPostsB : setPosts;
+    const entry = list.find(p => p.platform === platform);
+    if (!entry || !entry.content) return;
+    const strat = variant === 'B' ? strategyB : strategy;
+    try {
+      const created = await savePost({ platform, content: entry.content, strat, asScheduled });
+      setList(prev => prev.map(p => p.platform === platform ? { ...p, postId: created.id } : p));
+      toast.success(`${platform} post ${asScheduled && scheduledDate ? 'scheduled' : 'saved'}!`);
+    } catch (err) {
+      toast.error(`Failed to save ${platform} post: ` + (err?.message || 'error'));
+    }
   };
 
-  const handleSaveB = () => {
-    saveMutationB.mutate({
-      title: `${strategyB.replace(/_/g, ' ')} - ${selectedRoles.slice(0, 3).join(', ') || 'All roles'}`,
-      content: contentB,
-      strategy: strategyB,
-      campaign_id: campaignId || undefined,
-      target_roles: selectedRoles.join(', '),
-      status: 'draft',
-    });
+  // Update the editable content of one platform's post in place.
+  const updatePostContent = (variant, platform, content) => {
+    const setList = variant === 'B' ? setPostsB : setPosts;
+    setList(prev => prev.map(p => p.platform === platform ? { ...p, content } : p));
   };
 
   return (
@@ -446,7 +349,7 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
             <div className="flex items-center justify-between mb-3">
               <Label className="text-sm font-semibold">1. Choose Strategy</Label>
               <button
-                onClick={() => { setAbMode(m => !m); setContentB(''); }}
+                onClick={() => { setAbMode(m => !m); setPostsB([]); }}
                 className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
                   abMode ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground border-border hover:border-primary hover:text-primary'
                 }`}
@@ -489,6 +392,75 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
                 <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">By Segment</p>
                 <SegmentSelector activeSegments={activeSegments} onToggleSegment={toggleSegment} />
               </div>
+
+              {/* ── Stackable filter chips: narrow the role pool further ── */}
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                  Filters
+                  {(filterHighDemand || filterNew || filterHasOpenings) && (
+                    <button
+                      onClick={() => { setFilterHighDemand(false); setFilterNew(false); setFilterHasOpenings(false); }}
+                      className="ml-2 text-muted-foreground hover:text-foreground underline normal-case font-normal text-[10px]"
+                    >
+                      reset
+                    </button>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(() => {
+                    // Counts respect the user's current selection (selected
+                    // roles or all active roles if none) so the numbers
+                    // reflect what would actually remain after toggling.
+                    const baseTitles = selectedRoles.length > 0 ? selectedRoles : roles.filter(r => r.is_active !== false).map(r => r.title);
+                    const basePool = roles.filter(r => r.is_active !== false && baseTitles.includes(r.title));
+                    const hdCount = basePool.filter(r => r.is_high_demand).length;
+                    const newCount = basePool.filter(r => r.is_new).length;
+                    const openCount = basePool.filter(r => (Number(r.openings) || 0) > 0).length;
+                    return (
+                      <>
+                        <Button
+                          variant={filterHighDemand ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setFilterHighDemand(v => !v)}
+                          className="text-xs whitespace-nowrap"
+                        >
+                          🔥 High Demand
+                          <span className={`ml-1 font-bold ${filterHighDemand ? 'text-primary-foreground' : 'text-orange-500'}`}>
+                            {hdCount}
+                          </span>
+                        </Button>
+                        <Button
+                          variant={filterNew ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setFilterNew(v => !v)}
+                          className="text-xs whitespace-nowrap"
+                        >
+                          🆕 New
+                          <span className={`ml-1 font-bold ${filterNew ? 'text-primary-foreground' : 'text-amber-600'}`}>
+                            {newCount}
+                          </span>
+                        </Button>
+                        <Button
+                          variant={filterHasOpenings ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setFilterHasOpenings(v => !v)}
+                          className="text-xs whitespace-nowrap"
+                        >
+                          Has openings
+                          <span className={`ml-1 font-bold ${filterHasOpenings ? 'text-primary-foreground' : 'text-emerald-600'}`}>
+                            {openCount}
+                          </span>
+                        </Button>
+                      </>
+                    );
+                  })()}
+                </div>
+                {(filterHighDemand || filterNew || filterHasOpenings) && (
+                  <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+                    Active filters apply to the role pool used for generation (intersection-style with your segment / individual selection).
+                  </p>
+                )}
+              </div>
               <div>
                 <button
                   onClick={() => setRolesOpen(prev => !prev)}
@@ -513,6 +485,45 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
               placeholder="Your referral link"
             />
           </div>
+
+          {selectedPlatforms.some(p => !['linkedin','mastodon','bluesky'].includes(p)) && (
+            <div>
+              <Label className="text-sm font-semibold mb-2 block flex items-center gap-2">
+                <span>3b. CTA for link-restrictive platforms</span>
+                <span className="font-normal text-xs text-muted-foreground">(optional override)</span>
+              </Label>
+              <div className="text-xs text-muted-foreground mb-2 leading-relaxed">
+                Platforms like Instagram, Twitter, Facebook and Threads de-prioritize posts with links.
+                On those, the generator ends the post with a CTA asking people to comment <span className="font-mono bg-muted px-1 rounded">Remote</span> — the DM responder then sends them the link.
+                If you leave this empty, a fresh CTA is picked at random from a curated pool.
+              </div>
+              <div className="flex gap-2 items-start">
+                <Input
+                  value={customCta}
+                  onChange={(e) => setCustomCta(e.target.value)}
+                  placeholder={'e.g. Comment "Remote" and I\'ll DM you the link 🚀'}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={regenerateCta}
+                  disabled={isRegeneratingCta}
+                  title="Generate a fresh CTA with AI"
+                  className="gap-1.5 shrink-0"
+                >
+                  {isRegeneratingCta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  {isRegeneratingCta ? 'Generating…' : '🎲 Regenerate'}
+                </Button>
+              </div>
+              {customCta && !/\bremote\b/i.test(customCta) && (
+                <div className="text-xs text-amber-700 mt-1">
+                  ⚠ Your CTA must contain the word "Remote" — the DM responder uses it as the trigger keyword. The pool default will be used instead.
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <Label className="text-sm font-semibold mb-2 block">
@@ -589,6 +600,20 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
                 <Button variant="ghost" size="sm" onClick={() => setScheduledDate(null)}>✕</Button>
               )}
             </div>
+            {scheduledDate && (
+              <label className="flex items-start gap-2 mt-2.5 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={needsReview}
+                  onChange={(e) => setNeedsReview(e.target.checked)}
+                  className="mt-0.5 accent-primary"
+                />
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Hold for review before publishing</span>
+                  {' — the scheduler will skip this post until you clear the flag from the Review queue.'}
+                </span>
+              </label>
+            )}
           </div>
 
           <Button 
@@ -639,41 +664,50 @@ Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.`;
 
         </div>
 
-        {/* Preview */}
+        {/* Preview — one post per selected platform */}
         <div className="lg:col-span-3 space-y-4">
           <WhereToPostChecklist selectedPlatforms={selectedPlatforms} />
-          {!abMode && (
-            <HashtagSuggester
-              content={generatedContent}
-              selectedRoles={selectedRoles}
-              onInsertHashtag={(tag) => setGeneratedContent(prev => prev ? prev.trimEnd() + '\n' + tag : tag)}
-            />
+
+          {isGenerating && posts.length === 0 && (
+            <Card className="p-8 flex flex-col items-center justify-center text-center min-h-[200px] border-dashed">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">
+                Generating {selectedPlatforms.length} post{selectedPlatforms.length > 1 ? 's' : ''}{abMode ? ' × 2 variants' : ''}…
+              </p>
+            </Card>
           )}
-          {abMode ? (
-            <ABComparePreview
-              strategyA={strategy}
-              strategyB={strategyB}
-              contentA={generatedContent}
-              contentB={contentB}
-              isGenerating={isGenerating}
-              onSaveA={() => handleSave(false)}
-              onSaveB={handleSaveB}
-              isSaving={saveMutation.isPending || saveMutationB.isPending}
-            />
-          ) : (
-            <PostPreview
-              content={generatedContent}
-              postId={savedPostId}
-              selectedPlatforms={selectedPlatforms}
-              onSave={() => handleSave(false)}
-              onSaveScheduled={scheduledDate ? () => handleSave(true) : null}
-              scheduledDate={scheduledDate}
-              scheduledTime={scheduledTime}
-              onRegenerate={handleGenerate}
-              isSaving={saveMutation.isPending}
-              onPublished={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
-            />
+
+          {!isGenerating && posts.length === 0 && (
+            <Card className="p-8 flex flex-col items-center justify-center text-center min-h-[200px] border-dashed">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                <span className="text-2xl">✍️</span>
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">Your generated posts will appear here</p>
+              <p className="text-xs text-muted-foreground mt-1">One tailored post per selected platform</p>
+            </Card>
           )}
+
+          {posts.map((entry) => {
+            const bEntry = abMode ? postsB.find(p => p.platform === entry.platform) : null;
+            return (
+              <PlatformPostCard
+                key={entry.platform}
+                entry={entry}
+                bEntry={bEntry}
+                abMode={abMode}
+                strategy={strategy}
+                strategyB={strategyB}
+                scheduledDate={scheduledDate}
+                scheduledTime={scheduledTime}
+                selectedRoles={selectedRoles}
+                onEdit={(content) => updatePostContent('A', entry.platform, content)}
+                onEditB={(content) => updatePostContent('B', entry.platform, content)}
+                onSave={(asScheduled) => handleSavePost('A', entry.platform, asScheduled)}
+                onSaveB={(asScheduled) => handleSavePost('B', entry.platform, asScheduled)}
+                onPublished={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

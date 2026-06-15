@@ -1,0 +1,273 @@
+================================================================
+ REMOTE GEMS WEEKLY — BASE44 SETUP GUIDE
+================================================================
+
+This guide covers everything you need to do on Base44 to make the
+app work, beyond just uploading the code.
+
+IMPORTANT NOTE ON ACCURACY:
+This guide describes WHAT you need to do (derived directly from the
+app's code, so it is reliable). The exact WHERE — the precise menu
+names and button locations inside Base44 — may differ from what's
+described, since Base44's interface can change. If a step's location
+doesn't match what you see on screen, check Base44's own documentation
+for the current location. Treat the "what" as solid and the "exact
+click path" as a guide.
+
+A SECURITY REMINDER:
+You enter all tokens, API keys, and passwords yourself, directly in
+Base44. Never paste live credentials into a chat. The only place these
+belong is Base44's environment-variable settings (backend) and your
+local .env.local (the two frontend values).
+
+
+----------------------------------------------------------------
+ STEP 1 — GET THE CODE IN
+----------------------------------------------------------------
+
+Upload/import the project zip into Base44 (or connect a Git repo if
+you prefer). The build commands are already declared in config.jsonc:
+  - install:  npm install
+  - build:    npm run build
+  - dev:      npm run dev
+  - output:   ./dist
+
+The build itself should work without changes.
+
+
+----------------------------------------------------------------
+ STEP 2 — CONFIRM THE ENTITIES (DATABASE SCHEMA)
+----------------------------------------------------------------
+
+Entities are defined in base44/entities/*.jsonc. Base44 usually picks
+these up automatically on import. CONFIRM these specific ones exist
+after import, because we added or changed them:
+
+  - DailyActivity .......... NEW (powers the Daily Growth checklist)
+  - WeeklyPlan ............. added fields: active_strategies,
+                             recommended_hashtags, last_planner_sync,
+                             planner_report_period
+  - OpenRole ............... added field: is_high_demand
+  - GeneratedPost .......... added field: needs_review
+
+If Base44 does not auto-apply schema changes, trigger a schema sync /
+migration for these. If the new fields don't appear, the related
+features will silently do nothing (no error, just no effect).
+
+
+----------------------------------------------------------------
+ STEP 3 — CONFIRM THE BACKEND FUNCTIONS
+----------------------------------------------------------------
+
+Two functions were added during development. Confirm both appear in
+your functions list after import:
+
+  - generatePost ........... per-platform post generation (used by the
+                             Post Generator and Campaigns)
+  - growthHelper ........... AI helper for the Daily Growth page
+
+If a function isn't registered, the feature that calls it will error.
+
+
+----------------------------------------------------------------
+ STEP 4 — SET THE ENVIRONMENT VARIABLES  (MOST IMPORTANT STEP)
+----------------------------------------------------------------
+
+This is the step most likely to make things "not work." All backend
+secrets live in Base44's function environment-variable settings — NOT
+in the code, and NOT in .env.local (that file only holds the two
+frontend VITE_ values).
+
+Use the .env.example file in the project as your full checklist.
+The essentials:
+
+  OpenAI (required for generation, planner, helper):
+    - OPENAI_API_KEY
+
+  Twitter / X (OAuth 1.0a — all four):
+    - TWITTER_API_KEY
+    - TWITTER_API_SECRET
+    - TWITTER_ACCESS_TOKEN
+    - TWITTER_ACCESS_TOKEN_SECRET
+
+  Facebook (the page token also powers Instagram + stats sync):
+    - FACEBOOK_PAGE_ID
+    - FACEBOOK_PAGE_ACCESS_TOKEN
+
+  Instagram (uses the Facebook page token for auth):
+    - INSTAGRAM_ACCOUNT_ID
+
+  Threads:
+    - THREADS_USER_ID
+    - THREADS_ACCESS_TOKEN
+
+  Bluesky (use an APP PASSWORD, not your login):
+    - BLUESKY_HANDLE
+    - BLUESKY_APP_PASSWORD
+
+  Mastodon:
+    - MASTODON_INSTANCE_URL
+    - MASTODON_ACCESS_TOKEN
+
+  Facebook / Threads OAuth app (for the Threads OAuth flow):
+    - FACEBOOK_APP_ID
+    - FACEBOOK_APP_SECRET
+
+  System / misc:
+    - APPROVAL_EMAIL   (where LinkedIn approval emails are sent;
+                        set this or approvals won't reach you)
+    - APP_URL          (your app's public base URL, used to build
+                        the approval link)
+
+NOTE: You do NOT need every platform to start. You only need the vars
+for the platform(s) you're actually testing first, plus OPENAI_API_KEY.
+
+
+----------------------------------------------------------------
+ STEP 5 — SET UP THE CRON SCHEDULES  (NOT IN THE CODE)
+----------------------------------------------------------------
+
+These are created as scheduled-function rules in Base44's dashboard —
+they cannot live in the code. Below is the complete required set,
+grouped by tier of importance.
+
+  ━━━ TIER 1: REQUIRED (the app won't do its core work without these) ━━━
+
+  - checkScheduledPosts ...... every 5 minutes
+        Publishes scheduled posts when their time comes. Without
+        this, scheduled posts stay "scheduled" forever and never
+        actually post. Don't skip this one.
+
+  - communityManaging ........ every 5 minutes
+        Runs the comment replier AND the DM responder. Without
+        this, the "Comment Remote" → auto-DM flow never fires,
+        and comment replies don't get sent. Effectively half the
+        engine you built. Don't skip this one either.
+
+  ━━━ TIER 2: STRONGLY RECOMMENDED (analytics + planning) ━━━
+
+  - syncAllPlatformStats ..... daily (e.g. 03:00)
+        Pulls likes/comments/impressions for non-LinkedIn posts.
+        Without it, the Analytics page stays stale.
+
+  - syncLinkedInStats ........ daily (e.g. 03:30)
+        Same idea for LinkedIn (different API path, different rate
+        limits — that's why it's a separate function).
+
+  - dataAnalystPlanner ....... weekly, Sunday late night
+        Generates the weekly planner report (PlannerReports page)
+        that surfaces what's working and recommends adjustments.
+
+  ━━━ TIER 3: OPTIONAL CONTENT AUTOMATION ━━━
+  
+  These pre-generate content into the calendar so you don't have to
+  click Auto-Fill manually each week. Set them only if you want
+  the system to keep itself busy without manual nudging.
+
+  - autoFillWeek ............. weekly, Sunday night
+        Auto-fills the upcoming week's calendar slots with generated
+        posts. The most aggressive of these — wakes up once and
+        generates many posts in one go.
+
+  - weeklyJobPosts ........... weekly (Wed/Fri/Sat per code)
+        Adds job-referral posts to the schedule.
+
+  - weeklyNewRolesPosts ...... weekly
+        Spotlight posts about newly added roles.
+
+  - weeklyThoughtLeadershipPosts .. weekly (Tue/Thu/Sun per code)
+        Thought-leadership content from the 27-theme library.
+
+  - monthlyAllRolesPosts ..... monthly
+        A monthly "all open roles" recap post.
+
+  Note on Tier 3: these functions ALSO write to the calendar, and
+  checkScheduledPosts (Tier 1) is what eventually publishes those
+  scheduled posts. So Tier 1 is required regardless. Tier 3 is
+  about whether your calendar gets filled automatically or you
+  fill it manually.
+
+  All Tier 1-3 crons honor the global Play/Pause switch — they
+  return a no-op when paused, no work done, no LLM spend.
+
+
+----------------------------------------------------------------
+ STEP 6 — CONNECT LINKEDIN
+----------------------------------------------------------------
+
+LinkedIn uses Base44's built-in CONNECTOR (OAuth) — not an env var
+token. Authorize it in Base44's connectors / integrations UI.
+
+(LinkedIn posts are also gated behind an email-approval click, by
+design — you approve each LinkedIn post via the link sent to
+APPROVAL_EMAIL.)
+
+
+----------------------------------------------------------------
+ STEP 7 — SEED YOUR DATA
+----------------------------------------------------------------
+
+Once the app loads:
+
+  1. Open the ROLES page and paste your micro1 job list. This
+     populates OpenRole records — the generators need roles to write
+     about. Nothing meaningful generates without roles.
+
+  2. Open the main Dashboard and paste a first micro1 Dashboard
+     snapshot ("Paste Dashboard Data" / micro1 Dashboard). This gives
+     the planner and analytics your referral data.
+
+  3. Then test generation on one platform.
+
+
+----------------------------------------------------------------
+ RECOMMENDED FIRST-RUN SEQUENCE
+----------------------------------------------------------------
+
+Don't wire up all 7 platforms at once — if seven things can fail, you
+won't know which one did. Instead:
+
+  1. Import the code.
+  2. Confirm entities + functions registered (Steps 2 & 3).
+  3. Set env vars for ONE easy platform (Mastodon or Bluesky are the
+     simplest — just a handle/instance + token) PLUS OPENAI_API_KEY.
+  4. Set the checkScheduledPosts cron (Step 5).
+  5. Paste your roles (Step 7.1).
+  6. Generate a post, schedule it, and confirm it actually publishes.
+  7. Once that full loop works on one platform, add the rest.
+
+
+----------------------------------------------------------------
+ WHY EASIEST-FIRST (Mastodon / Bluesky)
+----------------------------------------------------------------
+
+  - Mastodon: just an instance URL + access token. No OAuth dance,
+    no app review.
+  - Bluesky: just a handle + app password.
+
+The Meta platforms (Facebook / Instagram / Threads) involve app
+review and token expiry, so they're more fiddly. Get the pipeline
+proven on a simple platform first, then tackle those.
+
+
+----------------------------------------------------------------
+ IF SOMETHING DOESN'T WORK
+----------------------------------------------------------------
+
+Common silent-failure causes, in order of likelihood:
+  - A required env var is missing or misspelled.
+  - The checkScheduledPosts cron isn't set (so nothing publishes).
+  - The communityManaging cron isn't set (so the comment replier
+    and DM responder never run — the "Comment Remote" flow is silent).
+  - A schema field didn't apply (feature does nothing, no error).
+  - A function didn't register (the calling feature errors).
+  - A token expired (especially the Facebook long-lived page token).
+
+When you hit a specific symptom — a function erroring, a post not
+publishing, an empty analytics view — note the exact symptom and the
+platform involved. That's the kind of concrete, real-data problem
+that's quick to trace.
+
+================================================================
+ END OF SETUP GUIDE
+================================================================

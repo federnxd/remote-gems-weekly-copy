@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Clock, Target, BarChart2, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO, getDay } from 'date-fns';
+import { postImpressions, postLikes, postComments, postShares, postReferrals, postHired } from '@/lib/post-metrics';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const HOURS = ['Early morning (6–9am)', 'Morning (9–12pm)', 'Afternoon (12–5pm)', 'Evening (5–9pm)', 'Night (9pm+)'];
@@ -86,12 +87,12 @@ export default function StrategyAdvisor({ posts }) {
       const s = p.strategy || 'unknown';
       if (!byStrategy[s]) byStrategy[s] = { posts: 0, impressions: 0, likes: 0, comments: 0, shares: 0, referrals: 0, hired: 0 };
       byStrategy[s].posts++;
-      byStrategy[s].impressions += p.impressions || 0;
-      byStrategy[s].likes += p.likes || 0;
-      byStrategy[s].comments += p.comments || 0;
-      byStrategy[s].shares += p.shares || 0;
-      byStrategy[s].referrals += p.referrals || 0;
-      byStrategy[s].hired += p.hired || 0;
+      byStrategy[s].impressions += postImpressions(p);
+      byStrategy[s].likes += postLikes(p);
+      byStrategy[s].comments += postComments(p);
+      byStrategy[s].shares += postShares(p);
+      byStrategy[s].referrals += postReferrals(p);
+      byStrategy[s].hired += postHired(p);
     });
     const strategyStats = Object.entries(byStrategy).map(([strategy, d]) => ({
       strategy,
@@ -113,9 +114,9 @@ export default function StrategyAdvisor({ posts }) {
         const day = DAYS[getDay(parseISO(dateStr))];
         if (!byDay[day]) byDay[day] = { posts: 0, impressions: 0, referrals: 0, likes: 0 };
         byDay[day].posts++;
-        byDay[day].impressions += p.impressions || 0;
-        byDay[day].referrals += p.referrals || 0;
-        byDay[day].likes += p.likes || 0;
+        byDay[day].impressions += postImpressions(p);
+        byDay[day].referrals += postReferrals(p);
+        byDay[day].likes += postLikes(p);
       } catch {}
     });
     const dayStats = Object.entries(byDay).map(([day, d]) => ({
@@ -133,8 +134,8 @@ export default function StrategyAdvisor({ posts }) {
       if (!bucket) return;
       if (!byHour[bucket]) byHour[bucket] = { posts: 0, impressions: 0, referrals: 0 };
       byHour[bucket].posts++;
-      byHour[bucket].impressions += p.impressions || 0;
-      byHour[bucket].referrals += p.referrals || 0;
+      byHour[bucket].impressions += postImpressions(p);
+      byHour[bucket].referrals += postReferrals(p);
     });
     const hourStats = Object.entries(byHour).map(([slot, d]) => ({
       slot,
@@ -145,10 +146,10 @@ export default function StrategyAdvisor({ posts }) {
 
     // Posting frequency / volume
     const totalPosts = publishedPosts.length;
-    const totalImpressions = publishedPosts.reduce((s, p) => s + (p.impressions || 0), 0);
-    const totalReferrals = publishedPosts.reduce((s, p) => s + (p.referrals || 0), 0);
-    const totalLikes = publishedPosts.reduce((s, p) => s + (p.likes || 0), 0);
-    const totalHired = publishedPosts.reduce((s, p) => s + (p.hired || 0), 0);
+    const totalImpressions = publishedPosts.reduce((s, p) => s + postImpressions(p), 0);
+    const totalReferrals = publishedPosts.reduce((s, p) => s + postReferrals(p), 0);
+    const totalLikes = publishedPosts.reduce((s, p) => s + postLikes(p), 0);
+    const totalHired = publishedPosts.reduce((s, p) => s + postHired(p), 0);
 
     return { strategyStats, dayStats, hourStats, totalPosts, totalImpressions, totalReferrals, totalLikes, totalHired };
   };

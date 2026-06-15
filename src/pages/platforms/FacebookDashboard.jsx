@@ -87,7 +87,7 @@ export default function FacebookDashboard() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke('syncAllPlatformStats', {});
+      const res = await base44.functions.invoke('syncAllPlatformStats', { manual: true });
       if (res.data?.success) {
         queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
         toast.success(`Synced ${res.data.synced?.fb ?? 0} Facebook posts`);

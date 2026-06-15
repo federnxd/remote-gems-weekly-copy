@@ -1,0 +1,30 @@
+{
+  "name": "DailyActivity",
+  "type": "object",
+  "properties": {
+    "activity_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date this activity is logged for (YYYY-MM-DD, user's local day)."
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["linkedin", "twitter", "facebook", "instagram", "mastodon", "bluesky", "threads"],
+      "description": "Which platform the activity belongs to."
+    },
+    "activity_key": {
+      "type": "string",
+      "description": "Stable identifier of the activity template (e.g. 'reply_thoughtfully_3'). Matches keys in the page's curated activity list."
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has checked this activity off for the given date+platform."
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional free-text note the user can add (e.g. who they engaged with)."
+    }
+  },
+  "required": ["activity_date", "platform", "activity_key"]
+}

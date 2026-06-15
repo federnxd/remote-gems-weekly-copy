@@ -251,12 +251,8 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
 
-  // Allow admin calls or scheduled automation (no session)
-  let isAdmin = false;
-  try {
-    const user = await base44.auth.me();
-    isAdmin = user?.role === 'admin';
-  } catch {}
+  // No auth.me() check — this function is called by other backend functions
+  // (cron paths: monthlyAllRolesPosts, weekly*Posts) as well as from the UI.
 
   const body = await req.json();
   const {
@@ -268,18 +264,32 @@ Deno.serve(async (req) => {
     titlePrefix = 'Auto Campaign',
     highlightNew = false,
     isMonthlyLinkedIn = false,
+    campaignId = null,
   } = body;
 
   if (!roles.length || !platforms.length) {
     return Response.json({ error: 'roles and platforms are required' }, { status: 400 });
   }
 
-  // Fetch planner context to inform content decisions
-  let plannerContext = '';
+  // Delegate generation to the shared generatePost backend so campaigns get the
+  // same guarantees as every other path: in-limit per-platform, clean link,
+  // sentence-boundary fallback, planner-aware. Mirrors PostGenerator.
+  const roleTitles = roles.map(r => r.title).filter(Boolean);
+  const strategy = highlightNew ? 'urgency' : 'targeted_role';
+
+  let generated = [];
   try {
-    const plannerRes = await db.functions.invoke('getPlannerContext', {});
-    if (plannerRes?.hasData) plannerContext = plannerRes.context || '';
-  } catch { /* continue without */ }
+    const genRes = await db.functions.invoke('generatePost', {
+      strategy,
+      platforms,
+      roleTitles,
+      referralLink,
+    });
+    const payload = genRes?.data ?? genRes ?? {};
+    generated = payload.posts || [];
+  } catch (err) {
+    return Response.json({ error: `generatePost invocation failed: ${err.message}` }, { status: 500 });
+  }
 
   const created = [];
   const errors = [];
@@ -287,23 +297,25 @@ Deno.serve(async (req) => {
   for (let i = 0; i < platforms.length; i++) {
     const platform = platforms[i];
     const scheduledDate = scheduledDates[i] || scheduledDates[0] || null;
+    const entry = generated.find(g => g.platform === platform);
+
+    if (!entry || entry.error || !entry.content) {
+      errors.push({ platform, error: entry?.error || 'no content returned' });
+      continue;
+    }
 
     try {
-      const content = await db.integrations.Core.InvokeLLM({
-        prompt: buildPostPrompt(roles, platform, referralLink, highlightNew, isMonthlyLinkedIn && platform === 'linkedin', plannerContext),
-      });
-
       const post = await db.entities.GeneratedPost.create({
         title: `${titlePrefix} — ${platform} — ${scheduledDate || 'unscheduled'}`,
-        content,
-        strategy: 'targeted_role',
-        target_roles: roles.map(r => r.title).join(', '),
+        content: entry.content,
+        strategy,
+        campaign_id: campaignId || undefined,
+        target_roles: roleTitles.join(', '),
         status: scheduledDate ? 'scheduled' : 'draft',
         scheduled_date: scheduledDate || undefined,
         scheduled_time: scheduledTime,
-        notes: `[AUTO_GENERATED] platform:${platform}`,
+        notes: `[AUTO_GENERATED] platform:${platform} type:job_referral`,
       });
-
       created.push({ postId: post.id, platform, scheduledDate });
     } catch (err) {
       errors.push({ platform, error: err.message });

@@ -27,35 +27,49 @@ const PLATFORM_TONES = {
   discord:       'Ultra-casual, direct, insider tone. Short. Emojis. Start a convo. Be a real person, not a brand account.',
 };
 
+// Thought-leadership topic library — fed to the LLM as briefs (theme + angle).
+// The LLM generates fresh post text per call; this list never appears verbatim
+// in any post. Categories: market_ai, interview_prep, remote_work_practical,
+// communication_teamwork, professionalism. Mix is intentional — every category
+// threads back to the core message (experienced professionals building careers
+// in AI / remote work).
 const TOPIC_THEMES = [
-  {
-    theme: 'AI job displacement vs. job creation',
-    angle: 'Use current data (2024-2025 reports from WEF, McKinsey, OECD) showing that while AI automates tasks, it also creates new roles. Discuss the net effect and what skills matter now.',
-  },
-  {
-    theme: 'The rise of remote AI-assisted work',
-    angle: 'Real stats on remote work adoption post-2023, how AI tools (Copilot, Claude, ChatGPT) are integrated into remote workflows. What changed in the last 12 months.',
-  },
-  {
-    theme: 'Human-in-the-loop AI training as a real profession',
-    angle: 'Explain how AI models are trained with human feedback (RLHF), the growing demand for domain experts to review and label AI outputs, and why this is a legitimate and growing field.',
-  },
-  {
-    theme: 'Remote work in 2025: state of the market',
-    angle: 'Current data: how many companies still hire remote, which industries are most remote-friendly, average salaries for remote roles vs. office roles globally.',
-  },
-  {
-    theme: 'AI literacy as the most in-demand skill',
-    angle: 'Data from LinkedIn, Indeed, and WEF showing AI-related skills are the fastest growing. What companies are actually paying for, and how to develop these skills.',
-  },
-  {
-    theme: 'The gig economy meets AI: new opportunity landscape',
-    angle: 'How platforms are using AI to match gig workers with projects. Data on freelance market size, growth of AI-adjacent gig roles, and what pays best.',
-  },
-  {
-    theme: 'Robots, AI agents, and the human experts behind them',
-    angle: 'How humanoid robots and autonomous AI agents still require vast amounts of human expert data to function. What this means for employment in specialized fields.',
-  },
+  // ── market_ai: commentary on the AI + remote job market ────────────────
+  { category: 'market_ai', theme: 'AI job displacement vs. job creation', angle: 'Use current 2024-2025 data (WEF, McKinsey, OECD) showing AI creates new roles while automating tasks.' },
+  { category: 'market_ai', theme: 'The rise of remote AI-assisted work', angle: 'Real stats on remote work adoption post-2023, how AI tools integrate into remote workflows.' },
+  { category: 'market_ai', theme: 'Human-in-the-loop AI training as a profession', angle: 'Explain RLHF, growing demand for domain experts to review AI outputs.' },
+  { category: 'market_ai', theme: 'Remote work in 2025: state of the market', angle: 'Current data: remote hiring by industry, remote vs office salaries globally.' },
+  { category: 'market_ai', theme: 'AI literacy as the most in-demand skill', angle: 'Data from LinkedIn, Indeed, WEF showing AI skills are fastest growing.' },
+  { category: 'market_ai', theme: 'The gig economy meets AI: new opportunity landscape', angle: 'How platforms use AI to match gig workers. Data on freelance market growth.' },
+  { category: 'market_ai', theme: 'Robots, AI agents, and human experts behind them', angle: 'How autonomous AI still requires vast human expert data.' },
+
+  // ── interview_prep: practical guidance for landing the role ────────────
+  { category: 'interview_prep', theme: 'Researching a company before an interview, beyond the careers page', angle: 'Specific moves: read their last 6 months of engineering blog posts, look at their open-source repos or product changelog, find a recent talk from someone there. Goes deeper than memorizing the About page.' },
+  { category: 'interview_prep', theme: 'Answering "tell me about yourself" without rambling', angle: 'The 90-second structure: present (current role + one signature achievement), past (one or two relevant pivots that explain how you got here), future (what you want next and why this role fits). Concrete, not chronological resume recitation.' },
+  { category: 'interview_prep', theme: 'The "show, don\'t tell" rule for experience claims', angle: 'Replace "I\'m a strong communicator" with "I rewrote our onboarding doc and reduced support tickets by 40%". The structure is: skill + concrete action + measurable outcome. One example beats five adjectives.' },
+  { category: 'interview_prep', theme: 'Answering "what\'s your weakness?" without clichés', angle: 'Real weaknesses with real mitigation. Avoid the perfectionism dodge — that signals you read the same blog as everyone else. Pick something genuine, show self-awareness, describe what you actively do about it.' },
+  { category: 'interview_prep', theme: 'The questions to ask an interviewer that signal seriousness', angle: 'Not "what\'s the culture like" (generic) but things like "what does success look like in this role at 90 days?" or "what\'s the team\'s biggest open challenge right now?" — questions that show you\'re already thinking about the work.' },
+
+  // ── remote_work_practical: actually doing remote work well ─────────────
+  { category: 'remote_work_practical', theme: 'Setting up a sustainable home workspace', angle: 'Less about aesthetics, more about ergonomics + boundaries. Monitor at eye level, dedicated chair, "shut the door at 6pm" rituals. The setup people regret skipping after two years remote.' },
+  { category: 'remote_work_practical', theme: 'Managing time-zone friction in distributed teams', angle: 'The asymmetry of working with teammates 6+ hours away. How to write a handoff message that lets someone act without needing a reply. Why "follow the sun" only works when documentation does.' },
+  { category: 'remote_work_practical', theme: 'Async vs sync work: when to use which', angle: 'Sync (meetings, calls) is for ambiguity, alignment, emotion. Async (docs, threads, recordings) is for everything else. Most teams default to sync when async would work — and it costs them hours per week.' },
+  { category: 'remote_work_practical', theme: 'Defending focus time against the always-on trap', angle: 'Remote work removes the natural end-of-day cue. Specific tactics: hard "do not disturb" hours, calendar-blocked deep work, separating Slack notifications from email, the laptop-in-another-room rule after 7pm.' },
+  { category: 'remote_work_practical', theme: 'The honest case for remote work — beyond "no commute"', angle: 'The compound benefits: choosing your geography, designing your day around your sharpest focus hours, the ~10 hours/week of life that commutes quietly steal, the ability to do deep work without office interruption. Real numbers.' },
+
+  // ── communication_teamwork: working well with people ──────────────────
+  { category: 'communication_teamwork', theme: 'Assertive communication without being aggressive', angle: 'Stating what you need clearly, with reasons, without softening it into a question or hardening it into a demand. Specific phrase patterns ("I need X because Y; can we do that by Z?") and why "sorry to bother" trains people to ignore you.' },
+  { category: 'communication_teamwork', theme: 'Giving feedback that actually lands', angle: 'The SBI framework: Situation (what was happening), Behavior (what they did, observable), Impact (what changed because of it). No personality judgments, no "always/never". One concrete example, future-focused.' },
+  { category: 'communication_teamwork', theme: 'Disagreeing constructively in writing', angle: 'Text loses tone — disagreement that\'s clearly friendly in person reads as hostile in Slack. Specific moves: lead with what you agree on, name your concern as a question, propose an alternative instead of just pushing back. The "I might be missing something, but..." opener.' },
+  { category: 'communication_teamwork', theme: 'Building trust quickly with people you\'ve never met in person', angle: 'Remote teammates judge you on consistency over charisma. Show up on time, do what you said you\'d do, write things down, follow up. Trust compounds through 50 small reliable interactions, not one big introduction.' },
+  { category: 'communication_teamwork', theme: 'Managing up: making your manager\'s job easier', angle: 'Not sycophancy — clarity. Bring problems with a proposed solution attached. Surface risks early, not when they\'ve become crises. Summarize your week before they have to ask. The managers you most want to work for remember this.' },
+
+  // ── professionalism: career-level habits ─────────────────────────────
+  { category: 'professionalism', theme: 'Learning publicly: sharing what you\'re working on', angle: 'Posting about what you\'re currently learning beats posting only finished work. It compounds: you build a reputation, you find collaborators, you get feedback while there\'s still time to use it. The fear of looking like a beginner costs more than the discomfort of being seen learning.' },
+  { category: 'professionalism', theme: 'Saying no professionally', angle: 'Protecting your time without burning bridges. The pattern: acknowledge the ask, name the constraint honestly, offer a smaller alternative or a referral. "I can\'t take this on this month — happy to look at it in March, or here\'s someone better suited" beats vague avoidance every time.' },
+  { category: 'professionalism', theme: 'Building a portfolio when your work is confidential', angle: 'You can\'t share your employer\'s code or strategy decks — but you can write about patterns, share generic versions, contribute to open-source on the side, give talks about principles. The portfolio is the thinking, not the artifact.' },
+  { category: 'professionalism', theme: 'The compound interest of small competencies', angle: 'Becoming a little better at writing, at running a meeting, at managing your calendar, at handling a difficult conversation — each compounds over a decade. The people who seem to "have it together" usually invested in unglamorous mid-level skills early.' },
+  { category: 'professionalism', theme: 'When to switch jobs vs. stick it out', angle: 'The honest tradeoffs: switching too often makes you look unfocused, staying too long stalls your salary and skill growth. The signal-vs-noise of a bad quarter, the questions to ask before quitting, when a stretch role inside beats a lateral move outside.' },
 ];
 
 function getTodayTheme() {
@@ -115,6 +129,17 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
 
+  // ── Pause gate ────────────────────────────────────────────────────────
+  // Honors the global Play/Pause switch in the sidebar. When paused, we
+  // return a 200 with a message instead of doing any work — the cron
+  // shouldn't treat pause as an error.
+  try {
+    const settings = await db.entities.AutoPostSettings.list();
+    if (settings.length > 0 && settings[0].is_paused) {
+      return Response.json({ message: 'Auto-posting is paused. Skipping.', paused: true });
+    }
+  } catch { /* if settings entity missing, default to running */ }
+
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=Sun, 2=Tue, 4=Thu
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -155,7 +180,7 @@ Deno.serve(async (req) => {
         status: 'scheduled',
         scheduled_date: scheduledDate,
         scheduled_time: scheduledTime,
-        notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership theme:${theme.theme}`,
+        notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership category:${theme.category} theme:${theme.theme}`,
       });
 
       created.push({ postId: post.id, platform, scheduledDate, theme: theme.theme });

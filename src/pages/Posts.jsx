@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Copy, Trash2, Eye, BarChart3, ClipboardPaste } from 'lucide-react';
+import { Copy, Trash2, Eye, BarChart3, ClipboardPaste, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import PostsSummaryBar from '@/components/posts/PostsSummaryBar';
@@ -17,6 +17,7 @@ export default function Posts() {
   const [metricsPost, setMetricsPost] = useState(null);
   const [metrics, setMetrics] = useState({});
   const [pasteText, setPasteText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: posts = [] } = useQuery({
@@ -112,6 +113,23 @@ export default function Posts() {
     toast.success('CSV exported!');
   };
 
+  const importFromInstagram = async () => {
+    setIsImporting(true);
+    try {
+      const res = await base44.functions.invoke('importInstagramPosts', {});
+      const payload = res?.data ?? res ?? {};
+      if (payload.error) {
+        toast.error('Import failed: ' + payload.error);
+      } else {
+        toast.success(payload.message || `Imported ${payload.imported || 0} posts`);
+        queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
+      }
+    } catch (err) {
+      toast.error('Import failed: ' + (err?.message || 'error'));
+    }
+    setIsImporting(false);
+  };
+
   const strategyColors = {
     targeted_role: 'bg-primary/10 text-primary',
     storytelling: 'bg-chart-4/10 text-chart-4',
@@ -123,9 +141,22 @@ export default function Posts() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">My Posts</h1>
-        <p className="text-sm text-muted-foreground">{posts.length} posts generated</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">My Posts</h1>
+          <p className="text-sm text-muted-foreground">{posts.length} posts generated</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={importFromInstagram}
+          disabled={isImporting}
+          className="gap-2 shrink-0"
+          title="Pull recent Instagram posts (reels, images, carousels) into your tracked-posts list. Idempotent — won't duplicate."
+        >
+          {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {isImporting ? 'Importing…' : 'Import from Instagram'}
+        </Button>
       </div>
 
       {posts.length > 0 && <PostsSummaryBar posts={posts} onExport={exportCSV} />}
@@ -141,6 +172,16 @@ export default function Posts() {
                     {post.strategy?.replace(/_/g, ' ')}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">{post.status}</Badge>
+                  {post.media_type && (
+                    <Badge variant="outline" className="text-[10px] bg-pink-50 text-pink-700 border-pink-200">
+                      {post.media_type === 'CAROUSEL_ALBUM' ? 'CAROUSEL' : post.media_type}
+                    </Badge>
+                  )}
+                  {post.imported_from && (
+                    <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-600 border-slate-200" title={`Imported from ${post.imported_from}`}>
+                      imported
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">{post.content?.slice(0, 150)}...</p>
                 <div className="flex gap-4 mt-2 text-xs text-muted-foreground">

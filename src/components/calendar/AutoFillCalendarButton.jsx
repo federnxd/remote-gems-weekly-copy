@@ -12,8 +12,6 @@ const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa276
 
 const NON_LINKEDIN_PLATFORMS = [
   'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
-  'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
-  'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
 
 const ALL_PLATFORMS = ['linkedin', ...NON_LINKEDIN_PLATFORMS];
@@ -208,7 +206,6 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const [generatedCount, setGeneratedCount] = useState(0);
   const [displayCount, setDisplayCount] = useState(0);
   const [selectedWeekDate, setSelectedWeekDate] = useState(new Date());
-  const counterRef = React.useRef(null);
   const isGenerating = step === 'generating';
   const isCallingRef = React.useRef(false);
 
@@ -237,50 +234,48 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
   const handleGenerate = async () => {
     if (isGenerating || isCallingRef.current) return;
     isCallingRef.current = true;
-    const total = slots.reduce((sum, slot) => sum + slot.platforms.length, 0);
-    setTotalTasks(total);
+    // We now generate one DAY per request (7 sequential requests) so no single
+    // request risks the platform timeout. Progress is real, not animated.
+    setTotalTasks(7);
     setDisplayCount(0);
     setStep('generating');
 
-    // Animate counter from 0 → total over the estimated generation time
-    // Each post takes ~2–3s on average; we pace the counter slightly slower so
-    // it doesn't reach 100% before the backend finishes.
-    const estimatedMs = total * 2400;
-    const intervalMs = 120; // tick every 120ms
-    const incrementPerTick = total / (estimatedMs / intervalMs);
-    let current = 0;
+    const monday = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
 
-    counterRef.current = setInterval(() => {
-      current += incrementPerTick;
-      // Cap at total - 1 so we never show "done" before the real response
-      const display = Math.min(Math.floor(current), total - 1);
-      setDisplayCount(display);
-    }, intervalMs);
+    let totalCreated = 0;
+    let daysDone = 0;
+    const dayErrors = [];
 
-    try {
-      const monday = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
-      const mondayStr = format(monday, 'yyyy-MM-dd');
-
-      const response = await base44.functions.invoke('autoFillWeek', {
-        manual: true,
-        target_monday: mondayStr,
-      });
-
-      clearInterval(counterRef.current);
-      const payload = response?.data ?? response ?? {};
-      const created = payload?.totalCreated ?? 0;
-      setGeneratedCount(created);
-      setDisplayCount(created); // snap to real number
-      setStep('done');
-      toast.success(`${created} posts added to your calendar!`);
+    for (let i = 0; i < 7; i++) {
+      const dayDate = addDays(monday, i);
+      const dateStr = format(dayDate, 'yyyy-MM-dd');
+      try {
+        const response = await base44.functions.invoke('autoFillDay', {
+          target_date: dateStr,
+        });
+        const payload = response?.data ?? response ?? {};
+        totalCreated += payload?.totalCreated ?? 0;
+      } catch (err) {
+        // One day failing should not abort the whole week — record and continue.
+        dayErrors.push(`${format(dayDate, 'EEE')}: ${err?.message || err?.response?.data?.error || 'failed'}`);
+      }
+      daysDone++;
+      setDisplayCount(daysDone);
+      setGeneratedCount(totalCreated);
+      // Let the calendar reflect each day's posts as they land.
       onPostsCreated?.();
-    } catch (err) {
-      clearInterval(counterRef.current);
-      toast.error('Generation failed: ' + (err?.message || err?.response?.data?.error || 'Unknown error'));
-      setStep('preview');
-    } finally {
-      isCallingRef.current = false;
     }
+
+    setStep('done');
+    if (dayErrors.length === 0) {
+      toast.success(`${totalCreated} posts added to your calendar!`);
+    } else if (totalCreated > 0) {
+      toast.success(`${totalCreated} posts added. ${dayErrors.length} day(s) had issues — you can retry those days individually.`);
+    } else {
+      toast.error('Generation failed for all days. Please try again.');
+      setStep('preview');
+    }
+    isCallingRef.current = false;
   };
 
   return (
@@ -364,7 +359,8 @@ export default function AutoFillCalendarButton({ currentMonth, onPostsCreated })
                   {displayCount}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  of <span className="font-semibold text-foreground">{totalTasks}</span> posts scheduled
+                  day <span className="font-semibold text-foreground">{displayCount}</span> of <span className="font-semibold text-foreground">{totalTasks}</span>
+                  {generatedCount > 0 && <> · {generatedCount} posts so far</>}
                 </div>
               </div>
 

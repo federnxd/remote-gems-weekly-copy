@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remote Gems Weekly — UI Preview (offline mockup)</title>
+<style>
+  :root{
+    --bg:hsl(220 20% 97%); --fg:hsl(222 47% 11%); --card:#fff;
+    --primary:hsl(214 82% 51%); --primary-fg:#fff;
+    --accent:hsl(142 71% 45%); --muted:hsl(220 14% 96%);
+    --muted-fg:hsl(220 9% 46%); --border:hsl(220 13% 91%);
+    --radius:0.75rem; --sidebar:#fff;
+    --orange:#f59e0b; --violet:#7c3aed; --sky:#0ea5e9; --rose:#e11d48;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);font-size:14px;line-height:1.5}
+  .app{display:flex;min-height:100vh}
+  /* sidebar */
+  .sidebar{width:240px;background:var(--sidebar);border-right:1px solid var(--border);padding:18px 12px;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+  .logo{font-weight:800;font-size:16px;padding:0 8px 16px;display:flex;align-items:center;gap:8px}
+  .logo .gem{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+  .nav-section{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-fg);padding:12px 8px 4px;font-weight:700}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--fg);font-weight:500;font-size:13px;margin-bottom:1px}
+  .nav-item:hover{background:var(--muted)}
+  .nav-item.active{background:var(--primary);color:#fff}
+  .nav-item .ico{width:16px;text-align:center;font-size:14px}
+  /* main */
+  .main{flex:1;padding:28px 32px;max-width:1200px}
+  .banner{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+  h1{font-size:22px;font-weight:800;margin-bottom:4px}
+  .sub{color:var(--muted-fg);font-size:13px;margin-bottom:22px}
+  .grid{display:grid;gap:16px}
+  .cols-4{grid-template-columns:repeat(4,1fr)}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  .cols-2{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.cols-4{grid-template-columns:repeat(2,1fr)}.cols-3,.cols-2{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .stat .label{font-size:12px;color:var(--muted-fg);font-weight:600}
+  .stat .val{font-size:26px;font-weight:800;margin-top:4px}
+  .stat .delta{font-size:11px;color:var(--accent);font-weight:600;margin-top:2px}
+  .card h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .btn{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{filter:brightness(.95)}
+  .btn.outline{background:#fff;color:var(--fg);border:1px solid var(--border)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+  .pill.blue{background:#dbeafe;color:#1e40af}.pill.green{background:#dcfce7;color:#166534}
+  .pill.gray{background:var(--muted);color:var(--muted-fg)}.pill.orange{background:#fef3c7;color:#92400e}
+  .pill.violet{background:#ede9fe;color:#6d28d9}
+  .row{display:flex;align-items:center;gap:10px}
+  .between{justify-content:space-between}
+  .muted{color:var(--muted-fg)}
+  .mt{margin-top:16px}.mb{margin-bottom:12px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .tab{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:var(--muted);color:var(--muted-fg);border:none}
+  .tab.active{background:var(--primary);color:#fff}
+  .checkitem{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer}
+  .checkitem:last-child{border:none}
+  .checkbox{width:20px;height:20px;border-radius:50%;border:2px solid var(--muted-fg);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+  .checkitem.done .checkbox{background:var(--primary);border-color:var(--primary)}
+  .checkitem.done .ctitle{text-decoration:line-through;color:var(--muted-fg)}
+  .ctitle{font-weight:600;font-size:13px}
+  .cdetail{font-size:12px;color:var(--muted-fg);margin-top:2px}
+  .progress{height:8px;background:var(--muted);border-radius:999px;overflow:hidden;margin-top:6px}
+  .progress > div{height:100%;background:var(--primary);transition:width .3s}
+  textarea,input,select{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:var(--fg)}
+  textarea{min-height:90px;resize:vertical}
+  label{font-size:12px;font-weight:600;display:block;margin-bottom:5px;margin-top:12px}
+  .post-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+  .post-card .ph{font-size:12px;color:var(--muted-fg);margin-bottom:6px;display:flex;justify-content:space-between}
+  .post-card .body{font-size:13px;white-space:pre-wrap;line-height:1.55}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+  .cal .dow{font-size:11px;font-weight:700;color:var(--muted-fg);text-align:center;padding:4px}
+  .cal .day{border:1px solid var(--border);border-radius:8px;min-height:72px;padding:5px;font-size:11px}
+  .cal .daynum{color:var(--muted-fg);font-weight:600}
+  .dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:3px}
+  .chip{font-size:10px;padding:1px 5px;border-radius:5px;background:var(--muted);margin-top:3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .helper-result{border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px;background:var(--muted)}
+  .helper-result .ht{font-size:10px;text-transform:uppercase;font-weight:700;color:var(--primary);margin-bottom:4px}
+  .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}
+  .bar-row .name{width:120px;flex-shrink:0}
+  .bar-track{flex:1;height:18px;background:var(--muted);border-radius:5px;overflow:hidden}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent))}
+  .note-banner{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:18px}
+  .demo-tag{position:fixed;bottom:14px;right:14px;background:var(--fg);color:#fff;font-size:11px;padding:6px 12px;border-radius:999px;opacity:.85;z-index:50}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span class="gem">◆</span> Remote Gems</div>
+    <div class="nav-section">Main</div>
+    <div id="nav"></div>
+  </aside>
+  <main class="main" id="view"></main>
+</div>
+<div class="demo-tag">⚠ Offline UI preview · sample data</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// OFFLINE MOCKUP. All data below is FAKE. No backend, no real posting.
+// This previews layout & flow only. The real app runs on Base44.
+// ---------------------------------------------------------------------------
+const PLATFORMS = ['linkedin','twitter','facebook','instagram','mastodon','bluesky','threads'];
+const PLABEL = {linkedin:'LinkedIn',twitter:'X / Twitter',facebook:'Facebook',instagram:'Instagram',mastodon:'Mastodon',bluesky:'Bluesky',threads:'Threads'};
+
+const SAMPLE_POSTS = [
+  {strategy:'targeted_role',platform:'linkedin',status:'published',impr:1240,likes:48,ref:3,title:'Targeted role — LinkedIn',
+   body:"Senior ML engineers: what if your expertise could train the next generation of AI models?\n\nLeading AI labs are hiring remote contributors across 40+ specialties. ~30 min interview → certification → possible hire.\n\n🛑 Check your spam folder after applying 🛑\n\nhttps://refer.micro1.ai/referral/jobs?referralCode=…"},
+  {strategy:'storytelling',platform:'bluesky',status:'published',impr:320,likes:22,ref:1,title:'Thought leadership — Bluesky',
+   body:"The thing nobody tells you about AI training work: the more capable models get, the MORE they need real human domain experts. Advanced AI doesn't replace expertise — it makes it the scarcest resource in the room."},
+  {strategy:'social_proof',platform:'mastodon',status:'scheduled',impr:0,likes:0,ref:0,title:'Social proof — Mastodon',
+   body:"Over 300 professionals got certified through this program this year. The ones who get hired aren't lucky — they're prepared. Remote, flexible, across dozens of fields."},
+  {strategy:'urgency',platform:'twitter',status:'scheduled',impr:0,likes:0,ref:0,needs_review:true,title:'Urgency — X',
+   body:"A few of these roles have multiple openings filling this week. Honest nudge, not panic. Worth a look if you've been meaning to apply."},
+];
+
+const ACTIVITIES = {
+  linkedin:{intro:'LinkedIn rewards substance and consistency. Thoughtful contribution, not volume.',items:[
+    {t:'Spend 15 min reading your feed',d:"Actually read — notice who in your niche is posting interesting things.",time:'15 min',done:true},
+    {t:'Leave 3 substantive comments',d:"Add a perspective or ask a real question — not 'Great post!'.",time:'15 min',done:true},
+    {t:'Engage with 1 industry account',d:"Comment meaningfully on an AI lab or remote-work platform's post.",time:'5 min',done:false},
+    {t:'Send 1 genuine DM',d:"To a recent commenter or someone whose work you respect. No pitch.",time:'5 min',done:false},
+    {t:'Reshare 1 great post with your take',d:"Add 2-3 sentences of why it matters.",time:'5 min',done:false},
+    {t:'Follow 5 interesting people',d:"Builders & researchers you'd genuinely want in your feed.",time:'5 min',done:false},
+    {t:'Weekly: review your headline',d:"Look at your profile as a stranger would. Tweak one line.",time:'5 min',weekly:true,done:false},
+  ]},
+  twitter:{intro:'X is a conversation surface. Replies get you noticed more than posts.',items:[
+    {t:'Leave 5 thoughtful replies',d:"To accounts slightly bigger than yours. A sharp reply beats a generic post.",time:'15 min',done:false},
+    {t:'Quote-tweet 1 great post',d:"Add your take — agreement with extension, or a new angle.",time:'5 min',done:false},
+    {t:'Check your must-read list',d:"Scan 20-40 key accounts daily — higher leverage than the feed.",time:'10 min',done:false},
+    {t:'Post 1 original observation',d:"Something you noticed today. Doesn't need to be profound — just real.",time:'5 min',done:false},
+  ]},
+  mastodon:{intro:'Community-first and allergic to marketing tone. Show up as a person.',items:[
+    {t:'Boost 3 posts you genuinely liked',d:"No algorithm here — boosts are how good content travels.",time:'5 min',done:false},
+    {t:'Reply to 3 posts thoughtfully',d:"Sound like a person at a meetup, not a brand.",time:'10 min',done:false},
+    {t:'Explore 1 new hashtag deeply',d:"Follow 3-5 interesting accounts, no pressure to reciprocate.",time:'10 min',done:false},
+  ]},
+  bluesky:{intro:'Tech-aware users who dislike performative behavior. Be specific.',items:[
+    {t:'Leave 5 substantive replies',d:"Small enough feed that real replies land.",time:'15 min',done:false},
+    {t:'Quote-post 1 thoughtful thing',d:"Add perspective — pure reposts feel low-effort here.",time:'5 min',done:false},
+    {t:'Curate your feeds',d:"Subscribe to 2-3 niche custom feeds. Mute what doesn't serve you.",time:'5 min',done:false},
+  ]},
+  facebook:{intro:'Works through groups and personal connection. Community is the lever.',items:[
+    {t:'Comment in 2 niche groups',d:"Answer a question or share experience in active groups.",time:'15 min',done:false},
+    {t:'Reply to everyone on your posts',d:"Active comment threads lift posts in others' feeds.",time:'10 min',done:false},
+  ]},
+  instagram:{intro:'Rewards visual consistency and DM conversations. Habit over virality.',items:[
+    {t:'Post 1 story',d:"A quick thought, poll, or behind-the-scenes.",time:'5 min',done:false},
+    {t:'Spend 15 min engaging',d:"Real comments on 10 niche accounts.",time:'15 min',done:false},
+    {t:'Reply to every DM',d:"IG heavily favors accounts with active DMs.",time:'10 min',done:false},
+  ]},
+  threads:{intro:'Casual and conversational. Quick exchanges beat essays.',items:[
+    {t:'Reply to 5 posts in your niche',d:"High reply visibility here.",time:'10 min',done:false},
+    {t:'Post 1 short observation',d:"Low-friction posting is rewarded.",time:'3 min',done:false},
+  ]},
+};
+
+const NAV = [
+  ['dashboard','▦','Dashboard'],
+  ['generator','✎','Post Generator'],
+  ['idealab','💡','Idea Lab'],
+  ['daily','✓','Daily Growth'],
+  ['roles','💼','Open Roles'],
+  ['calendar','📅','Content Calendar'],
+  ['analytics','📈','Analytics'],
+  ['weekly','🗓','Weekly Planner'],
+  ['planner','🧠','DataAnalystPlanner'],
+];
+
+let route='dashboard';
+let dailyPlatform='linkedin';
+let genPlatform='linkedin';
+
+function renderNav(){
+  document.getElementById('nav').innerHTML = NAV.map(([id,ico,label])=>
+    `<div class="nav-item ${route===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${label}</div>`
+  ).join('');
+}
+function go(r){route=r;renderNav();render();window.scrollTo(0,0);}
+
+function stat(label,val,delta){return `<div class="card stat"><div class="label">${label}</div><div class="val">${val}</div>${delta?`<div class="delta">${delta}</div>`:''}</div>`;}
+
+function views(){
+  return {
+  dashboard:()=>`
+    <div class="banner">🟠 It's been 9 days since your last micro1 snapshot — paste your dashboard data to keep recommendations sharp. <button class="btn sm outline" style="margin-left:auto">Paste now</button></div>
+    <h1>Dashboard</h1><div class="sub">Your referral engine at a glance.</div>
+    <div class="grid cols-4">
+      ${stat('Total Impressions','1,560','+12% this week')}
+      ${stat('Referrals','4','+1 this week')}
+      ${stat('Certified','2','')}
+      ${stat('Posts Published','18','')}
+    </div>
+    <div class="card mt" style="border-color:#fed7aa">
+      <h3>👁 Review queue <span class="muted" style="font-weight:400;font-size:12px">1 post held until you approve</span></h3>
+      <div class="row between" style="border-top:1px solid var(--border);padding-top:10px">
+        <div><span class="pill gray">twitter</span> &nbsp;<span class="muted">Sat · 14:00</span><div style="font-size:13px;margin-top:4px">A few of these roles have multiple openings filling this week…</div></div>
+        <div class="row"><button class="btn sm">✓ Approve</button><button class="btn sm outline">Discard</button></div>
+      </div>
+    </div>
+    <div class="grid cols-2 mt">
+      <div class="card"><h3>Recent posts</h3>${SAMPLE_POSTS.slice(0,3).map(p=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:13px">${PLABEL[p.platform]}</b><div class="muted" style="font-size:12px">${p.title}</div></div><span class="pill ${p.status==='published'?'green':'orange'}">${p.status}</span></div>`).join('')}</div>
+      <div class="card"><h3>Cross-platform reach</h3>
+        ${[['LinkedIn',1240],['Bluesky',320],['Mastodon',0]].map(([n,v])=>`<div class="bar-row"><span class="name">${n}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,v/1240*100)}%"></div></div><span>${v}</span></div>`).join('')}
+      </div>
+    </div>`,
+
+  generator:()=>`
+    <h1>Post Generator</h1><div class="sub">Generate one tailored, in-limit post per platform.</div>
+    <div class="grid cols-2">
+      <div class="card">
+        <label>Strategy</label>
+        <select><option>Targeted Role</option><option>Personal Story</option><option>Social Proof</option><option>Urgency / FOMO</option><option>Niche Community</option><option>Carousel / List</option><option>🆕 New Roles</option><option>Thought Leadership (link-free)</option></select>
+        <label>Platforms</label>
+        <div class="tabs" style="margin-top:4px">${PLATFORMS.map(p=>`<span class="tab ${p==='linkedin'||p==='bluesky'?'active':''}">${PLABEL[p]}</span>`).join('')}</div>
+        <label>Referral link</label><input value="https://refer.micro1.ai/referral/jobs?referralCode=…">
+        <label>Schedule</label>
+        <div class="row"><input value="Pick a date" style="flex:1"><input value="09:00" style="width:90px"></div>
+        <label class="row" style="margin-top:10px;font-weight:400;font-size:12px;gap:6px"><input type="checkbox" style="width:auto"> Hold for review before publishing</label>
+        <button class="btn mt" style="width:100%">✨ Generate posts</button>
+      </div>
+      <div class="card">
+        <h3>LinkedIn <span class="pill green" style="margin-left:auto">saved ✓</span></h3>
+        <div class="post-card"><div class="ph"><span>LinkedIn</span><span>847 / 3000</span></div><div class="body">${SAMPLE_POSTS[0].body}</div></div>
+        <div class="row"><button class="btn sm outline">Copy</button><button class="btn sm outline">Save Draft</button><button class="btn sm">Publish</button></div>
+        <div class="helper-result" style="margin-top:14px"><div class="ht">Hashtag suggestions</div><div>${['#RemoteWork','#AIJobs','#MachineLearning','#TechCareers'].map(h=>`<span class="pill blue" style="margin:2px">${h}</span>`).join('')}</div></div>
+      </div>
+    </div>`,
+
+  daily:()=>{
+    const a=ACTIVITIES[dailyPlatform];const items=a.items;
+    const dailyItems=items.filter(i=>!i.weekly);const done=dailyItems.filter(i=>i.done).length;
+    const pct=Math.round(done/dailyItems.length*100);
+    return `
+    <h1>Daily Growth</h1><div class="sub">Genuine activities to grow reach and engagement — the kind a real person does, not a bot.</div>
+    <div class="tabs">${PLATFORMS.map(p=>`<button class="tab ${p===dailyPlatform?'active':''}" onclick="setDaily('${p}')">${PLABEL[p]}</button>`).join('')}</div>
+    <div class="grid cols-2">
+      <div>
+        <div class="card mb">
+          <div class="row between"><div><h3 style="margin:0">${PLABEL[dailyPlatform]}</h3><div class="muted" style="font-size:12px;margin-top:2px">${a.intro}</div></div>
+          <div class="row" style="gap:18px"><div style="text-align:center"><div style="color:var(--orange);font-weight:800;font-size:18px">🔥 5</div><div class="muted" style="font-size:10px">day streak</div></div><div style="text-align:center"><div style="font-weight:800;font-size:18px">${done}/${dailyItems.length}</div><div class="muted" style="font-size:10px">today</div></div></div></div>
+          <div class="progress"><div style="width:${pct}%"></div></div>
+        </div>
+        <div class="card">
+          ${items.map((i,idx)=>`<div class="checkitem ${i.done?'done':''}" onclick="toggleAct(${idx})"><div class="checkbox">${i.done?'✓':''}</div><div><div class="row" style="gap:8px;flex-wrap:wrap"><span class="ctitle">${i.t}</span>${i.weekly?'<span class="pill violet">weekly</span>':''}<span class="muted" style="font-size:11px">⏱ ${i.time}</span></div><div class="cdetail">${i.d}</div></div></div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>✨ AI Growth Helper</h3>
+          <div class="tabs" style="margin-bottom:10px"><span class="tab active" style="font-size:12px">Reply helper</span><span class="tab" style="font-size:12px">Post outline</span><span class="tab" style="font-size:12px">Advice</span></div>
+          <label>Paste a post or comment to reply to</label>
+          <textarea>"Honestly skeptical about 'AI training' gigs — feels too good to be true."</textarea>
+          <button class="btn mt" style="width:100%">✨ Get suggestions</button>
+          <div class="helper-result"><div class="ht">Question</div>That skepticism is fair — what specifically feels off? The pay, the process, or the 'too easy' part? Happy to share what the actual interview looked like for me.</div>
+          <div class="helper-result"><div class="ht">Experience</div>I had the same reaction. What changed my mind was that the interview was a real skills assessment, not a sales pitch — about 30 minutes, then a certification step.</div>
+          <div class="helper-result"><div class="ht">Perspective</div>Worth separating two things: the offer being legit vs. it being a fit for you. It's a real program, but it suits people with specific domain expertise more than generalists.</div>
+        </div>
+      </div>
+    </div>`;
+  },
+
+  idealab:()=>`
+    <h1>Idea Lab</h1><div class="sub">Analyze your top posts → fresh content ideas, repurposing, and strategy advice.</div>
+    <div class="tabs"><span class="tab active">Idea Generator</span><span class="tab">Repurpose Post</span><span class="tab">Improve My Strategy</span></div>
+    <button class="btn mb">✨ Generate ideas from top performers</button>
+    <div class="grid cols-3">
+      ${[['storytelling','The applicant who almost didn\'t apply','A short story post about hesitation → certification, to humanize the opportunity.'],['social_proof','40+ fields, one program','Lead with the breadth of roles as credibility. Numbers do the talking.'],['carousel_text','5 myths about remote AI work','Listicle debunking common skepticism. Highly shareable format.']].map(([s,t,d])=>`<div class="card"><span class="pill blue">${s.replace('_',' ')}</span><h3 style="margin:10px 0 6px">${t}</h3><div class="muted" style="font-size:12px">${d}</div><button class="btn sm outline mt">Save as draft</button></div>`).join('')}
+    </div>`,
+
+  roles:()=>`
+    <h1>Open Roles</h1><div class="sub">Paste your micro1 job list — parsed into structured roles the generators use.</div>
+    <button class="btn mb">📋 Paste & sync job list</button>
+    <div class="card">
+      ${[['Senior ML Engineer','engineering',true,true,5],['Linguist / Annotator','language',true,false,12],['Audio Expert','audio',false,true,2],['Data Scientist','data',false,false,8]].map(([t,c,nw,hd,op])=>`<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--border)"><div><b>${t}</b> ${nw?'<span class="pill green">🆕 new</span>':''} ${hd?'<span class="pill orange">🔥 high demand</span>':''}<div class="muted" style="font-size:12px">${c} · ${op} openings</div></div><span class="pill blue">${op<=3?'last vacants':'active'}</span></div>`).join('')}
+    </div>`,
+
+  calendar:()=>{
+    const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const content={0:[['blue','Targeted role · LI']],1:[['green','Thought · BS']],2:[['blue','Social proof']],4:[['green','Thought · 4 platforms']],5:[['orange','🟠 Urgency · X']],6:[['green','Thought · Sun']]};
+    return `<h1>Content Calendar</h1><div class="sub">Each day follows its strategy. 🟠 = held for review.</div>
+    <div class="card"><div class="row between mb"><b>This week</b><div class="row"><span class="row"><span class="dot" style="background:var(--muted-fg)"></span>draft</span><span class="row"><span class="dot" style="background:var(--primary)"></span>scheduled</span><span class="row"><span class="dot" style="background:var(--accent)"></span>published</span></div></div>
+    <div class="cal">${days.map(d=>`<div class="dow">${d}</div>`).join('')}
+    ${days.map((d,i)=>`<div class="day"><div class="daynum">${20+i}</div>${(content[i]||[]).map(([c,t])=>`<span class="chip"><span class="dot" style="background:${c==='blue'?'var(--primary)':c==='green'?'var(--accent)':'var(--orange)'}"></span>${t}</span>`).join('')}</div>`).join('')}</div></div>`;
+  },
+
+  analytics:()=>`
+    <h1>Analytics</h1><div class="sub">Cross-platform performance (sums every platform's metrics).</div>
+    <div class="grid cols-4">${stat('Impressions','1,560')}${stat('Likes','70')}${stat('Comments','14')}${stat('Referrals','4')}</div>
+    <div class="card mt"><h3>Impressions by platform</h3>
+      ${[['LinkedIn',1240],['Bluesky',320],['Mastodon',0],['X / Twitter',0]].map(([n,v])=>`<div class="bar-row"><span class="name">${n}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,v/1240*100||2)}%"></div></div><span>${v}</span></div>`).join('')}</div>
+    <div class="card mt"><h3>By strategy</h3>
+      ${[['Targeted role',1240],['Storytelling',320],['Social proof',0]].map(([n,v])=>`<div class="bar-row"><span class="name">${n}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,v/1240*100||2)}%"></div></div><span>${v} impr</span></div>`).join('')}</div>`,
+
+  weekly:()=>`
+    <h1>Weekly Planner</h1><div class="sub">Reflects the latest DataAnalystPlanner decisions.</div>
+    <div class="card">
+      <div class="row between"><b>Week of May 20</b><span class="pill green">active</span></div>
+      <div class="note-banner mt">🧠 Auto-synced from planner · Weekly (May 13–19) · ${new Date().toLocaleDateString()}
+        <div class="mt">${['storytelling','social_proof','urgency'].map(s=>`<span class="pill blue" style="margin:2px">${s}</span>`).join('')}</div>
+      </div>
+      <div style="font-size:13px;white-space:pre-wrap;line-height:1.6">📊 Priority strategies: storytelling › social proof › urgency
+Working well: targeted role, storytelling
+Ease off: carousel
+Timing: engagement peaks 8-10am and 6-8pm on weekdays
+Actions:
+• Lead with stories on Tue/Thu
+• Push urgency posts Saturday morning</div>
+    </div>`,
+
+  planner:()=>`
+    <h1>DataAnalystPlanner</h1><div class="sub">AI analysis of your performance → recommendations the whole app uses.</div>
+    <button class="btn mb">🧠 Run analysis now</button>
+    <div class="card mb"><h3>Latest report — Weekly (May 13–19)</h3>
+      <p style="font-size:13px"><b>Summary:</b> Storytelling and targeted-role posts drove the most engagement this week. LinkedIn remains your strongest channel by a wide margin. Referrals are tracking up slightly (+1).</p>
+    </div>
+    <div class="grid cols-2">
+      <div class="card"><h3>✅ Top strategies</h3>${['Targeted role','Storytelling'].map(s=>`<div class="row" style="padding:6px 0"><span class="pill green">${s}</span></div>`).join('')}</div>
+      <div class="card"><h3>⚠ Ease off</h3>${['Carousel / list'].map(s=>`<div class="row" style="padding:6px 0"><span class="pill orange">${s}</span></div>`).join('')}</div>
+    </div>
+    <div class="card mt"><h3>Recommended hashtags</h3>${['#RemoteWork','#AIJobs','#FutureOfWork','#TechHiring','#MachineLearning'].map(h=>`<span class="pill blue" style="margin:3px">${h}</span>`).join('')}</div>
+    <div class="card mt" style="border-color:#bbf7d0;background:#f0fdf4"><h3>🛡 Account safety</h3><p style="font-size:13px">No ban-risk signals detected this period. Community managing is active.</p></div>`,
+  };
+}
+
+function setDaily(p){dailyPlatform=p;render();}
+function toggleAct(idx){const it=ACTIVITIES[dailyPlatform].items[idx];it.done=!it.done;render();}
+function render(){document.getElementById('view').innerHTML = views()[route]();}
+renderNav();render();
+</script>
+</body>
+</html>

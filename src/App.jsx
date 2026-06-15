@@ -18,6 +18,8 @@ import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
 import MetricsHistory from './pages/MetricsHistory';
 import IdeaLab from './pages/IdeaLab';
+import DailyGrowth from './pages/DailyGrowth';
+import ResponderActivity from './pages/ResponderActivity';
 import ThreadsCallback from './pages/ThreadsCallback';
 import LinkedInDashboard from './pages/platforms/LinkedInDashboard';
 import TwitterDashboard from './pages/platforms/TwitterDashboard';
@@ -67,6 +69,8 @@ const AuthenticatedApp = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/history" element={<MetricsHistory />} />
         <Route path="/idealab" element={<IdeaLab />} />
+        <Route path="/daily-growth" element={<DailyGrowth />} />
+        <Route path="/responder-activity" element={<ResponderActivity />} />
         <Route path="/platforms/linkedin" element={<LinkedInDashboard />} />
         <Route path="/platforms/twitter" element={<TwitterDashboard />} />
         <Route path="/platforms/facebook" element={<FacebookDashboard />} />

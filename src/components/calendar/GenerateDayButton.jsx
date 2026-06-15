@@ -11,8 +11,6 @@ const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa276
 
 const NON_LINKEDIN_PLATFORMS = [
   'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
-  'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
-  'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
 
 const ALL_PLATFORMS = ['linkedin', ...NON_LINKEDIN_PLATFORMS];

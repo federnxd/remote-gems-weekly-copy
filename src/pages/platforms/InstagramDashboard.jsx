@@ -98,7 +98,7 @@ export default function InstagramDashboard() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke('syncAllPlatformStats', {});
+      const res = await base44.functions.invoke('syncAllPlatformStats', { manual: true });
       if (res.data?.success) {
         queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
         toast.success(`Synced ${res.data.synced?.ig ?? 0} Instagram posts`);

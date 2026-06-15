@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Target, BookOpen, Clock, Award, Users, Layout, Sparkles } from 'lucide-react';
+import { Target, BookOpen, Clock, Award, Users, Layout, Sparkles, Brain, Flame, DollarSign } from 'lucide-react';
 
 const strategies = [
   { 
@@ -53,6 +53,29 @@ const strategies = [
     desc: 'Spotlight freshly added roles from your selected audience',
     tip: 'Timely & relevant',
     highlight: true,
+  },
+  {
+    id: 'high_demand_spotlight',
+    icon: Flame,
+    label: '🔥 High Demand',
+    desc: 'Spotlight roles where hiring demand is highest right now',
+    tip: 'Real market signal',
+    highlight: true,
+  },
+  {
+    id: 'top_pay_spotlight',
+    icon: DollarSign,
+    label: '💰 Top Pay',
+    desc: 'Spotlight the highest-paying open roles in your selection',
+    tip: 'Lead with value',
+    highlight: true,
+  },
+  {
+    id: 'thought_leadership',
+    icon: Brain,
+    label: 'Thought Leadership',
+    desc: 'Link-free AI/remote-work insight post to build authority (no roles, no link)',
+    tip: 'Builds authority',
   },
 ];
 

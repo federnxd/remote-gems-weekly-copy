@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, PenTool, Briefcase, CalendarDays, 
   Target, BarChart3, Lightbulb, Menu, X, Megaphone, TrendingUp, History,
-  Pause, Play, ChevronDown, ChevronRight, Brain
+  Pause, Play, ChevronDown, ChevronRight, Brain, CalendarCheck, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,8 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/generator', icon: PenTool, label: 'Post Generator' },
   { path: '/idealab', icon: Lightbulb, label: 'Idea Lab' },
+  { path: '/daily-growth', icon: CalendarCheck, label: 'Daily Growth' },
+  { path: '/responder-activity', icon: Activity, label: 'Responder Activity' },
   { path: '/roles', icon: Briefcase, label: 'Open Roles' },
   { path: '/posts', icon: BarChart3, label: 'My Posts' },
   { path: '/analytics', icon: TrendingUp, label: 'Analytics' },

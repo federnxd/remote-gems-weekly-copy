@@ -13,13 +13,18 @@ import ReferralStatsGrid from '@/components/dashboard/ReferralStatsGrid';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { PenTool, ArrowRight, Zap, ClipboardPaste, BarChart2 } from 'lucide-react';
+import { PenTool, ArrowRight, Zap, ClipboardPaste, BarChart2, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import DashboardSnapshotModal from '@/components/analytics/DashboardSnapshotModal';
 import ReferralInsightsModal from '@/components/dashboard/ReferralInsightsModal';
 import CrossPlatformStats from '@/components/dashboard/CrossPlatformStats';
+import ReviewQueueCard from '@/components/dashboard/ReviewQueueCard';
+
+// Snapshot is considered stale after this many days — the planner reads the
+// latest snapshot, so a stale one means stale referral data driving the loop.
+const SNAPSHOT_STALE_DAYS = 7;
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -30,6 +35,17 @@ export default function Dashboard() {
     queryKey: ['generated-posts'],
     queryFn: () => base44.entities.GeneratedPost.list('-created_date'),
   });
+
+  // Latest micro1 dashboard snapshot — drives the staleness banner.
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['dashboard-snapshots'],
+    queryFn: () => base44.entities.CompanyDashboardSnapshot.list('-snapshot_date', 1),
+  });
+  const latestSnapshot = snapshots[0];
+  const daysSinceSnapshot = latestSnapshot?.snapshot_date
+    ? Math.floor((Date.now() - new Date(latestSnapshot.snapshot_date).getTime()) / 86400000)
+    : null;
+  const snapshotStale = daysSinceSnapshot === null || daysSinceSnapshot >= SNAPSHOT_STALE_DAYS;
 
   if (isLoading) {
     return (
@@ -73,6 +89,36 @@ export default function Dashboard() {
 
       <ReferralInsightsModal open={showInsightsModal} onClose={() => setShowInsightsModal(false)} />
 
+      {snapshotStale && (
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowSnapshotModal(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowSnapshotModal(true); }}
+          className="p-4 border-amber-300 bg-amber-50/60 hover:bg-amber-50 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-900">
+                {latestSnapshot
+                  ? `It's been ${daysSinceSnapshot} days since your last micro1 snapshot`
+                  : 'No micro1 dashboard snapshot yet'}
+              </p>
+              <p className="text-xs text-amber-800/80 mt-0.5">
+                The DataAnalystPlanner reads the latest snapshot to track referrals.
+                Paste your current dashboard data to keep recommendations sharp.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-1.5 shrink-0 bg-white">
+              <ClipboardPaste className="w-3.5 h-3.5" /> Paste now
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <DashboardSnapshotModal
         open={showSnapshotModal}
         onClose={() => setShowSnapshotModal(false)}
@@ -81,6 +127,8 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: ['dashboard-snapshots'] });
         }}
       />
+
+      <ReviewQueueCard />
 
       <CrossPlatformStats posts={posts} onSynced={() => queryClient.invalidateQueries({ queryKey: ['generated-posts'] })} />
 

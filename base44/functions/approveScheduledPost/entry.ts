@@ -26,6 +26,29 @@ Deno.serve(async (req) => {
     return html('❌ Invalid Link', 'This approval link is missing required parameters.', '#ef4444');
   }
 
+  // Validate the token: it's btoa(`${postId}:${timestamp}`) from checkScheduledPosts.
+  // We confirm (a) it decodes cleanly, (b) the embedded postId matches the URL's
+  // postId (so a token for one post can't approve another), and (c) it's not
+  // older than the link lifetime — old leaked emails shouldn't approve anything.
+  const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+  let tokenPostId = null;
+  let tokenTime = NaN;
+  try {
+    const decoded = atob(token);
+    const colonIdx = decoded.lastIndexOf(':');
+    if (colonIdx > 0) {
+      tokenPostId = decoded.slice(0, colonIdx);
+      tokenTime = Number(decoded.slice(colonIdx + 1));
+    }
+  } catch { /* malformed token */ }
+
+  if (!tokenPostId || tokenPostId !== postId || !Number.isFinite(tokenTime)) {
+    return html('❌ Invalid Approval Token', 'This approval link is malformed or does not match this post.', '#ef4444');
+  }
+  if (Date.now() - tokenTime > TOKEN_TTL_MS) {
+    return html('⌛ Approval Link Expired', 'This approval link is older than 7 days. Re-schedule the post to get a fresh link.', '#f59e0b');
+  }
+
   // Fetch the post
   const posts = await db.entities.GeneratedPost.filter({ id: postId });
   const post = posts?.[0];

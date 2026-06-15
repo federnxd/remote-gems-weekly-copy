@@ -30,11 +30,20 @@ Deno.serve(async (req) => {
     // All published posts
     const allPosts = await db.entities.GeneratedPost.filter({ status: 'published' });
 
-    // Get posts from the relevant period
+    // Get posts from the relevant period.
+    // Bound on BOTH ends: published posts whose scheduled_date falls within
+    // [cutoffDate, today]. Without the upper bound, future-dated posts (e.g.
+    // published late, or timezone edges) would leak into the analysis.
     const cutoffDays = reportType === 'monthly' ? 30 : 7;
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() - cutoffDays);
-    const recentPosts = allPosts.filter(p => p.scheduled_date && new Date(p.scheduled_date) >= cutoffDate);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+    const recentPosts = allPosts.filter(p => {
+      if (!p.scheduled_date) return false;
+      const d = new Date(p.scheduled_date);
+      return d >= cutoffDate && d <= endOfToday;
+    });
 
     // Community engagement logs
     const allEngLogs = await db.entities.CommunityEngagementLog.list('-run_date', 90);
@@ -46,6 +55,16 @@ Deno.serve(async (req) => {
 
     // Previous planner reports for context
     const prevReports = await db.entities.PlannerReport.list('-created_date', 3);
+
+    // Nothing to analyze yet — skip the (expensive) AI call and produce no noise.
+    if (recentPosts.length === 0 && recentEngLogs.length === 0 && !latestSnapshot) {
+      return Response.json({
+        skipped: true,
+        report_type: reportType,
+        period: periodLabel,
+        message: 'No published posts, engagement logs, or dashboard snapshots in this period yet — nothing to analyze.',
+      });
+    }
 
     // ── 2. COMPUTE STATISTICS ─────────────────────────────────────────────────
 
@@ -210,24 +229,41 @@ RESPOND WITH VALID JSON ONLY (no markdown, no code blocks, pure JSON):
       temperature: 0.3,
     });
 
+    const rawContent = completion.choices?.[0]?.message?.content || '';
     let analysis;
     try {
-      analysis = JSON.parse(completion.choices[0].message.content.trim());
+      analysis = JSON.parse(rawContent.trim());
     } catch {
-      // Try to extract JSON if wrapped in markdown
-      const raw = completion.choices[0].message.content;
-      const match = raw.match(/\{[\s\S]+\}/);
-      analysis = match ? JSON.parse(match[0]) : { full_analysis: raw };
+      // Try to extract a JSON object if it's wrapped in markdown/prose.
+      try {
+        const match = rawContent.match(/\{[\s\S]+\}/);
+        analysis = match ? JSON.parse(match[0]) : { full_analysis: rawContent };
+      } catch {
+        // Still unparseable — keep the narrative so the report isn't lost,
+        // and proceed with safe empty defaults for everything else.
+        analysis = { full_analysis: rawContent };
+      }
     }
+    if (!analysis || typeof analysis !== 'object') analysis = { full_analysis: String(rawContent) };
 
     // ── 5. HANDLE BAN RISKS — PAUSE COMMUNITY MANAGING ───────────────────────
 
-    const platformsToPause = analysis.should_pause_community_managing || banRiskPlatforms;
+    // The LLM-suggested list is untrusted: accept it only if it's an array of
+    // non-empty strings. Otherwise fall back to our own computed risk detection.
+    const llmPause = analysis.should_pause_community_managing;
+    const platformsToPause = (Array.isArray(llmPause)
+      ? llmPause.filter(p => typeof p === 'string' && p.trim())
+      : banRiskPlatforms);
+
     if (platformsToPause.length > 0) {
-      // Pause community managing globally if any high-risk platform
+      // Pause community managing globally if any high-risk platform is flagged.
       const cmSettings = await db.entities.CommunityManagingSettings.filter({});
       if (cmSettings.length > 0) {
         await db.entities.CommunityManagingSettings.update(cmSettings[0].id, { is_paused: true });
+      } else {
+        // No settings record yet — create one already paused, so the pause
+        // actually takes effect instead of silently doing nothing.
+        await db.entities.CommunityManagingSettings.create({ is_paused: true });
       }
     }
 
@@ -251,9 +287,57 @@ RESPOND WITH VALID JSON ONLY (no markdown, no code blocks, pure JSON):
       status: 'completed',
     });
 
-    // ── 7. FOR MONTHLY: trigger auto-fill with updated strategy ───────────────
-    // (The autoFillWeek function will be called by its own Sunday automation,
-    //  the planner just updates the strategy data so the next autofill uses it)
+    // ── 7. SYNC THE CURRENT WEEKLY PLAN WITH THE PLANNER'S DECISIONS ──────────
+    // The WeeklyPlan / Strategy pages are live reflections of the planner. Posting
+    // still reads getPlannerContext (single source of truth); this just keeps the
+    // planning views in step with each report so they improve over time.
+    try {
+      const recStrategies = Array.isArray(analysis.recommended_strategies) ? analysis.recommended_strategies : [];
+      const recHashtags = analysis.recommended_hashtags || '';
+      const topStr = (analysis.top_performing_strategies || []).slice(0, 3)
+        .map(s => typeof s === 'string' ? s : (s?.strategy || s?.name)).filter(Boolean);
+      const underStr = (analysis.underperforming_strategies || []).slice(0, 3)
+        .map(s => typeof s === 'string' ? s : (s?.strategy || s?.name)).filter(Boolean);
+      const actions = (Array.isArray(analysis.action_items) ? analysis.action_items : []).slice(0, 4);
+
+      // Human-readable summary written into strategy_notes.
+      const summaryLines = [];
+      summaryLines.push(`📊 Auto-synced from ${reportType} report (${periodLabel})`);
+      if (recStrategies.length) summaryLines.push(`Priority strategies: ${recStrategies.map(s => s.replace(/_/g, ' ')).join(' › ')}`);
+      if (topStr.length) summaryLines.push(`Working well: ${topStr.map(s => String(s).replace(/_/g, ' ')).join(', ')}`);
+      if (underStr.length) summaryLines.push(`Ease off: ${underStr.map(s => String(s).replace(/_/g, ' ')).join(', ')}`);
+      if (analysis.engagement_time_insights) summaryLines.push(`Timing: ${String(analysis.engagement_time_insights).slice(0, 160)}`);
+      if (recHashtags) summaryLines.push(`Hashtags: ${recHashtags}`);
+      if (actions.length) summaryLines.push(`Actions:\n${actions.map(a => `• ${typeof a === 'string' ? a : (a?.action || JSON.stringify(a))}`).join('\n')}`);
+      const strategyNotes = summaryLines.join('\n');
+
+      // Find the plan to sync. week_label is free-text the user types, so we
+      // don't match on it (that would create duplicates). Instead: prefer an
+      // 'active' plan, else the most recently created plan, else create one.
+      const allPlans = await db.entities.WeeklyPlan.list('-created_date', 20);
+      const targetPlan = allPlans.find(p => p.status === 'active')
+        || allPlans.find(p => p.status === 'planning')
+        || allPlans[0];
+
+      const planFields = {
+        active_strategies: recStrategies.join(','),
+        recommended_hashtags: recHashtags,
+        strategy_notes: strategyNotes,
+        last_planner_sync: new Date().toISOString(),
+        planner_report_period: periodLabel,
+      };
+      if (targetPlan) {
+        await db.entities.WeeklyPlan.update(targetPlan.id, planFields);
+      } else {
+        // No plans exist yet — seed one with an auto label so the page has
+        // something to show; the user can rename it.
+        const autoLabel = `Week of ${today.toISOString().slice(0, 10)}`;
+        await db.entities.WeeklyPlan.create({ week_label: autoLabel, status: 'active', ...planFields });
+      }
+    } catch (e) {
+      // Non-fatal: the report itself already saved; plan sync is a reflection.
+      console.error('WeeklyPlan sync failed:', e.message);
+    }
 
     return Response.json({
       success: true,

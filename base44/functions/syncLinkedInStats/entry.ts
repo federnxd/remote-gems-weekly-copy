@@ -9,6 +9,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const db = base44.asServiceRole;
+
+    // ── Pause gate (cron only) ──────────────────────────────────────────
+    // Same pattern as syncAllPlatformStats: cron runs respect the pause;
+    // user clicks pass { manual: true } to bypass.
+    let body = {};
+    try { body = await req.json(); } catch { /* no body */ }
+    if (!body.manual) {
+      try {
+        const settings = await db.entities.AutoPostSettings.list();
+        if (settings.length > 0 && settings[0].is_paused) {
+          return Response.json({ message: 'Auto-posting is paused. Skipping LinkedIn stats sync.', paused: true });
+        }
+      } catch { /* if settings entity missing, default to running */ }
+    }
 
     const posts = await base44.asServiceRole.entities.GeneratedPost.filter({ status: 'published' });
     const publishedWithId = posts.filter(p => p.linkedin_post_id);

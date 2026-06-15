@@ -121,8 +121,24 @@ async function fetchMastodonPostStats(statusId, instanceUrl, accessToken) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const db = base44.asServiceRole;
+    // No auth.me() check — all DB writes use asServiceRole, and this function is
+    // designed to be called by cron (no user session) as well as from the UI.
+
+    // ── Pause gate (cron only) ──────────────────────────────────────────
+    // Cron runs honor the global Play/Pause switch — but the user clicking
+    // "Refresh stats" in the UI should still work. The frontend sends
+    // { manual: true } to bypass the gate.
+    let body = {};
+    try { body = await req.json(); } catch { /* no body */ }
+    if (!body.manual) {
+      try {
+        const settings = await db.entities.AutoPostSettings.list();
+        if (settings.length > 0 && settings[0].is_paused) {
+          return Response.json({ message: 'Auto-posting is paused. Skipping stats sync.', paused: true });
+        }
+      } catch { /* if settings entity missing, default to running */ }
+    }
 
     const fbToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
     const threadsToken = Deno.env.get('THREADS_ACCESS_TOKEN');
@@ -141,39 +157,52 @@ Deno.serve(async (req) => {
       try {
         const updates = {};
 
+        // Each platform fetch is independently try/catch'd: a failing API call
+        // for one platform must not skip the others for the same post.
+
         // Facebook
         if (post.fb_post_id && fbToken) {
-          const stats = await fetchFacebookPostStats(post.fb_post_id, fbToken);
-          Object.assign(updates, stats);
-          results.fb++;
+          try {
+            const stats = await fetchFacebookPostStats(post.fb_post_id, fbToken);
+            Object.assign(updates, stats);
+            results.fb++;
+          } catch (e) { results.errors.push({ postId: post.id, platform: 'fb', error: e.message }); }
         }
 
         // Instagram
         if (post.ig_post_id && fbToken) {
-          const stats = await fetchInstagramPostStats(post.ig_post_id, fbToken);
-          Object.assign(updates, stats);
-          results.ig++;
+          try {
+            const stats = await fetchInstagramPostStats(post.ig_post_id, fbToken);
+            Object.assign(updates, stats);
+            results.ig++;
+          } catch (e) { results.errors.push({ postId: post.id, platform: 'ig', error: e.message }); }
         }
 
         // Threads
         if (post.threads_post_id && threadsToken) {
-          const stats = await fetchThreadsPostStats(post.threads_post_id, threadsToken);
-          Object.assign(updates, stats);
-          results.threads++;
+          try {
+            const stats = await fetchThreadsPostStats(post.threads_post_id, threadsToken);
+            Object.assign(updates, stats);
+            results.threads++;
+          } catch (e) { results.errors.push({ postId: post.id, platform: 'threads', error: e.message }); }
         }
 
         // Bluesky
         if (post.bsky_post_id && bskyHandle && bskyPassword) {
-          const stats = await fetchBlueskyPostStats(post.bsky_post_id, bskyHandle, bskyPassword);
-          Object.assign(updates, stats);
-          results.bsky++;
+          try {
+            const stats = await fetchBlueskyPostStats(post.bsky_post_id, bskyHandle, bskyPassword);
+            Object.assign(updates, stats);
+            results.bsky++;
+          } catch (e) { results.errors.push({ postId: post.id, platform: 'bsky', error: e.message }); }
         }
 
         // Mastodon
         if (post.mastodon_post_id && mastodonInstance && mastodonToken) {
-          const stats = await fetchMastodonPostStats(post.mastodon_post_id, mastodonInstance, mastodonToken);
-          Object.assign(updates, stats);
-          results.mastodon++;
+          try {
+            const stats = await fetchMastodonPostStats(post.mastodon_post_id, mastodonInstance, mastodonToken);
+            Object.assign(updates, stats);
+            results.mastodon++;
+          } catch (e) { results.errors.push({ postId: post.id, platform: 'mastodon', error: e.message }); }
         }
 
         if (Object.keys(updates).length > 0) {

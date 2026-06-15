@@ -158,7 +158,7 @@ export default function LinkedInEngagement({ posts }) {
   const syncStats = async (silent = false) => {
     if (publishedPosts.length === 0) return;
     setSyncing(true);
-    const res = await base44.functions.invoke('syncLinkedInStats', {});
+    const res = await base44.functions.invoke('syncLinkedInStats', { manual: true });
     setSyncing(false);
     if (res.data?.synced >= 0) {
       queryClient.invalidateQueries({ queryKey: ['generated-posts'] });

@@ -1,10 +1,16 @@
 import React from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Target, TrendingUp, DollarSign, Users, Calendar, 
-  MessageSquare, Share2, Lightbulb, AlertTriangle, CheckCircle2 
+  MessageSquare, Share2, Lightbulb, AlertTriangle, CheckCircle2, Brain
 } from 'lucide-react';
+
+function safeJSON(str, fallback) {
+  try { return typeof str === 'string' ? JSON.parse(str) : (str ?? fallback); } catch { return fallback; }
+}
 
 const budgetPlan = [
   { item: 'LinkedIn Post Boosting (2 targeted posts/week)', cost: 20, impact: 'High' },
@@ -83,12 +89,100 @@ const funnelFixes = [
 ];
 
 export default function Strategy() {
+  // The latest DataAnalystPlanner report drives the live strategy view.
+  const { data: reports = [] } = useQuery({
+    queryKey: ['planner-reports'],
+    queryFn: () => base44.entities.PlannerReport.list('-created_date', 1),
+  });
+  const latest = reports.find(r => r.status === 'completed') || null;
+
+  const recommendedStrategies = latest ? safeJSON(latest.recommended_strategies, []) : [];
+  const recommendedTimes = latest ? safeJSON(latest.recommended_posting_times, {}) : {};
+  const actionItems = latest ? safeJSON(latest.action_items, []) : [];
+  const recommendedHashtags = latest?.recommended_hashtags
+    ? latest.recommended_hashtags.split(',').map(h => h.trim()).filter(Boolean)
+    : [];
+
+  // Overlay planner-recommended posting times onto the baseline weekly schedule.
+  const dayToPlatform = {
+    Monday: 'linkedin', Tuesday: 'twitter', Wednesday: 'facebook',
+    Thursday: 'instagram', Friday: 'mastodon', Saturday: 'bluesky', Sunday: 'threads',
+  };
+  const liveSchedule = weeklySchedule.map(item => {
+    const plat = dayToPlatform[item.day];
+    const plannerTime = plat && recommendedTimes[plat];
+    return plannerTime ? { ...item, time: plannerTime, plannerAdjusted: true } : item;
+  });
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Marketing & Recruiting Strategy</h1>
         <p className="text-sm text-muted-foreground">Your roadmap to 100+ hired referrals per month</p>
       </div>
+
+      {/* Live DataAnalystPlanner recommendations */}
+      {latest ? (
+        <Card className="p-6 border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-1">
+            <Brain className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold">DataAnalystPlanner Recommendations</h3>
+            <Badge variant="secondary" className="ml-auto text-[10px]">
+              {latest.period_label} · {latest.report_type}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            These are applied automatically to post generation and community managing. The plan below adapts as new reports come in.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {recommendedStrategies.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Priority Strategies</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {recommendedStrategies.map((s, i) => (
+                    <Badge key={i} variant="secondary" className="text-[11px] bg-primary/10 text-primary">
+                      {i + 1}. {String(s).replace(/_/g, ' ')}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {recommendedHashtags.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recommended Hashtags</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {recommendedHashtags.slice(0, 12).map((h, i) => (
+                    <Badge key={i} variant="outline" className="text-[11px]">{h.startsWith('#') ? h : '#' + h}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {actionItems.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Top Action Items</p>
+              <ul className="space-y-1.5">
+                {actionItems.slice(0, 5).map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    {typeof a === 'string' ? a : (a.action || JSON.stringify(a))}
+                    {a && a.platform && a.platform !== 'all' && (
+                      <Badge variant="outline" className="text-[10px] ml-1">{a.platform}</Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      ) : (
+        <Card className="p-4 border-dashed bg-muted/30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Brain className="w-4 h-4" />
+            <span>No DataAnalystPlanner report yet. The baseline plan below is in effect — it will adapt automatically once the planner runs on real performance data.</span>
+          </div>
+        </Card>
+      )}
 
       {/* Current vs Target */}
       <div className="grid sm:grid-cols-2 gap-4">
@@ -152,7 +246,7 @@ export default function Strategy() {
           <h3 className="font-semibold">Weekly Posting Schedule</h3>
         </div>
         <div className="space-y-2">
-          {weeklySchedule.map((item, i) => {
+          {liveSchedule.map((item, i) => {
             const typeColors = {
               post: 'bg-primary/10 text-primary',
               thought: 'bg-chart-3/10 text-chart-3',
@@ -163,7 +257,10 @@ export default function Strategy() {
             return (
               <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
                 <div className="w-20 text-xs font-semibold">{item.day}</div>
-                <div className="w-20 text-xs text-muted-foreground">{item.time}</div>
+                <div className="w-24 text-xs text-muted-foreground flex items-center gap-1">
+                  {item.time}
+                  {item.plannerAdjusted && <span className="text-primary" title="Adjusted by DataAnalystPlanner">●</span>}
+                </div>
                 <div className="flex-1 text-sm">{item.action}</div>
                 <Badge variant="secondary" className={typeColors[item.type]}>{item.type}</Badge>
               </div>

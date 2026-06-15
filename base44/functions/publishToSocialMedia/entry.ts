@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-async function publishLinkedIn(accessToken, postContent, fileUrl, fileName, fileType) {
+async function publishLinkedIn(accessToken, tagged, fileUrl, fileName, fileType) {
   const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -320,6 +320,22 @@ Deno.serve(async (req) => {
     if (!postContent) return Response.json({ error: 'postContent is required' }, { status: 400 });
     if (!platforms || platforms.length === 0) return Response.json({ error: 'No platforms selected' }, { status: 400 });
 
+    // Stamp the micro1 referral link with utm_content=p<postId>_<platform> so
+    // each publish gets unique attribution. Done at publish time (not generation)
+    // so the same post text can fan out to multiple platforms with distinct tags.
+    const stampLink = (text, platform) => {
+      if (!text || !postId) return text;
+      return text.replace(
+        /(https:\/\/refer\.micro1\.ai\/referral\/jobs\?[^\s)"']+)/g,
+        (url) => {
+          // remove any pre-existing utm_content, then append the per-platform tag
+          const cleaned = url.replace(/([?&])utm_content=[^&]*/g, '$1').replace(/[?&]$/, '');
+          const sep = cleaned.includes('?') ? '&' : '?';
+          return `${cleaned}${sep}utm_content=p${postId}_${platform}`;
+        }
+      );
+    };
+
     const results = {};
 
     // Stagger platform posts to avoid simultaneous identical API bursts (more human-like)
@@ -327,10 +343,11 @@ Deno.serve(async (req) => {
 
     const tasks = platforms.map(async (platform) => {
       await new Promise(r => setTimeout(r, staggerMs()));
+      const tagged = stampLink(postContent, platform);
       try {
         if (platform === 'linkedin') {
           const { accessToken } = await base44.asServiceRole.connectors.getConnection('linkedin');
-          const r = await publishLinkedIn(accessToken, postContent, fileUrl, fileName, fileType);
+          const r = await publishLinkedIn(accessToken, tagged, fileUrl, fileName, fileType);
           results.linkedin = { success: true, postId: r.postId };
           // Update DB record with linkedin post id
           if (postId) {
@@ -340,31 +357,31 @@ Deno.serve(async (req) => {
             });
           }
         } else if (platform === 'twitter') {
-          const r = await publishTwitter(postContent);
+          const r = await publishTwitter(tagged);
           results.twitter = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { twitter_post_id: r.postId, status: 'published' });
           }
         } else if (platform === 'facebook') {
-          const r = await publishFacebook(postContent);
+          const r = await publishFacebook(tagged);
           results.facebook = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { fb_post_id: r.postId, status: 'published' });
           }
         } else if (platform === 'threads') {
-          const r = await publishThreads(postContent);
+          const r = await publishThreads(tagged);
           results.threads = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { threads_post_id: r.postId, status: 'published' });
           }
         } else if (platform === 'mastodon') {
-          const r = await publishMastodon(postContent);
+          const r = await publishMastodon(tagged);
           results.mastodon = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { mastodon_post_id: r.postId, status: 'published' });
           }
         } else if (platform === 'bluesky') {
-          const r = await publishBluesky(postContent);
+          const r = await publishBluesky(tagged);
           results.bluesky = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { bsky_post_id: r.postId, status: 'published' });
@@ -372,8 +389,8 @@ Deno.serve(async (req) => {
         } else if (platform === 'instagram') {
           const imageToUse = igImageUrl || fileUrl;
           const r = imageToUse
-            ? await publishInstagramWithImage(postContent, imageToUse)
-            : await publishInstagram(postContent, base44);
+            ? await publishInstagramWithImage(tagged, imageToUse)
+            : await publishInstagram(tagged, base44);
           results.instagram = { success: true, postId: r.postId };
           if (postId && r.postId) {
             await base44.asServiceRole.entities.GeneratedPost.update(postId, { ig_post_id: r.postId, status: 'published' });

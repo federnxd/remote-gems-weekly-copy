@@ -9,8 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, DollarSign, Calendar, Target } from 'lucide-react';
+import { Plus, DollarSign, Calendar, Target, Brain } from 'lucide-react';
 import { toast } from 'sonner';
+
+function safeJSON(str, fallback) {
+  try { return typeof str === 'string' ? JSON.parse(str) : (str ?? fallback); } catch { return fallback; }
+}
 
 export default function WeeklyPlanner() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -26,6 +30,27 @@ export default function WeeklyPlanner() {
     queryKey: ['weekly-plans'],
     queryFn: () => base44.entities.WeeklyPlan.list('-created_date'),
   });
+
+  // Latest DataAnalystPlanner report — drives the suggested focus for new weeks.
+  const { data: reports = [] } = useQuery({
+    queryKey: ['planner-reports'],
+    queryFn: () => base44.entities.PlannerReport.list('-created_date', 1),
+  });
+  const latestReport = reports.find(r => r.status === 'completed') || null;
+  const plannerStrategies = latestReport ? safeJSON(latestReport.recommended_strategies, []) : [];
+  const plannerActions = latestReport ? safeJSON(latestReport.action_items, []) : [];
+  const plannerNote = latestReport
+    ? [
+        plannerStrategies.length ? `Priority strategies: ${plannerStrategies.map(s => String(s).replace(/_/g, ' ')).join(' > ')}.` : '',
+        ...plannerActions.slice(0, 3).map((a, i) => `${i + 1}. ${typeof a === 'string' ? a : (a.action || '')}`),
+      ].filter(Boolean).join('\n')
+    : '';
+
+  // Open the new-week dialog prefilled with the planner's current guidance.
+  const openNewWeek = () => {
+    setNewPlan(p => ({ ...p, strategy_notes: plannerNote || p.strategy_notes }));
+    setDialogOpen(true);
+  };
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.WeeklyPlan.create(data),
@@ -56,7 +81,7 @@ export default function WeeklyPlanner() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> New Week</Button>
+            <Button className="gap-2" onClick={openNewWeek}><Plus className="w-4 h-4" /> New Week</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create Weekly Plan</DialogTitle></DialogHeader>
@@ -78,6 +103,22 @@ export default function WeeklyPlanner() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {latestReport && (
+        <Card className="p-4 border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-1">
+            <Brain className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">Current planner guidance</span>
+            <Badge variant="secondary" className="ml-auto text-[10px]">{latestReport.period_label}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground whitespace-pre-line">
+            {plannerNote || 'No specific guidance in the latest report.'}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-2 italic">
+            New weeks are prefilled with this guidance, and post generation already applies it automatically.
+          </p>
+        </Card>
+      )}
 
       <div className="space-y-4">
         {plans.map((plan) => (
@@ -123,6 +164,28 @@ export default function WeeklyPlanner() {
                 <p className="text-xs text-muted-foreground">Referrals: {plan.total_referrals || 0}</p>
               </div>
             </div>
+
+            {plan.last_planner_sync && (
+              <div className="mb-3 p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-1.5 text-[11px] text-primary font-medium mb-1.5">
+                  <Brain className="w-3.5 h-3.5" />
+                  Auto-synced from planner
+                  {plan.planner_report_period && <span className="text-muted-foreground font-normal">· {plan.planner_report_period}</span>}
+                  <span className="text-muted-foreground font-normal ml-auto">
+                    {new Date(plan.last_planner_sync).toLocaleDateString()}
+                  </span>
+                </div>
+                {plan.active_strategies && (
+                  <div className="flex flex-wrap gap-1">
+                    {plan.active_strategies.split(',').map(s => s.trim()).filter(Boolean).map((s, i) => (
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                        {s.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {plan.strategy_notes && (
               <div className="space-y-2">

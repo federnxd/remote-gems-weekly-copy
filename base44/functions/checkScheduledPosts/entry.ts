@@ -143,23 +143,43 @@ async function publishThreads(text) {
   return data.id;
 }
 
-async function publishInstagram(text) {
-  const accessToken = Deno.env.get('THREADS_ACCESS_TOKEN');
+async function generateInstagramImage(base44, text) {
+  // Instagram has no text-only post type — it requires an image or video.
+  // Generate a thematic image from the post content, matching publishToSocialMedia.
+  const keywords = text.slice(0, 200);
+  const prompt = `A vibrant, modern, professional social media image for Instagram about remote work and AI jobs. The image should evoke themes of: remote work, technology, global talent, careers, hiring, AI industry. Style: clean, bold, visually striking, no text overlay. Inspired by: "${keywords}". Bright colors, professional aesthetic, suitable for a tech recruitment brand.`;
+  const result = await base44.asServiceRole.integrations.Core.GenerateImage({ prompt });
+  return result.url;
+}
+
+async function publishInstagram(text, base44) {
+  // Instagram Graph API uses the FACEBOOK PAGE token (not the Threads token),
+  // and requires a media container backed by a real image_url.
+  const accessToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
   const userId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
-  
-  // Instagram requires creating a media container first, then publishing
+  if (!accessToken || !userId) {
+    throw new Error('Instagram credentials not configured (FACEBOOK_PAGE_ACCESS_TOKEN, INSTAGRAM_ACCOUNT_ID).');
+  }
+
+  const imageUrl = await generateInstagramImage(base44, text);
+
+  // Step 1: create media container with the generated image
   const createRes = await fetch(`https://graph.facebook.com/v19.0/${userId}/media`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      media_type: 'TEXT',
-      text: text,
+      image_url: imageUrl,
+      caption: text,
       access_token: accessToken,
     }),
   });
   if (!createRes.ok) throw new Error(`Instagram create: ${await createRes.text()}`);
   const { id: containerId } = await createRes.json();
-  
+
+  // Step 2: wait for Instagram to process the media (fixed wait is more reliable than the status API)
+  await new Promise(r => setTimeout(r, 60000));
+
+  // Step 3: publish the container
   const publishRes = await fetch(`https://graph.facebook.com/v19.0/${userId}/media_publish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -173,11 +193,11 @@ async function publishInstagram(text) {
   return data.id;
 }
 
-async function autoPublish(platform, content) {
+async function autoPublish(platform, content, base44) {
   switch (platform) {
     case 'twitter':    return publishTwitter(content);
     case 'facebook':   return publishFacebook(content);
-    case 'instagram':  return publishInstagram(content);
+    case 'instagram':  return publishInstagram(content, base44);
     case 'mastodon':   return publishMastodon(content);
     case 'bluesky':    return publishBluesky(content);
     case 'threads':    return publishThreads(content);
@@ -185,9 +205,35 @@ async function autoPublish(platform, content) {
   }
 }
 
+// Per-platform UTM stamping (same approach as publishToSocialMedia):
+// rewrites the micro1 referral link to add utm_content=p<postId>_<platform>
+// so each scheduled publish gets unique attribution.
+function stampLink(text, postId, platform) {
+  if (!text || !postId) return text;
+  return text.replace(
+    /(https:\/\/refer\.micro1\.ai\/referral\/jobs\?[^\s)"']+)/g,
+    (url) => {
+      const cleaned = url.replace(/([?&])utm_content=[^&]*/g, '$1').replace(/[?&]$/, '');
+      const sep = cleaned.includes('?') ? '&' : '?';
+      return `${cleaned}${sep}utm_content=p${postId}_${platform}`;
+    }
+  );
+}
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
+
+  // ── Pause gate ────────────────────────────────────────────────────────
+  // Honors the global Play/Pause switch in the sidebar. When paused, we
+  // return a 200 with a message instead of doing any work — the cron
+  // shouldn't treat pause as an error.
+  try {
+    const settings = await db.entities.AutoPostSettings.list();
+    if (settings.length > 0 && settings[0].is_paused) {
+      return Response.json({ message: 'Auto-posting is paused. Skipping scheduled-posts check.', paused: true });
+    }
+  } catch { /* if the settings entity is missing, default to running */ }
 
   const now = new Date();
   const nowStr = now.toISOString();
@@ -210,6 +256,14 @@ Deno.serve(async (req) => {
   const results = [];
 
   for (const post of duePosts) {
+    // Opt-in review gate: posts marked needs_review pause here until the user
+    // clears the flag from the UI. This keeps risky/unreviewed posts from
+    // auto-publishing.
+    if (post.needs_review) {
+      results.push({ postId: post.id, status: 'awaiting_review' });
+      continue;
+    }
+
     const platform = getPlatformFromPost(post);
 
     // LinkedIn: send approval email (human must approve)
@@ -263,7 +317,8 @@ If you do NOT want this post published, simply ignore this email.
     } else {
       // Non-LinkedIn: auto-publish directly
       try {
-        const postId = await autoPublish(platform, post.content);
+        const stamped = stampLink(post.content, post.id, platform);
+        const postId = await autoPublish(platform, stamped, base44);
         const cleanNotes = (post.notes || '').trim();
         await db.entities.GeneratedPost.update(post.id, {
           status: 'published',

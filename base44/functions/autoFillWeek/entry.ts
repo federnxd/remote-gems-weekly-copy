@@ -93,26 +93,59 @@ BRAND PHILOSOPHY (use to add depth to LinkedIn posts):
  */
 
 const ALL_PLATFORMS = [
-  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
-  'indiehackers', 'weworkremotely', 'wellfound', 'remotive',
-  'flexjobs', 'remoteok', 'reddit', 'discord',
+  'linkedin', 'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
 ];
 
 const NON_LINKEDIN_PLATFORMS = [
-  'twitter', 'instagram', 'mastodon', 'bluesky', 'threads',
-  'weworkremotely', 'wellfound', 'remotive', 'flexjobs', 'remoteok', 'reddit', 'discord',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
 ];
 
-const THOUGHT_LEADERSHIP_DAYS = [1, 3, 6]; // Tuesday, Thursday, Sunday (0=Sun)
+// dayOffset = days since Monday (0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun)
+const THOUGHT_LEADERSHIP_DAYS = [1, 3, 6]; // Tuesday, Thursday, Sunday
 
+// Thought-leadership topic library — fed to the LLM as briefs (theme + angle).
+// The LLM generates fresh post text per call; this list never appears verbatim
+// in any post. Categories: market_ai, interview_prep, remote_work_practical,
+// communication_teamwork, professionalism. Mix is intentional — every category
+// threads back to the core message (experienced professionals building careers
+// in AI / remote work).
 const TOPIC_THEMES = [
-  { theme: 'AI job displacement vs. job creation', angle: 'Use current 2024-2025 data (WEF, McKinsey, OECD) showing AI creates new roles while automating tasks. Discuss net effect and skills that matter now.' },
-  { theme: 'The rise of remote AI-assisted work', angle: 'Real stats on remote work adoption post-2023, how AI tools (Copilot, Claude, ChatGPT) integrate into remote workflows. What changed in last 12 months.' },
-  { theme: 'Human-in-the-loop AI training as a profession', angle: 'Explain RLHF, growing demand for domain experts to review/label AI outputs, why this is legitimate growing field.' },
-  { theme: 'Remote work in 2025: state of the market', angle: 'Current data: remote hiring by industry, remote vs office salaries globally, which sectors are most remote-friendly.' },
-  { theme: 'AI literacy as the most in-demand skill', angle: 'Data from LinkedIn, Indeed, WEF showing AI skills are fastest growing. What companies pay for, how to develop these skills.' },
-  { theme: 'The gig economy meets AI: new opportunity landscape', angle: 'How platforms use AI to match gig workers. Data on freelance market size, growth of AI-adjacent gig roles, what pays best.' },
-  { theme: 'Robots, AI agents, and human experts behind them', angle: 'How humanoid robots and autonomous AI agents require vast human expert data. What this means for specialized employment.' },
+  // ── market_ai: commentary on the AI + remote job market ────────────────
+  { category: 'market_ai', theme: 'AI job displacement vs. job creation', angle: 'Use current 2024-2025 data (WEF, McKinsey, OECD) showing AI creates new roles while automating tasks.' },
+  { category: 'market_ai', theme: 'The rise of remote AI-assisted work', angle: 'Real stats on remote work adoption post-2023, how AI tools integrate into remote workflows.' },
+  { category: 'market_ai', theme: 'Human-in-the-loop AI training as a profession', angle: 'Explain RLHF, growing demand for domain experts to review AI outputs.' },
+  { category: 'market_ai', theme: 'Remote work in 2025: state of the market', angle: 'Current data: remote hiring by industry, remote vs office salaries globally.' },
+  { category: 'market_ai', theme: 'AI literacy as the most in-demand skill', angle: 'Data from LinkedIn, Indeed, WEF showing AI skills are fastest growing.' },
+  { category: 'market_ai', theme: 'The gig economy meets AI: new opportunity landscape', angle: 'How platforms use AI to match gig workers. Data on freelance market growth.' },
+  { category: 'market_ai', theme: 'Robots, AI agents, and human experts behind them', angle: 'How autonomous AI still requires vast human expert data.' },
+
+  // ── interview_prep: practical guidance for landing the role ────────────
+  { category: 'interview_prep', theme: 'Researching a company before an interview, beyond the careers page', angle: 'Specific moves: read their last 6 months of engineering blog posts, look at their open-source repos or product changelog, find a recent talk from someone there. Goes deeper than memorizing the About page.' },
+  { category: 'interview_prep', theme: 'Answering "tell me about yourself" without rambling', angle: 'The 90-second structure: present (current role + one signature achievement), past (one or two relevant pivots that explain how you got here), future (what you want next and why this role fits). Concrete, not chronological resume recitation.' },
+  { category: 'interview_prep', theme: 'The "show, don\'t tell" rule for experience claims', angle: 'Replace "I\'m a strong communicator" with "I rewrote our onboarding doc and reduced support tickets by 40%". The structure is: skill + concrete action + measurable outcome. One example beats five adjectives.' },
+  { category: 'interview_prep', theme: 'Answering "what\'s your weakness?" without clichés', angle: 'Real weaknesses with real mitigation. Avoid the perfectionism dodge — that signals you read the same blog as everyone else. Pick something genuine, show self-awareness, describe what you actively do about it.' },
+  { category: 'interview_prep', theme: 'The questions to ask an interviewer that signal seriousness', angle: 'Not "what\'s the culture like" (generic) but things like "what does success look like in this role at 90 days?" or "what\'s the team\'s biggest open challenge right now?" — questions that show you\'re already thinking about the work.' },
+
+  // ── remote_work_practical: actually doing remote work well ─────────────
+  { category: 'remote_work_practical', theme: 'Setting up a sustainable home workspace', angle: 'Less about aesthetics, more about ergonomics + boundaries. Monitor at eye level, dedicated chair, "shut the door at 6pm" rituals. The setup people regret skipping after two years remote.' },
+  { category: 'remote_work_practical', theme: 'Managing time-zone friction in distributed teams', angle: 'The asymmetry of working with teammates 6+ hours away. How to write a handoff message that lets someone act without needing a reply. Why "follow the sun" only works when documentation does.' },
+  { category: 'remote_work_practical', theme: 'Async vs sync work: when to use which', angle: 'Sync (meetings, calls) is for ambiguity, alignment, emotion. Async (docs, threads, recordings) is for everything else. Most teams default to sync when async would work — and it costs them hours per week.' },
+  { category: 'remote_work_practical', theme: 'Defending focus time against the always-on trap', angle: 'Remote work removes the natural end-of-day cue. Specific tactics: hard "do not disturb" hours, calendar-blocked deep work, separating Slack notifications from email, the laptop-in-another-room rule after 7pm.' },
+  { category: 'remote_work_practical', theme: 'The honest case for remote work — beyond "no commute"', angle: 'The compound benefits: choosing your geography, designing your day around your sharpest focus hours, the ~10 hours/week of life that commutes quietly steal, the ability to do deep work without office interruption. Real numbers.' },
+
+  // ── communication_teamwork: working well with people ──────────────────
+  { category: 'communication_teamwork', theme: 'Assertive communication without being aggressive', angle: 'Stating what you need clearly, with reasons, without softening it into a question or hardening it into a demand. Specific phrase patterns ("I need X because Y; can we do that by Z?") and why "sorry to bother" trains people to ignore you.' },
+  { category: 'communication_teamwork', theme: 'Giving feedback that actually lands', angle: 'The SBI framework: Situation (what was happening), Behavior (what they did, observable), Impact (what changed because of it). No personality judgments, no "always/never". One concrete example, future-focused.' },
+  { category: 'communication_teamwork', theme: 'Disagreeing constructively in writing', angle: 'Text loses tone — disagreement that\'s clearly friendly in person reads as hostile in Slack. Specific moves: lead with what you agree on, name your concern as a question, propose an alternative instead of just pushing back. The "I might be missing something, but..." opener.' },
+  { category: 'communication_teamwork', theme: 'Building trust quickly with people you\'ve never met in person', angle: 'Remote teammates judge you on consistency over charisma. Show up on time, do what you said you\'d do, write things down, follow up. Trust compounds through 50 small reliable interactions, not one big introduction.' },
+  { category: 'communication_teamwork', theme: 'Managing up: making your manager\'s job easier', angle: 'Not sycophancy — clarity. Bring problems with a proposed solution attached. Surface risks early, not when they\'ve become crises. Summarize your week before they have to ask. The managers you most want to work for remember this.' },
+
+  // ── professionalism: career-level habits ─────────────────────────────
+  { category: 'professionalism', theme: 'Learning publicly: sharing what you\'re working on', angle: 'Posting about what you\'re currently learning beats posting only finished work. It compounds: you build a reputation, you find collaborators, you get feedback while there\'s still time to use it. The fear of looking like a beginner costs more than the discomfort of being seen learning.' },
+  { category: 'professionalism', theme: 'Saying no professionally', angle: 'Protecting your time without burning bridges. The pattern: acknowledge the ask, name the constraint honestly, offer a smaller alternative or a referral. "I can\'t take this on this month — happy to look at it in March, or here\'s someone better suited" beats vague avoidance every time.' },
+  { category: 'professionalism', theme: 'Building a portfolio when your work is confidential', angle: 'You can\'t share your employer\'s code or strategy decks — but you can write about patterns, share generic versions, contribute to open-source on the side, give talks about principles. The portfolio is the thinking, not the artifact.' },
+  { category: 'professionalism', theme: 'The compound interest of small competencies', angle: 'Becoming a little better at writing, at running a meeting, at managing your calendar, at handling a difficult conversation — each compounds over a decade. The people who seem to "have it together" usually invested in unglamorous mid-level skills early.' },
+  { category: 'professionalism', theme: 'When to switch jobs vs. stick it out', angle: 'The honest tradeoffs: switching too often makes you look unfocused, staying too long stalls your salary and skill growth. The signal-vs-noise of a bad quarter, the questions to ask before quitting, when a stretch role inside beats a lateral move outside.' },
 ];
 
 const REFERRAL_LINK = 'https://refer.micro1.ai/referral/jobs?referralCode=eaa2768a-4116-40a1-b897-971506bb359e&utm_source=referral&utm_medium=share&utm_campaign=job_referral';
@@ -134,14 +167,18 @@ const PLATFORM_TONES = {
   discord: 'Ultra-casual, direct, community-insider tone. Short messages. Use emojis. Feel like a real person, not a recruiter.',
 };
 
+// Indexed by dayOffset = days since Monday (0=Mon, 1=Tue, ... 6=Sun) — NOT getDay().
+// This MUST match WEEKLY_SCHEDULE in src/components/calendar/GenerateDayButton.jsx.
+// On thought-leadership days (Tue/Thu/Sun) this only drives the LinkedIn job post tone;
+// non-LinkedIn platforms get thought-leadership posts instead.
 const DAY_STRATEGIES = [
-  'targeted_role',      // Monday
-  'storytelling',       // Tuesday
-  'social_proof',       // Wednesday
-  'urgency',            // Thursday
-  'carousel_text',      // Friday
-  'niche_community',    // Saturday
-  'targeted_role',      // Sunday
+  'targeted_role',      // 0 Monday    — all roles
+  'storytelling',       // 1 Tuesday   — thought leadership
+  'social_proof',       // 2 Wednesday — social proof / story
+  'storytelling',       // 3 Thursday  — thought leadership
+  'carousel_text',      // 4 Friday    — carousel / list
+  'urgency',            // 5 Saturday  — weekend urgency
+  'storytelling',       // 6 Sunday    — thought leadership
 ];
 
 function buildThoughtLeadershipPrompt(platform, theme, angle, dayOffset, plannerContext = '') {
@@ -236,21 +273,21 @@ YOUR JOB: Use these signals strategically. The goal is not just to inform — it
 
   const linkLength = REFERRAL_LINK.length;
   const platformRules = platform === 'twitter'
-    ? `⚠️ CHARACTER LIMIT: MAX 280 characters TOTAL. The link is ${linkLength} chars, leaving you only ${280 - linkLength} chars for everything else. Write: 1 punchy hook line + the link. NOTHING else. NO role lists, NO hashtags, NO extra text. Count characters BEFORE writing. This is CRITICAL.`
+    ? `TWITTER: Extremely tight space. Write ONE punchy hook line only — no role lists, no hashtags. The link is added after.`
     : platform === 'threads'
-    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars, leaving ${300 - linkLength} chars for text. Write: 1-2 short lines + link ONLY. No long lists. Count before writing.`
+    ? `THREADS: Very tight. 1–2 short lines, conversational. No long lists.`
     : platform === 'bluesky'
-    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars. Keep it short and authentic. Count characters before writing.`
+    ? `BLUESKY: Short and authentic, tech-savvy tone.`
     : platform === 'facebook'
-    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars, leaving ${500 - linkLength} for text. Friendly and conversational. Count before writing.`
+    ? `FACEBOOK: Friendly and conversational, a few short lines.`
     : platform === 'instagram'
-    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars. Use line breaks and emojis wisely. Count before writing.`
+    ? `INSTAGRAM: Warm, use line breaks and a few meaningful emojis.`
     : platform === 'mastodon'
-    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Link is ${linkLength} chars. Count characters before writing.`
+    ? `MASTODON: Open, community-driven, authentic.`
     : platform === 'reddit'
-    ? `⚠️ CHARACTER LIMIT: MAX 500 characters TOTAL. Community-first, no pitch. Count before writing.`
+    ? `REDDIT: Community-first, no pitch, no hashtags.`
     : platform === 'discord'
-    ? `⚠️ CHARACTER LIMIT: MAX 300 characters TOTAL. Link is ${linkLength} chars, leaving ${300 - linkLength} for text. Ultra-casual, chat-like. Count before writing.`
+    ? `DISCORD: Ultra-casual, chat-like, very short.`
     : platform === 'indiehackers' || platform === 'wellfound'
     ? `${platform.toUpperCase()} AUDIENCE: Builder/founder mindset. Lead with the mission angle — AI training as a new economy. Pay rates and high-demand signals resonate strongly here.`
     : platform === 'weworkremotely' || platform === 'remoteok' || platform === 'remotive' || platform === 'flexjobs'
@@ -287,13 +324,12 @@ RECOMMENDED STRUCTURE: ${play.structure}
 TONE: ${play.tone}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-REFERRAL LINK (embed once, naturally — this is the single most important element): ${REFERRAL_LINK}
+REFERRAL LINK: added automatically after your text — do NOT write any URL yourself.
 
 ROLES (pre-selected for this strategy — pick 3–6, lead with the most compelling signals):
 ${roleList}
 
-MANDATORY ELEMENTS (work in naturally):
-- Referral link (once, prominently)
+MANDATORY ELEMENTS (work in naturally, only if they fit the length):
 - 🛑 Check spam folder after applying 🛑
 - ~30 min interview → certification → possible hire
 - Once certified, you can refer others too (if it fits naturally)
@@ -304,12 +340,136 @@ ABSOLUTE RULES:
 - NO "earn money", "make money", "easy income", "side hustle", "get paid fast".
 - NO fake urgency — but DO use real signals (last vacants, new roles, pay rates) as genuine reasons to act.
 - Emojis only where they add meaning.
-- 5–8 hashtags at the end (except Reddit/Discord/Twitter).
-- CHARACTER LIMITS ARE HARD LIMITS — count characters BEFORE outputting. The referral link alone is ~130 chars. Plan accordingly.
 ${platformRules ? '\n' + platformRules : ''}
 
-Generate ONLY the post content. No labels, no "Post:" prefix, no explanations.
+Generate ONLY the post text. No labels, no "Post:" prefix, no link, no explanations.
 ${plannerContext ? '\n\nINTERNAL PLANNER GUIDANCE (shape your decisions, NEVER surface in post):\n' + plannerContext : ''}`;
+}
+
+// ============================================================
+// Reliable referral-post generation
+// ------------------------------------------------------------
+// The LLM writes TEXT ONLY (no URL). Code owns the link, so the link can never
+// be missing or mangled, and the LLM's whole budget goes to readable text.
+// We give a word-count target (LLMs hit those far better than char counts),
+// keep the best valid candidate across attempts, and on failure trim at a
+// sentence boundary — never mid-word — before appending the link.
+// ============================================================
+
+// Characters the link + separator occupy in the final post.
+function linkFootprint() {
+  return REFERRAL_LINK.length + 2; // "\n\n" + link
+}
+
+// Usable characters for the LLM's text, with a safety buffer under the hard limit.
+function textBudget(limit) {
+  const BUFFER = 10;
+  return Math.max(40, limit - linkFootprint() - BUFFER);
+}
+
+// Trim text to maxChars without cutting a word/sentence in half.
+function cleanTrim(text, maxChars) {
+  if (text.length <= maxChars) return text.trim();
+  let slice = text.slice(0, maxChars);
+  // Prefer the last sentence end (. ! ? or newline) within the slice.
+  const lastSentence = Math.max(
+    slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '),
+    slice.lastIndexOf('.\n'), slice.lastIndexOf('!\n'), slice.lastIndexOf('?\n'),
+    slice.lastIndexOf('\n')
+  );
+  if (lastSentence > maxChars * 0.5) {
+    slice = slice.slice(0, lastSentence + 1);
+  } else {
+    // No good sentence boundary — fall back to last whole word.
+    const lastSpace = slice.lastIndexOf(' ');
+    if (lastSpace > 0) slice = slice.slice(0, lastSpace);
+  }
+  return slice.trim();
+}
+
+// Strip any URL the model included anyway, and any "Post:"-style prefixes.
+function stripLinkAndLabels(text) {
+  return text
+    .replace(/https?:\/\/\S+/g, '')      // remove any URLs the model added
+    .replace(/^\s*(post|content|output)\s*:\s*/i, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Generate one referral post that fits `limit` and ends with the referral link.
+ * @param db base44 service-role client
+ * @param basePrompt the strategy/platform prompt (from buildPrompt), WITHOUT link/counting noise
+ * @param limit hard character limit for the platform
+ * @param wantHashtags whether this platform wants hashtags (longer platforms only)
+ */
+// ── Platform CTA mode (keep in sync with src/lib/platform-cta.js and other backends) ──
+const LINK_OK_PLATFORMS_AFW = ['linkedin', 'mastodon', 'bluesky'];
+function platformAllowsLink(platform) { return LINK_OK_PLATFORMS_AFW.includes(platform); }
+
+const CTA_POOL_AFW = [
+  'Comment "Remote" and I\'ll DM you the link to all open roles 🚀',
+  'Drop "Remote" in the comments and I\'ll send you the full list via DM 🚀',
+  'Comment "Remote" below — I\'ll DM you the roles and how to apply 🚀',
+  'Want the link? Comment "Remote" and it lands in your DMs 🚀',
+  'Comment "Remote" and the list of openings is on its way to your inbox 🚀',
+  'Reply "Remote" and I\'ll DM you everything you need to apply 🚀',
+  'Comment "Remote" and I\'ll send you the link + role details by DM 🚀',
+  'Just comment "Remote" — I\'ll DM you the full opportunity 🚀',
+  'Type "Remote" in a comment and I\'ll slide the link into your DMs 🚀',
+  'Comment "Remote" to get the role list sent to you directly 🚀',
+  'Curious? Comment "Remote" and the details hit your DMs 🚀',
+  'Comment "Remote" and I\'ll DM you the application link today 🚀',
+  'Want in? Comment "Remote" and I\'ll send the link straight to you 🚀',
+  'Comment "Remote" — I\'ll DM you the list of roles taking applications 🚀',
+  'Drop "Remote" below and the link is yours via DM 🚀',
+];
+function pickCTA() { return CTA_POOL_AFW[Math.floor(Math.random() * CTA_POOL_AFW.length)]; }
+
+// Per-call budget: tail length depends on whether we're embedding the link or a CTA.
+function tailFootprint(text) { return text.length + 2; }
+function textBudgetFor(limit, tail) {
+  const BUFFER = 10;
+  return Math.max(40, limit - tailFootprint(tail) - BUFFER);
+}
+
+async function generateReferralPost(db, basePrompt, limit, wantHashtags, platform) {
+  const usesLink = platformAllowsLink(platform);
+  const tail = usesLink ? REFERRAL_LINK : pickCTA();
+  const budget = textBudgetFor(limit, tail);
+  const approxWords = Math.max(8, Math.floor(budget / 6));
+
+  const writingRules = (extra = '') => `${basePrompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES (follow exactly):
+- Write the POST TEXT ONLY. Do NOT write any URL, link, or "comment X for the link" instruction — those are added automatically afterward.
+- Length: about ${approxWords} words, and NEVER more than ${budget} characters. Aim a little under.
+- Make it a COMPLETE thought with a real ending — never trail off.
+${wantHashtags ? '- End with 3–5 relevant hashtags.' : '- Do NOT add hashtags.'}
+- No "Post:" prefix, no labels, no explanations — just the post text.${extra}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+  let best = null;
+  let shortest = null;
+
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let raw = await db.integrations.Core.InvokeLLM({
+      prompt: attempt === 1
+        ? writingRules()
+        : writingRules(`\n- ⚠️ Your previous attempt was too long. Write a SHORTER, complete post — under ${budget} characters. Cut detail, keep the hook and the point.`),
+    });
+    let text = stripLinkAndLabels(String(raw || ''));
+
+    if (shortest === null || text.length < shortest.length) shortest = text;
+    if (text.length <= budget) { best = text; break; }
+  }
+
+  let finalText = best !== null ? best : cleanTrim(shortest || '', budget);
+  if (finalText.length > budget) finalText = cleanTrim(finalText, budget);
+
+  return `${finalText}\n\n${tail}`;
 }
 
 function getMonday(date) {
@@ -340,6 +500,17 @@ function toDateStr(date) {
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
+
+  // ── Pause gate ────────────────────────────────────────────────────────
+  // Honors the global Play/Pause switch in the sidebar. When paused, we
+  // return a 200 with a message instead of doing any work — the cron
+  // shouldn't treat pause as an error.
+  try {
+    const settings = await db.entities.AutoPostSettings.list();
+    if (settings.length > 0 && settings[0].is_paused) {
+      return Response.json({ message: 'Auto-posting is paused. Skipping.', paused: true });
+    }
+  } catch { /* if settings entity missing, default to running */ }
 
   let body = {};
   try { body = await req.json(); } catch { /* no body */ }
@@ -374,10 +545,28 @@ Deno.serve(async (req) => {
   const errors = [];
 
   // Fetch all active roles
-  const roles = await db.entities.OpenRole.filter({ is_active: true });
-  if (!roles.length) {
+  const rolesRaw = await db.entities.OpenRole.filter({ is_active: true });
+  if (!rolesRaw.length) {
     return Response.json({ message: 'No active roles found', created: 0 });
   }
+
+  // Rotation bias: roles used most in the last 14 days go to the back, so the
+  // strategy selectors (which slice arrays) automatically prefer fresher ones.
+  const lookbackDays = 14;
+  const lookback = new Date(); lookback.setDate(lookback.getDate() - lookbackDays);
+  const recentPostsForRotation = await db.entities.GeneratedPost.list('-created_date', 200);
+  const useCount = {};
+  for (const p of recentPostsForRotation) {
+    const d = p.created_date ? new Date(p.created_date) : null;
+    if (!d || d < lookback) continue;
+    const titles = (p.target_roles || '').split(',').map(s => s.trim()).filter(Boolean);
+    for (const t of titles) useCount[t] = (useCount[t] || 0) + 1;
+  }
+  const roles = [...rolesRaw].sort((a, b) => {
+    const ca = useCount[a.title] || 0;
+    const cb = useCount[b.title] || 0;
+    return ca - cb || (Math.random() - 0.5);
+  });
 
   // Categorize roles by type
   const newRoles = roles.filter(r => r.is_new);
@@ -565,61 +754,11 @@ Deno.serve(async (req) => {
     const results = await Promise.allSettled(
       batch.map(async ({ dayOffset, dateStr, strategy, dayRoles, strategyExtra, platform }) => {
         const limit = CHAR_LIMITS[platform] || 500;
-        const maxTextLength = limit - REFERRAL_LINK.length - 50; // Reserve 50 chars buffer
-        
-        // First prompt explicitly states the text budget (not total chars)
-        const initialPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CHARACTER BUDGET: You have MAX ${maxTextLength} characters for your text. The referral link takes ${REFERRAL_LINK.length} chars. Total post = text + link = max ${limit} chars. Write your text FIRST, then add the link. Count your text characters BEFORE adding the link.`;
-        
-        let content = await db.integrations.Core.InvokeLLM({ prompt: initialPrompt });
-        
-        // Validation loop: check link presence AND character limit
-        let attempts = 0;
-        const maxAttempts = 3;
-        
-        while (attempts < maxAttempts) {
-          attempts++;
-          
-          // Check if link is present
-          const hasLink = content.includes(REFERRAL_LINK);
-          const isOverLimit = content.length > limit;
-          
-          if (hasLink && !isOverLimit) {
-            break; // Valid post
-          }
-          
-          // Build error-specific regeneration prompt
-          let errorInstructions = [];
-          if (!hasLink) {
-            errorInstructions.push(`❌ MISSING LINK: Your post MUST include the referral link: ${REFERRAL_LINK}`);
-          }
-          if (isOverLimit) {
-            const textOnly = content.replace(REFERRAL_LINK, '').trim();
-            errorInstructions.push(`❌ OVER LIMIT: Text is ${textOnly.length} chars but you only have ${maxTextLength} chars. Cut ${textOnly.length - maxTextLength} characters.`);
-          }
-          
-          const regenPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ REGENERATION REQUIRED - PREVIOUS ATTEMPT FAILED:\n${errorInstructions.join('\n')}\n\nCRITICAL RULES:\n1. Write text FIRST (max ${maxTextLength} chars)\n2. Add the referral link EXACTLY as shown: ${REFERRAL_LINK}\n3. Total must be ≤ ${limit} chars\n4. Count characters BEFORE outputting\n\nGenerate the complete post NOW with the link included.`;
-          
-          content = await db.integrations.Core.InvokeLLM({ prompt: regenPrompt });
-        }
-        
-        // Final validation - regenerate until valid (no truncation, no skipping)
-        let finalContent = content;
-        let regenCount = 1;
-        
-        while (!finalContent.includes(REFERRAL_LINK) || finalContent.length > limit) {
-          regenCount++;
-          const missingLink = !finalContent.includes(REFERRAL_LINK);
-          const overLimit = finalContent.length > limit;
-          
-          let errorParts = [];
-          if (missingLink) errorParts.push(`MISSING REFERRAL LINK - must include: ${REFERRAL_LINK}`);
-          if (overLimit) errorParts.push(`OVER LIMIT by ${finalContent.length - limit} chars - you have ${limit} chars total including the link`);
-          
-          const strictPrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra + `\n\n⚠️ CRITICAL - REGENERATE FROM SCRATCH (attempt ${regenCount}):\n${errorParts.join('\n')}\n\nRULES:\n1. Write text (max ${limit - REFERRAL_LINK.length - 20} chars)\n2. Add link: ${REFERRAL_LINK}\n3. Count EVERY character before outputting\n4. Output ONLY the final post - nothing else`;
-          
-          finalContent = await db.integrations.Core.InvokeLLM({ prompt: strictPrompt });
-        }
-        
+        const wantHashtags = !['twitter', 'reddit', 'discord'].includes(platform);
+
+        const basePrompt = buildPrompt(dayRoles, platform, dayOffset, strategy, plannerContext) + strategyExtra;
+        const finalContent = await generateReferralPost(db, basePrompt, limit, wantHashtags, platform);
+
         const defaultHour = 8 + Math.floor(platform.length / 3);
         const plannerTime = plannerPostingTimes[platform];
         const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
@@ -680,25 +819,22 @@ Deno.serve(async (req) => {
         model: 'gemini_3_flash',
       });
       
-      // Validate character count - regenerate if over limit
+      // Validate character count - regenerate if over limit (bounded)
       let attempts = 0;
-      const maxAttempts = 2;
-      
+      const maxAttempts = 4;
+
       while (content.length > limit && attempts < maxAttempts) {
         attempts++;
-        const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED ${limit} CHARS (was ${content.length}). REGENERATE: Be much more concise. Shorter sentences, fewer details. Count characters before outputting.`;
+        const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED ${limit} CHARS (was ${content.length}). REGENERATE: Be much more concise. Shorter sentences, fewer details.`;
         content = await db.integrations.Core.InvokeLLM({
           prompt: regenPrompt,
           add_context_from_internet: true,
           model: 'gemini_3_flash',
         });
       }
-      
-      let finalContent = content;
-      // If still over limit, truncate
-      if (finalContent.length > limit) {
-        finalContent = finalContent.slice(0, limit);
-      }
+
+      // Sentence-boundary trim on fallback — never mid-word.
+      let finalContent = content.length > limit ? cleanTrim(content, limit) : content;
       
       const defaultHour = 11; // Thought leadership posts at 11am
       const plannerTime = plannerPostingTimes[platform];
@@ -712,7 +848,7 @@ Deno.serve(async (req) => {
         status: 'scheduled',
         scheduled_date: dateStr,
         scheduled_time: timeStr,
-        notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership theme:${theme.theme}`,
+        notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership category:${theme.category} theme:${theme.theme}`,
       });
       created.push({ postId: post.id, platform, date: dateStr, type: 'thought_leadership', theme: theme.theme });
     } catch (err) {
@@ -720,8 +856,69 @@ Deno.serve(async (req) => {
     }
   }
 
+  // On thought-leadership days (Tue/Thu/Sun), ALSO generate a niche_community
+  // referral post per non-LinkedIn platform — on top of the thought post.
+  const nicheJobs = [];
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    if (!THOUGHT_LEADERSHIP_DAYS.includes(dayOffset)) continue;
+
+    const currentDate = addDays(monday, dayOffset);
+    const dateStr = toDateStr(currentDate);
+    const nicheRoles = selectRolesForStrategy('niche_community', dayOffset);
+    const nicheCats = [...new Set(nicheRoles.map(r => r.category).filter(Boolean))];
+    const nicheExtra = nicheCats.length > 0
+      ? `\n\nSPECIAL INSTRUCTION: Write EXCLUSIVELY for the ${nicheCats[0]} professional community. Use insider language. This post should feel like it was written by and for someone in that field.`
+      : '';
+
+    for (const platform of NON_LINKEDIN_PLATFORMS) {
+      nicheJobs.push({ dayOffset, dateStr, platform, nicheRoles, nicheExtra });
+    }
+  }
+
+  const NICHE_BATCH_SIZE = 20;
+  for (let i = 0; i < nicheJobs.length; i += NICHE_BATCH_SIZE) {
+    const batch = nicheJobs.slice(i, i + NICHE_BATCH_SIZE);
+
+    const results = await Promise.allSettled(
+      batch.map(async ({ dayOffset, dateStr, platform, nicheRoles, nicheExtra }) => {
+        const limit = CHAR_LIMITS[platform] || 500;
+        const wantHashtags = !['twitter', 'reddit', 'discord'].includes(platform);
+
+        const basePrompt = buildPrompt(nicheRoles, platform, dayOffset, 'niche_community', plannerContext) + nicheExtra;
+        const content = await generateReferralPost(db, basePrompt, limit, wantHashtags, platform);
+
+        // Offset niche posts later in the day so they don't collide with thought posts
+        const defaultHour = 16;
+        const plannerTime = plannerPostingTimes[platform];
+        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+
+        const post = await db.entities.GeneratedPost.create({
+          title: `niche community — ${platform} — ${dateStr}`,
+          content: content,
+          strategy: 'niche_community',
+          target_roles: nicheRoles.map(r => r.title).join(', '),
+          status: 'scheduled',
+          scheduled_date: dateStr,
+          scheduled_time: timeStr,
+          notes: `[AUTO_GENERATED] platform:${platform} type:job_referral chars:${content.length}`,
+        });
+        return { postId: post.id, platform, date: dateStr, type: 'niche_community' };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') created.push(result.value);
+      else errors.push({ type: 'niche_community', error: result.reason?.message || 'Unknown error' });
+    }
+
+    if (i + NICHE_BATCH_SIZE < nicheJobs.length) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+
   const jobReferralCount = created.filter(p => p.type === 'job_referral').length;
   const thoughtLeadershipCount = created.filter(p => p.type === 'thought_leadership').length;
+  const nicheCount = created.filter(p => p.type === 'niche_community').length;
 
   return Response.json({
     message: `Weekly auto-fill completed: ${created.length} posts generated for the week starting ${toDateStr(monday)}`,
@@ -729,6 +926,7 @@ Deno.serve(async (req) => {
     totalCreated: created.length,
     jobReferralPosts: jobReferralCount,
     thoughtLeadershipPosts: thoughtLeadershipCount,
+    nichePosts: nicheCount,
     usedPlannerStrategies: plannerStrategies.length > 0,
     newRolesOnMonday: newRoles.length,
     errors: errors.length > 0 ? errors : undefined,

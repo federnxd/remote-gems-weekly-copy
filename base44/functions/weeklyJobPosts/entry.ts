@@ -163,6 +163,17 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole;
 
+  // ── Pause gate ────────────────────────────────────────────────────────
+  // Honors the global Play/Pause switch in the sidebar. When paused, we
+  // return a 200 with a message instead of doing any work — the cron
+  // shouldn't treat pause as an error.
+  try {
+    const settings = await db.entities.AutoPostSettings.list();
+    if (settings.length > 0 && settings[0].is_paused) {
+      return Response.json({ message: 'Auto-posting is paused. Skipping.', paused: true });
+    }
+  } catch { /* if settings entity missing, default to running */ }
+
   const today = new Date();
   const dayOfWeek = today.getDay(); // 3=Wed, 5=Fri, 6=Sat
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

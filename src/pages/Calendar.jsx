@@ -261,6 +261,7 @@ export default function Calendar() {
                           <GripVertical className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0 opacity-50 group-hover:opacity-100" />
                           <div className="min-w-0">
                             <div className={cn('w-1.5 h-1.5 rounded-full mt-1 mb-0.5 flex-shrink-0 inline-block mr-1', statusDot[post.status])} />
+                            {post.needs_review && <span className="text-[10px] mr-1" title="Held for review">🟠</span>}
                             <span className="font-medium text-foreground line-clamp-2">{post.title}</span>
                           </div>
                         </div>
@@ -389,6 +390,9 @@ export default function Calendar() {
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <Badge className={strategyColors[selectedPost.strategy]}>{selectedPost.strategy?.replace(/_/g, ' ')}</Badge>
                 <Badge variant="outline" className="capitalize">{selectedPost.status}</Badge>
+                {selectedPost.needs_review && (
+                  <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50">🟠 held for review</Badge>
+                )}
                 {selectedPost.scheduled_date && (
                   <span className="flex items-center gap-1 text-xs">
                     <Clock className="w-3 h-3" />
@@ -406,6 +410,25 @@ export default function Calendar() {
                 </details>
               )}
               <div className="flex gap-2">
+                {selectedPost.needs_review && selectedPost.status === 'scheduled' && (
+                  <Button
+                    onClick={() => updateMutation.mutate({ id: selectedPost.id, data: { needs_review: false } })}
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    Approve & release
+                  </Button>
+                )}
+                {!selectedPost.needs_review && selectedPost.status === 'scheduled' && (
+                  <Button
+                    onClick={() => updateMutation.mutate({ id: selectedPost.id, data: { needs_review: true } })}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Hold for review
+                  </Button>
+                )}
                 {selectedPost.status !== 'published' && (
                   <Button onClick={() => markPublished(selectedPost)} className="flex-1" size="sm">
                     Mark as Published

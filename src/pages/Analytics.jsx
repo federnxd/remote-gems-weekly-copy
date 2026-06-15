@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { postImpressions, postClicks, postReferrals, postHired, postLikes, postComments, postShares, hasEngagement } from '@/lib/post-metrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PlatformPerformanceTable from '@/components/analytics/PlatformPerformanceTable';
@@ -44,7 +45,7 @@ export default function Analytics() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const res = await base44.functions.invoke('syncLinkedInStats', {});
+      const res = await base44.functions.invoke('syncLinkedInStats', { manual: true });
       toast.success(`Synced ${res.data?.updated ?? 0} posts from LinkedIn`);
       queryClient.invalidateQueries({ queryKey: ['generated-posts'] });
     } catch (e) {
@@ -67,14 +68,14 @@ export default function Analytics() {
     );
   }
 
-  const published = posts.filter(p => p.status === 'published' || (p.impressions || 0) > 0);
-  const totalImpressions = posts.reduce((s, p) => s + (p.impressions || 0), 0);
-  const totalClicks = posts.reduce((s, p) => s + (p.clicks || 0), 0);
-  const totalReferrals = posts.reduce((s, p) => s + (p.referrals || 0), 0);
-  const totalHired = posts.reduce((s, p) => s + (p.hired || 0), 0);
-  const totalLikes = posts.reduce((s, p) => s + (p.likes || 0), 0);
-  const totalComments = posts.reduce((s, p) => s + (p.comments || 0), 0);
-  const totalShares = posts.reduce((s, p) => s + (p.shares || 0), 0);
+  const published = posts.filter(p => p.status === 'published' || hasEngagement(p));
+  const totalImpressions = posts.reduce((s, p) => s + postImpressions(p), 0);
+  const totalClicks = posts.reduce((s, p) => s + postClicks(p), 0);
+  const totalReferrals = posts.reduce((s, p) => s + postReferrals(p), 0);
+  const totalHired = posts.reduce((s, p) => s + postHired(p), 0);
+  const totalLikes = posts.reduce((s, p) => s + postLikes(p), 0);
+  const totalComments = posts.reduce((s, p) => s + postComments(p), 0);
+  const totalShares = posts.reduce((s, p) => s + postShares(p), 0);
   const avgCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0.00';
   const referralRate = totalImpressions > 0 ? ((totalReferrals / totalImpressions) * 100).toFixed(2) : '0.00';
 

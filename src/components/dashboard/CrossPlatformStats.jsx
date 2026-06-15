@@ -36,7 +36,7 @@ export default function CrossPlatformStats({ posts, onSynced }) {
   const handleSyncAll = async () => {
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke('syncAllPlatformStats', {});
+      const res = await base44.functions.invoke('syncAllPlatformStats', { manual: true });
       if (res.data?.success) {
         toast.success(res.data.message || 'All platform stats synced!');
         onSynced?.();
