@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
     const pageToken = Deno.env.get('FACEBOOK_PAGE_ACCESS_TOKEN');
     const pageId = Deno.env.get('FACEBOOK_PAGE_ID');
-    const igAccountId = Deno.env.get('INSTAGRAM_ACCOUNT_ID');
+    const igAccountId = Deno.env.get('INSTAGRAM_BUSINESS_ACCOUNT_ID');
     const threadsToken = Deno.env.get('THREADS_ACCESS_TOKEN');
     const threadsUserId = Deno.env.get('THREADS_USER_ID');
 
