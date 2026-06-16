@@ -83,85 +83,94 @@ Deno.serve(async (req) => {
 
     const db = base44.asServiceRole;
 
-    // Split into chunks of ~30 lines and extract them in parallel. Bigger
-    // chunks = fewer LLM calls = far fewer rate-limit (429) hits and a much
-    // faster total runtime (was timing out the browser at ~31s with 15-line
-    // chunks running many parallel LLM calls).
-    const chunks = chunkLines(syncText, 30);
-    const chunkResults = await Promise.all(chunks.map(c => extractChunk(db, c)));
+    // Snapshot existing roles ONCE up front so we can decide create-vs-update
+    // as each chunk arrives.
+    const existingRoles = await db.entities.OpenRole.list('-created_date', 1000);
+    const existingByTitle = new Map(existingRoles.map(r => [r.title.toLowerCase(), r]));
 
-    // Merge + dedupe by lowercased title (later chunks win on signal flags).
-    const byTitle = new Map();
-    for (const roles of chunkResults) {
+    // Split into chunks of ~30 lines. Bigger chunks = fewer LLM calls = far
+    // fewer rate-limit (429) hits and faster total runtime.
+    const chunks = chunkLines(syncText, 30);
+
+    // Process chunks in parallel, but each chunk PERSISTS its own roles as soon
+    // as its LLM extraction returns — instead of waiting for every chunk to
+    // finish. This means roles start appearing in the UI (via the frontend's
+    // refetch loop) within a few seconds, long before the request completes,
+    // so a browser timeout can no longer "lose" the result.
+    const seen = new Set();          // titles handled this run (dedupe across chunks)
+    const extracted = [];            // merged result returned to the caller
+    const newRolesForPosts = [];     // brand-new roles flagged is_new
+
+    await Promise.all(chunks.map(async (chunkText) => {
+      const roles = await extractChunk(db, chunkText);
+
+      const toCreate = [];
       for (const r of roles) {
         if (!r.title?.trim()) continue;
         const key = r.title.trim().toLowerCase();
-        const prev = byTitle.get(key) || {};
-        byTitle.set(key, {
+        if (seen.has(key)) continue;   // already handled by another chunk
+        seen.add(key);
+
+        const clean = {
           title: r.title.trim(),
-          is_new: r.is_new || prev.is_new || false,
-          is_high_demand: r.is_high_demand || prev.is_high_demand || false,
-          openings: r.openings || prev.openings || 0,
-          required_skills: r.required_skills || prev.required_skills || '',
-          pay_rate: r.pay_rate || prev.pay_rate || '',
-        });
-      }
-    }
-    const extracted = [...byTitle.values()];
-
-    // ── Persist directly in the backend ──────────────────────────────────
-    // Doing the DB writes here (instead of in the browser after the response)
-    // means the whole sync completes in one request and can't be lost to a
-    // frontend timeout.
-    const existingRoles = await db.entities.OpenRole.list('-created_date', 1000);
-    const extractedTitles = new Set(extracted.map(r => r.title.toLowerCase()));
-    const existingTitles = new Set(existingRoles.map(r => r.title.toLowerCase()));
-
-    const newOnes = extracted.filter(r => !existingTitles.has(r.title.toLowerCase()));
-    const toUpdate = existingRoles.filter(r => extractedTitles.has(r.title.toLowerCase()));
-    const removed = existingRoles.filter(r => !extractedTitles.has(r.title.toLowerCase()));
-
-    // New roles: a SINGLE bulkCreate call instead of one create per role. This
-    // is the key fix — firing 80 individual creates tripped the DB rate limit
-    // (429) and made the whole request take 30s+ (timing out the browser).
-    // One bulk write is fast and never rate-limits.
-    if (newOnes.length > 0) {
-      await db.entities.OpenRole.bulkCreate(
-        newOnes.map(r => ({
-          title: r.title,
-          category: categoryGuess(r.title),
-          priority: r.is_high_demand ? 'high' : 'medium',
-          is_active: true,
           is_new: r.is_new || false,
           is_high_demand: r.is_high_demand || false,
           openings: r.openings || 0,
           required_skills: r.required_skills || '',
           pay_rate: r.pay_rate || '',
-        }))
-      );
-    }
+        };
+        extracted.push(clean);
 
-    // Updates / deactivations have no bulk API, so run them in small sequential
-    // batches to stay under the rate limit.
-    const updateOps = [
-      ...toUpdate.map(role => () => {
-        const m = extracted.find(r => r.title.toLowerCase() === role.title.toLowerCase());
-        return db.entities.OpenRole.update(role.id, {
-          openings: m.openings ?? role.openings,
-          is_new: m.is_new || false,
-          is_high_demand: m.is_high_demand || false,
-          required_skills: m.required_skills || role.required_skills || '',
-          pay_rate: m.pay_rate || role.pay_rate || '',
-          is_active: true,
-        });
-      }),
-      ...removed.map(role => () => db.entities.OpenRole.update(role.id, { is_active: false, is_new: false, is_high_demand: false })),
-    ];
+        const existing = existingByTitle.get(key);
+        if (existing) {
+          // Update in place (kept light; updates are rare relative to creates).
+          await db.entities.OpenRole.update(existing.id, {
+            openings: clean.openings ?? existing.openings,
+            is_new: clean.is_new,
+            is_high_demand: clean.is_high_demand,
+            required_skills: clean.required_skills || existing.required_skills || '',
+            pay_rate: clean.pay_rate || existing.pay_rate || '',
+            is_active: true,
+          });
+        } else {
+          toCreate.push({
+            title: clean.title,
+            category: categoryGuess(clean.title),
+            priority: clean.is_high_demand ? 'high' : 'medium',
+            is_active: true,
+            is_new: clean.is_new,
+            is_high_demand: clean.is_high_demand,
+            openings: clean.openings,
+            required_skills: clean.required_skills,
+            pay_rate: clean.pay_rate,
+          });
+          if (clean.is_new) newRolesForPosts.push(clean);
+        }
+      }
+
+      // One bulk write per chunk — fast and never rate-limits.
+      if (toCreate.length > 0) {
+        await db.entities.OpenRole.bulkCreate(toCreate);
+      }
+    }));
+
+    const newOnes = newRolesForPosts; // for the response summary below
+    const extractedTitles = new Set(extracted.map(r => r.title.toLowerCase()));
+
+    // Deactivate roles that are no longer in the pasted list.
+    const removed = existingRoles.filter(r => !extractedTitles.has(r.title.toLowerCase()));
+    const toUpdate = existingRoles.filter(r => extractedTitles.has(r.title.toLowerCase()));
+
+    // Deactivations (removed roles) — run in small sequential batches to stay
+    // under the rate limit. Updates were already applied inline per-chunk above.
+    const deactivateOps = removed.map(role => () =>
+      db.entities.OpenRole.update(role.id, { is_active: false, is_new: false, is_high_demand: false })
+    );
 
     const BATCH = 5;
-    for (let i = 0; i < updateOps.length; i += BATCH) {
-      await Promise.all(updateOps.slice(i, i + BATCH).map(fn => fn()));
-      if (i + BATCH < updateOps.length) await new Promise(res => setTimeout(res, 300));
+    for (let i = 0; i < deactivateOps.length; i += BATCH) {
+      await Promise.all(deactivateOps.slice(i, i + BATCH).map(fn => fn()));
+      if (i + BATCH < deactivateOps.length) await new Promise(res => setTimeout(res, 300));
     }
 
     return Response.json({
