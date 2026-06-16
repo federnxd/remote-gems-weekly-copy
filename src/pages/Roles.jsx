@@ -20,7 +20,7 @@ const NON_LINKEDIN_PLATFORMS = [
 const categoryGuess = (title) => {
   const t = title.toLowerCase();
   // Engineering
-  if (/engineer|developer|devops|python|ios|android|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|blockchain|qa |quality assurance|mobile dev|web dev|sre |site reliability|platform engineer|infrastructure|firmware|embedded|architect|data platform|mlops|llm|nlp|computer vision|robotics|database admin|dba|systems|gameplay|data capture|annotation|labeling|tagger/.test(t)) return 'engineering';
+  if (/engineer|developer|devops|coding|coder|programmer|programming|python|java|javascript|typescript|golang|rust|c\+\+|\.net|react|node|ios|android|backend|frontend|full.stack|full stack|ml |ai |machine learning|data engineer|data analyst|data science|software|cloud|cybersecurity|security|blockchain|crypto|qa |quality assurance|mobile dev|web dev|sre |site reliability|platform engineer|infrastructure|firmware|embedded|architect|data platform|mlops|llm|nlp|computer vision|robotics|database admin|dba|sysadmin|systems|it support|tech support|technical support|help desk|network|gameplay|game dev|data capture|annotation|labeling|tagger|prompt engineer|code reviewer|technical expert/.test(t)) return 'engineering';
   // Design
   if (/ux|ui |user interface|user experience|graphic design|brand design|visual design|illustrat|adobe|motion graphic|animation|3d artist|photo|web design|product design|interaction design|figma|sketch/.test(t)) return 'design';
   // Media (audio/video/voice production)
