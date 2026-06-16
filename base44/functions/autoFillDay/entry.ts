@@ -604,12 +604,15 @@ Deno.serve(async (req) => {
   if (THOUGHT_LEADERSHIP_DAYS.includes(dayOffset)) {
     const theme = TOPIC_THEMES[dayOffset % TOPIC_THEMES.length];
 
-    for (const platform of NON_LINKEDIN_PLATFORMS) {
-      if (existingKeys.has(`${dateStr}::${platform}`)) continue;
+    // Generate all thought-leadership posts in PARALLEL. Previously this ran
+    // sequentially and each post could fire up to 11 slow web-search LLM calls
+    // (1 + 5 + 5 retries), so the request would hang around the 5th post and
+    // blow past the function timeout — leaving the frontend stuck forever.
+    const tlPlatforms = NON_LINKEDIN_PLATFORMS.filter(p => !existingKeys.has(`${dateStr}::${p}`));
 
+    const tlResults = await Promise.all(tlPlatforms.map(async (platform) => {
+      const limit = CHAR_LIMITS[platform] || 500;
       try {
-        const limit = CHAR_LIMITS[platform] || 500;
-
         const initialPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CHARACTER LIMIT: ${limit} characters MAX.`;
 
         let content = await db.integrations.Core.InvokeLLM({
@@ -618,10 +621,9 @@ Deno.serve(async (req) => {
           model: 'gemini_3_flash',
         });
 
-        // Regenerate if over limit
-        let attempts = 0;
-        while (content.length > limit && attempts < 5) {
-          attempts++;
+        // Single retry if over the limit, then truncate. Two attempts is plenty
+        // and keeps total runtime well under the timeout.
+        if (content.length > limit) {
           const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ PREVIOUS ATTEMPT EXCEEDED ${limit} CHARS (was ${content.length}). REGENERATE: Be much more concise. Count characters before outputting.`;
           content = await db.integrations.Core.InvokeLLM({
             prompt: regenPrompt,
@@ -629,26 +631,10 @@ Deno.serve(async (req) => {
             model: 'gemini_3_flash',
           });
         }
+        if (content.length > limit) content = content.slice(0, limit);
 
-        // Final validation - max 5 more attempts
-        let extraAttempts = 0;
-        while (content.length > limit && extraAttempts < 5) {
-          extraAttempts++;
-          const regenPrompt = buildThoughtLeadershipPrompt(platform, theme.theme, theme.angle, dayOffset, plannerContext) + `\n\n⚠️ CRITICAL: Still over ${limit} chars (was ${content.length}). REGENERATE from scratch. Be extremely concise. Count before outputting.`;
-          content = await db.integrations.Core.InvokeLLM({
-            prompt: regenPrompt,
-            add_context_from_internet: true,
-            model: 'gemini_3_flash',
-          });
-        }
-        // If still over limit, truncate
-        if (content.length > limit) {
-          content = content.slice(0, limit);
-        }
-
-        const defaultHour = 11;
         const plannerTime = plannerPostingTimes[platform];
-        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+        const timeStr = plannerTime || '11:00';
 
         const post = await db.entities.GeneratedPost.create({
           title: `Thought Leadership — ${platform} — ${dateStr}`,
@@ -660,10 +646,15 @@ Deno.serve(async (req) => {
           scheduled_time: timeStr,
           notes: `[AUTO_GENERATED] platform:${platform} type:thought_leadership category:${theme.category} theme:${theme.theme}`,
         });
-        created.push({ postId: post.id, platform, date: dateStr, type: 'thought_leadership', theme: theme.theme });
+        return { ok: true, postId: post.id, platform, date: dateStr, type: 'thought_leadership', theme: theme.theme };
       } catch (err) {
-        errors.push({ platform, type: 'thought_leadership', error: err.message });
+        return { ok: false, platform, type: 'thought_leadership', error: err.message };
       }
+    }));
+
+    for (const r of tlResults) {
+      if (r.ok) created.push({ postId: r.postId, platform: r.platform, date: r.date, type: r.type, theme: r.theme });
+      else errors.push({ platform: r.platform, type: r.type, error: r.error });
     }
   }
 
@@ -676,18 +667,16 @@ Deno.serve(async (req) => {
       ? `\n\nSPECIAL INSTRUCTION: Write EXCLUSIVELY for the ${nicheCats[0]} professional community. Use insider language.`
       : '';
 
-    for (const platform of NON_LINKEDIN_PLATFORMS) {
+    const nicheResults = await Promise.all(NON_LINKEDIN_PLATFORMS.map(async (platform) => {
+      const limit = CHAR_LIMITS[platform] || 500;
+      const wantHashtags = !['twitter', 'reddit', 'discord'].includes(platform);
       try {
-        const limit = CHAR_LIMITS[platform] || 500;
-        const wantHashtags = !['twitter', 'reddit', 'discord'].includes(platform);
-
         const basePrompt = buildPrompt(nicheRoles, platform, dayOffset, 'niche_community', plannerContext) + nicheExtra;
         const content = await generateReferralPost(db, basePrompt, limit, wantHashtags, platform);
 
         // Offset niche posts later in the day so they don't collide with thought posts
-        const defaultHour = 16;
         const plannerTime = plannerPostingTimes[platform];
-        const timeStr = plannerTime || `${defaultHour.toString().padStart(2, '0')}:00`;
+        const timeStr = plannerTime || '16:00';
 
         const post = await db.entities.GeneratedPost.create({
           title: `niche community — ${platform} — ${dateStr}`,
@@ -699,10 +688,15 @@ Deno.serve(async (req) => {
           scheduled_time: timeStr,
           notes: `[AUTO_GENERATED] platform:${platform} type:job_referral chars:${content.length}`,
         });
-        created.push({ postId: post.id, platform, date: dateStr, type: 'niche_community' });
+        return { ok: true, postId: post.id, platform };
       } catch (err) {
-        errors.push({ platform, type: 'niche_community', error: err.message });
+        return { ok: false, platform, error: err.message };
       }
+    }));
+
+    for (const r of nicheResults) {
+      if (r.ok) created.push({ postId: r.postId, platform: r.platform, date: dateStr, type: 'niche_community' });
+      else errors.push({ platform: r.platform, type: 'niche_community', error: r.error });
     }
   }
 
