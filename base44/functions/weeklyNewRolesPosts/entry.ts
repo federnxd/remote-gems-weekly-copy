@@ -47,23 +47,6 @@ Deno.serve(async (req) => {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // Monday: LinkedIn gets a post
-  // Non-LinkedIn: spread across Tue–Sun (offsets 1–6)
-  const linkedinResult = await db.functions.invoke('generateCampaignPosts', {
-    roles: newRoles.map(r => ({
-      title: r.title,
-      is_new: true,
-      required_skills: r.required_skills || '',
-      pay_rate: r.pay_rate || '',
-      openings: r.openings || 0,
-    })),
-    platforms: ['linkedin'],
-    scheduledDates: [todayStr],
-    scheduledTime: '08:00',
-    titlePrefix: `Weekly New Roles — ${todayStr}`,
-    highlightNew: true,
-  });
-
   // Spread non-LinkedIn platforms across Tue–Sun
   const nonLinkedinDates = NON_LINKEDIN_PLATFORMS.map((_, i) => getDateOffset(today, 1 + (i % 6)));
 
@@ -82,7 +65,7 @@ Deno.serve(async (req) => {
     highlightNew: true,
   });
 
-  const totalCreated = (linkedinResult?.data?.total || 0) + (nonLinkedinResult?.data?.total || 0);
+  const totalCreated = (nonLinkedinResult?.data?.total || 0);
 
   return Response.json({
     message: `Weekly new roles posts generated for ${newRoles.length} new role(s)`,
