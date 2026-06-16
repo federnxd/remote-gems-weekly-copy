@@ -14,7 +14,7 @@ const NON_LINKEDIN_PLATFORMS = [
   'flexjobs', 'remoteok', 'reddit', 'discord',
 ];
 
-const ALL_PLATFORMS = ['linkedin', ...NON_LINKEDIN_PLATFORMS];
+const ALL_PLATFORMS = [...NON_LINKEDIN_PLATFORMS];
 
 function getDateOffset(baseDate, offsetDays) {
   const d = new Date(baseDate);

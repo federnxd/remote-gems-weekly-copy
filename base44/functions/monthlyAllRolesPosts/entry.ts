@@ -8,7 +8,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
  */
 
 const ALL_PLATFORMS = [
-  'linkedin', 'twitter', 'instagram',
+  'twitter', 'instagram',
   'weworkremotely', 'wellfound', 'remotive',
   'flexjobs', 'remoteok', 'reddit', 'discord',
 ];

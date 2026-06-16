@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 // Reuse the same logic from autoFillWeek but for a single day
 
 const ALL_PLATFORMS = [
-  'linkedin', 'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
 ];
 
 const NON_LINKEDIN_PLATFORMS = [

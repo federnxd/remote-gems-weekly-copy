@@ -93,7 +93,7 @@ BRAND PHILOSOPHY (use to add depth to LinkedIn posts):
  */
 
 const ALL_PLATFORMS = [
-  'linkedin', 'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
+  'twitter', 'facebook', 'instagram', 'mastodon', 'bluesky', 'threads',
 ];
 
 const NON_LINKEDIN_PLATFORMS = [
