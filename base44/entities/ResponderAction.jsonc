@@ -1,0 +1,60 @@
+{
+  "name": "ResponderAction",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": [
+        "instagram",
+        "facebook",
+        "threads",
+        "twitter",
+        "linkedin",
+        "mastodon",
+        "bluesky"
+      ],
+      "description": "Platform where the action occurred"
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "dm_sent",
+        "comment_reply",
+        "public_reply",
+        "skipped_duplicate",
+        "skipped_quota"
+      ],
+      "description": "Type of action taken by the responder"
+    },
+    "trigger_text": {
+      "type": "string",
+      "description": "The comment or message text that triggered this action"
+    },
+    "trigger_post_id": {
+      "type": "string",
+      "description": "ID of the post where the trigger comment appeared"
+    },
+    "recipient_handle": {
+      "type": "string",
+      "description": "Username or handle of the person who triggered the action"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failure",
+        "skipped"
+      ],
+      "default": "success",
+      "description": "Outcome of the action"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes \u2014 error messages, skip reasons, etc."
+    }
+  },
+  "required": [
+    "platform",
+    "action_type"
+  ]
+}

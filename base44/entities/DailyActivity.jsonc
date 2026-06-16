@@ -1,0 +1,25 @@
+{
+  "name": "DailyActivity",
+  "type": "object",
+  "properties": {
+    "activity_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date this activity record represents (YYYY-MM-DD)"
+    },
+    "completed_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of completed task IDs for the day"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes the user added for the day"
+    }
+  },
+  "required": [
+    "activity_date"
+  ]
+}
