@@ -555,7 +555,7 @@ Deno.serve(async (req) => {
   const CHAR_LIMITS = {
     twitter: 280,
     threads: 300,
-    bluesky: 300,
+    bluesky: 250,
     facebook: 500,
     instagram: 500,
     mastodon: 500,
